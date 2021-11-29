@@ -43,13 +43,14 @@ class TrainTest:
     test: list
 
 
-COLORS = [*COLOR_NAMES][:3]
-TYPES = ["key", "ball", "box"]
-
-
 class Agent(WorldObj):
     def render(self, r):
         pass
+
+
+class ReproducibleEnv(RoomGridLevel, ABC):
+    def _rand_elem(self, iterable):
+        return super()._rand_elem(sorted(iterable))
 
 
 class RenderEnv(RoomGridLevel, ABC):
@@ -247,17 +248,19 @@ class GoToObjEnv(RenderEnv):
         self.instrs = GoToInstr(ObjDesc(*goal_object))
 
 
-class PickupEnv(RenderEnv):
+class PickupEnv(ReproducibleEnv, RenderEnv):
     def __init__(
         self,
         goal_objects: typing.Iterable[typing.Tuple[str, str]],
+        room_objects: typing.Iterable[typing.Tuple[str, str]],
         room_size: int,
         seed: int,
         strict: bool,
         num_dists: int = 1,
     ):
+        self.room_objects = sorted(room_objects)
         self.strict = strict
-        self.goal_object, *_ = self.goal_objects = list(goal_objects)
+        self.goal_objects = sorted(goal_objects)
         self.num_dists = num_dists
         super().__init__(
             room_size=room_size,
@@ -269,9 +272,14 @@ class PickupEnv(RenderEnv):
     def gen_mission(self):
         self.place_agent()
         self.connect_all()
-        self.add_distractors(num_distractors=self.num_dists, all_unique=False)
+
         goal_object = self._rand_elem(self.goal_objects)
         self.add_object(0, 0, *goal_object)
+        objects = {*self.room_objects} - {goal_object}
+        for _ in range(self.num_dists):
+            obj = self._rand_elem(objects)
+            self.add_object(0, 0, *obj)
+
         self.check_objs_reachable()
         self.instrs = PickupInstr(ObjDesc(*goal_object), strict=self.strict)
 
@@ -332,7 +340,7 @@ class ToggleEnv(RenderEnv):
         self.instrs = ToggleInstr(ObjDesc(*goal_object), strict=self.strict)
 
 
-class PickupEnvRoomObjects(RenderEnv):
+class PickupEnvRoomObjects(ReproducibleEnv, RenderEnv):
     def __init__(
         self,
         room_objects: typing.Iterable[typing.Tuple[str, str]],
