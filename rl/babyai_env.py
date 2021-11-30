@@ -54,12 +54,12 @@ class RenderEnv(RoomGridLevel, ABC):
         self.__done = None
         self.__action = None
 
-    def row_objs(self, i: int) -> Generator[Optional[WorldObj], None, None]:
-        for j in range(self.width):
-            if np.all(self.agent_pos == (i, j)):
-                yield Agent(color="blue", type="agent")
+    def row_objs(self, y: int) -> Generator[Optional[WorldObj], None, None]:
+        for x in range(self.width):
+            if np.all(self.agent_pos == (x, y)):
+                yield Agent(color="grey", type="agent")
             else:
-                yield self.grid.get(i, j)
+                yield self.grid.get(x, y)
 
     def row_strings(self, i: int) -> Generator[str, None, None]:
         for obj in self.row_objs(i):
@@ -67,13 +67,13 @@ class RenderEnv(RoomGridLevel, ABC):
                 string = ""
             elif isinstance(obj, Agent):
                 if self.agent_dir == 0:
-                    string = "v"
-                elif self.agent_dir == 1:
                     string = ">"
+                elif self.agent_dir == 1:
+                    string = "v"
                 elif self.agent_dir == 2:
-                    string = "^"
-                elif self.agent_dir == 3:
                     string = "<"
+                elif self.agent_dir == 3:
+                    string = "^"
                 else:
                     breakpoint()
                     raise RuntimeError
@@ -82,8 +82,13 @@ class RenderEnv(RoomGridLevel, ABC):
 
             string = f"{string:<{self.max_string_length}}"
             if obj is not None:
-                string = ansi_color(string, obj.color)
+                color = obj.color
+                string = self.color_obj(color, string)
             yield string + "\033[0m"
+
+    @staticmethod
+    def color_obj(color, string):
+        return ansi_color(string, tuple(COLORS[color]))
 
     @property
     def max_string_length(self):
@@ -114,10 +119,14 @@ class RenderEnv(RoomGridLevel, ABC):
                 if self.__action is None
                 else MiniGridEnv.Actions(self.__action).name,
             )
-            if pause:
-                input("Press enter to continue.")
+            self.pause(pause)
         else:
             return super().render(mode=mode, **kwargs)
+
+    @staticmethod
+    def pause(pause):
+        if pause:
+            input("Press enter to continue.")
 
     def step(self, action):
         self.__action = action
@@ -153,6 +162,7 @@ class PickupEnv(ReproducibleEnv, RenderEnv):
         for _ in range(self.num_dists):
             obj = self._rand_elem(objects)
             self.add_object(0, 0, *obj)
+
         self.check_objs_reachable()
         self.instrs = PickupInstr(ObjDesc(*goal_object), strict=self.strict)
 
@@ -179,10 +189,9 @@ class MissionWrapper(gym.Wrapper, abc.ABC):
     def render(self, mode="human", pause=True, **kwargs):
         self.env.render(pause=False)
         print(self._mission)
-        if pause:
-            input("Press enter to coninue.")
+        self.env.pause(pause)
 
-    def change_mission(self, mission):
+    def change_mission(self, mission: str) -> str:
         raise NotImplementedError
 
 
@@ -297,17 +306,13 @@ class PlantAnimalWrapper(MissionWrapper):
         ],
     }
 
-    def change_mission(self, mission):
+    def change_mission(self, mission: str) -> str:
         for k, v in self.replacements.items():
             if k in mission:
                 replacement = self.np_random.choice(v)
                 mission = mission.replace(k, replacement)
 
         return mission
-
-
-class InvalidInstructionError(RuntimeError):
-    pass
 
 
 class ActionInObsWrapper(gym.Wrapper):
@@ -460,11 +465,12 @@ def main(args: "Args"):
             step(env.actions.done)
             return
 
+    room_objects = [("ball", col) for col in ("black", "white")]
     env = PickupEnv(
-        seed=args.seed,
-        strict=args.strict,
-        room_objects=[],  # TODO
         room_size=args.room_size,
+        seed=args.seed,
+        room_objects=room_objects,
+        strict=True,
     )
     if args.agent_view:
         env = RGBImgPartialObsWrapper(env)
@@ -483,5 +489,7 @@ if __name__ == "__main__":
         tile_size: int = 32
         agent_view: bool = False
         test: bool = False
+        not_strict: bool = False
+        num_dists: int = 1
 
     main(Args().parse_args())
