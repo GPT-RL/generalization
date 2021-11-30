@@ -2,9 +2,7 @@ import functools
 from typing import List, Literal, cast
 
 import gym
-import torch
 from stable_baselines3.common.monitor import Monitor
-from torch.nn.utils.rnn import pad_sequence
 from transformers import GPT2Tokenizer
 
 import main
@@ -12,7 +10,6 @@ from babyai_agent import Agent
 from babyai_env import (
     ActionInObsWrapper,
     FullyObsWrapper,
-    MissionEnumeratorWrapper,
     PickupEnv,
     PlantAnimalWrapper,
     RolloutsWrapper,
@@ -86,26 +83,19 @@ class Trainer(main.Trainer):
             assert args.recurrent
         return args.recurrent
 
-    @staticmethod
-    def make_env(
-        env_id, seed, rank, allow_early_resets, render: bool = False, *args, **kwargs
-    ):
-        def _thunk():
-            tokenizer = kwargs.pop("tokenizer")
-            test = kwargs.pop("test")
-            kwargs.update(
-                goal_objects=(
-                    [("ball", "green")]
-                    if test
-                    else [
-                        ("box", "green"),
-                        ("box", "yellow"),
-                        ("ball", "yellow"),
-                    ]
-                )
-            )
-            if env_id == "plant-animal":
-                del kwargs["goal_objects"]
+    @classmethod
+    def make_env(cls, env, allow_early_resets, render: bool = False, *args, **kwargs):
+        def _thunk(
+            env_id: str,
+            room_size: int,
+            seed: int,
+            strict: bool,
+            test: bool,
+            tokenizer: GPT2Tokenizer,
+            **_,
+        ):
+            missions = None
+            if env == "plant-animal":
                 objects = {*PlantAnimalWrapper.replacements.keys()}
                 test_objects = {
                     PlantAnimalWrapper.purple_animal,
@@ -115,7 +105,12 @@ class Trainer(main.Trainer):
                 room_objects = [o.split() for o in room_objects]
                 room_objects = [(t, c) for (c, t) in room_objects]
                 kwargs.update(room_objects=room_objects)
-                _env = PickupEnv(*args, seed=seed + rank, **kwargs)
+                _env = PickupEnv(
+                    seed=seed,
+                    room_objects=room_objects,
+                    room_size=room_size,
+                    strict=strict,
+                )
                 _env = PlantAnimalWrapper(_env)
                 longest_mission = "pick up the grasshopper"
 
@@ -146,20 +141,12 @@ class Trainer(main.Trainer):
 
             return _env
 
-        return _thunk
+        return functools.partial(_thunk, env_id=env, **kwargs)
 
     @classmethod
-    def make_vec_envs(cls, args, device, **kwargs):
-        # assert len(test_objects) >= 3
-        tokenizer = GPT2Tokenizer.from_pretrained(get_gpt_size(args.embedding_size))
-        return super().make_vec_envs(
-            args,
-            device,
-            room_size=args.room_size,
-            tokenizer=tokenizer,
-            strict=args.strict,
-            **kwargs,
-        )
+    def make_vec_envs(cls, *args, embedding_size: int, **kwargs):
+        tokenizer = GPT2Tokenizer.from_pretrained(get_gpt_size(embedding_size))
+        return super().make_vec_envs(*args, **kwargs, tokenizer=tokenizer)
 
 
 if __name__ == "__main__":

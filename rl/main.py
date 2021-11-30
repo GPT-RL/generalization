@@ -162,7 +162,7 @@ class Trainer:
         torch.set_num_threads(1)
         device = torch.device("cuda:0" if args.cuda else "cpu")
 
-        envs = cls.make_vec_envs(args, device, test=False, render=args.render)
+        envs = cls.make_vec_envs(device=device, test=False, **args.as_dict())
 
         agent = cls.make_agent(envs=envs, args=args)
         if args.load_id is not None:
@@ -206,9 +206,7 @@ class Trainer:
             if args.test_interval is not None and j % args.test_interval == 0:
                 cls.evaluate(
                     agent=agent,
-                    envs=cls.make_vec_envs(
-                        args, device, test=True, render=args.render_test
-                    ),
+                    envs=cls.make_vec_envs(device=device, test=True, **args.as_dict()),
                     num_processes=args.num_processes,
                     device=device,
                     start=start,
@@ -406,10 +404,8 @@ class Trainer:
         logging.info(f"Sending blob took {time.time() - tick} seconds.")
 
     @staticmethod
-    def make_env(
-        env_id, seed, rank, allow_early_resets, *args, render: bool = False, **kwargs
-    ):
-        def _thunk():
+    def make_env(env, seed, allow_early_resets, render: bool = False, **kwargs):
+        def _thunk(env_id):
             if env_id.startswith("dm"):
                 _, domain, task = env_id.split(".")
                 env = dmc2gym.make(domain_name=domain, task_name=task)
@@ -424,7 +420,7 @@ class Trainer:
                 env = NoopResetEnv(env, noop_max=30)
                 env = MaxAndSkipEnv(env, skip=4)
 
-            env.seed(seed + rank)
+            env.seed(seed)
 
             if str(env.__class__.__name__).find("TimeLimit") >= 0:
                 env = TimeLimitMask(env)
@@ -452,16 +448,31 @@ class Trainer:
 
             return env
 
-        return _thunk
+        return functools.partial(_thunk, env_id=env)
 
     @classmethod
-    def make_vec_envs(cls, args, device, num_frame_stack=None, **kwargs):
+    def make_vec_envs(
+        cls,
+        device,
+        num_processes,
+        render,
+        render_test,
+        seed,
+        sync_envs,
+        test,
+        num_frame_stack=None,
+        **kwargs,
+    ):
+        if test:
+            render = render_test
         envs = [
-            cls.make_env(args.env, args.seed, i, False, **kwargs)
-            for i in range(args.num_processes)
+            cls.make_env(
+                seed=seed + i, render=render, test=test, device=device, **kwargs
+            )
+            for i in range(num_processes)
         ]
 
-        if len(envs) > 1:
+        if len(envs) > 1 and not sync_envs:
             envs = SubprocVecEnv(envs)
         else:
             envs = DummyVecEnv(envs)
