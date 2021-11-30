@@ -147,17 +147,19 @@ class RenderColorEnv(RenderEnv, ABC):
         return color.ljust(len(string))
 
 
-class PickupEnv(ReproducibleEnv, RenderEnv):
+class PickupEnv(RenderEnv, ReproducibleEnv):
     def __init__(
         self,
+        goal_objects: typing.Iterable[typing.Tuple[str, str]],
         room_objects: typing.Iterable[typing.Tuple[str, str]],
         room_size: int,
         seed: int,
         strict: bool,
         num_dists: int = 1,
     ):
+        self.room_objects = sorted(room_objects)
         self.strict = strict
-        self.room_objects = list(room_objects)
+        self.goal_objects = sorted(goal_objects)
         self.num_dists = num_dists
         super().__init__(
             room_size=room_size,
@@ -169,7 +171,8 @@ class PickupEnv(ReproducibleEnv, RenderEnv):
     def gen_mission(self):
         self.place_agent()
         self.connect_all()
-        goal_object = self._rand_elem(self.room_objects)
+
+        goal_object = self._rand_elem(self.goal_objects)
         self.add_object(0, 0, *goal_object)
         objects = {*self.room_objects} - {goal_object}
         for _ in range(self.num_dists):
@@ -523,11 +526,12 @@ def main(args: "Args"):
     env = PickupEnv(
         room_size=args.room_size,
         seed=args.seed,
+        goal_objects=room_objects,
         room_objects=room_objects,
         strict=True,
     )
     if args.agent_view:
-        env = RGBImgPartialObsWrapper(env)
+        env = RGBImgObsWithDirectionWrapper(env)
         env = ImgObsWrapper(env)
     window = Window("gym_minigrid")
     window.reg_key_handler(key_handler)

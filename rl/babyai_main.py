@@ -108,6 +108,7 @@ class Trainer(main.Trainer):
                 _env = PickupEnv(
                     seed=seed,
                     room_objects=room_objects,
+                    goal_objects=room_objects,
                     room_size=room_size,
                     strict=strict,
                 )
