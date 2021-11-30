@@ -87,35 +87,35 @@ class Base(NNBase):
             h, w, d = image_shape
             dummy_input = torch.zeros(1, d, h, w)
 
-            self.image_net = nn.Sequential(
-                init_(nn.Conv2d(d, 32, 8, stride=4)),
-                nn.ReLU(),
-                init_(nn.Conv2d(32, 64, 4, stride=2)),
-                nn.ReLU(),
-                init_(nn.Conv2d(64, 32, 3, stride=1)),
-                nn.ReLU(),
-                nn.Flatten(),
-            )
-            try:
-                output = self.image_net(dummy_input)
-                assert not second_layer
-            except RuntimeError:
-                self.image_net = (
-                    nn.Sequential(
-                        init_(nn.Conv2d(d, 32, 3, stride=2)),
-                        nn.ReLU(),
-                        init_(nn.Conv2d(32, 32, 3, stride=1)),
-                        nn.ReLU(),
-                        nn.Flatten(),
-                    )
-                    if second_layer
-                    else nn.Sequential(
-                        init_(nn.Conv2d(d, 32, 3, 2)),
-                        nn.ReLU(),
-                        nn.Flatten(),
-                    )
+            # self.image_net = nn.Sequential(
+            #     init_(nn.Conv2d(d, 32, 8, stride=4)),
+            #     nn.ReLU(),
+            #     init_(nn.Conv2d(32, 64, 4, stride=2)),
+            #     nn.ReLU(),
+            #     init_(nn.Conv2d(64, 32, 3, stride=1)),
+            #     nn.ReLU(),
+            #     nn.Flatten(),
+            # )
+            # try:
+            #     output = self.image_net(dummy_input)
+            #     assert not second_layer
+            # except RuntimeError:
+            self.image_net = (
+                nn.Sequential(
+                    init_(nn.Conv2d(d, 32, 3, stride=2)),
+                    nn.ReLU(),
+                    init_(nn.Conv2d(32, 32, 3, stride=1)),
+                    nn.ReLU(),
+                    nn.Flatten(),
                 )
-                output = self.image_net(dummy_input)
+                if second_layer
+                else nn.Sequential(
+                    init_(nn.Conv2d(d, 32, 3, 2)),
+                    nn.ReLU(),
+                    nn.Flatten(),
+                )
+            )
+            output = self.image_net(dummy_input)
         else:
             dummy_input = torch.zeros(image_shape)
             self.image_net = nn.Sequential(
