@@ -1,29 +1,8 @@
+import torch
 from torch import nn
-from transformers import GPT2Config, GPT2Model
 
 import babyai_agent
-from utils import get_gpt_size
-
-
-def build_gpt(gpt_size, randomize_parameters):
-    gpt_size = get_gpt_size(gpt_size)
-    return (
-        GPT2Model(
-            GPT2Config.from_pretrained(
-                gpt_size,
-                use_cache=False,
-                output_attentions=False,
-                output_hidden_states=False,
-            )
-        )
-        if randomize_parameters
-        else GPT2Model.from_pretrained(
-            gpt_size,
-            use_cache=False,
-            output_attentions=False,
-            output_hidden_states=False,
-        )
-    )
+from utils import build_gpt
 
 
 class Agent(babyai_agent.Agent):

@@ -475,7 +475,7 @@ def main(args: "Args"):
 
     def step(action):
         obs, reward, done, info = env.step(action)
-        print("step=%s, reward=%.2f" % (env.step_count, reward))
+        print(f"step={env.step_count}, reward={reward}, success={info.get('success')}")
 
         if done:
             print("done!")
