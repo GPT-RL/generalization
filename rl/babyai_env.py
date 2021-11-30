@@ -1,18 +1,15 @@
 import abc
-import itertools
 import re
 import typing
 from abc import ABC
 from dataclasses import astuple, dataclass
-from functools import total_ordering
-from typing import Any, Callable, Generator, List, Optional, Set, TypeVar, Union
+from typing import Generator, Optional, TypeVar
 
 import gym
 import gym_minigrid
 import numpy as np
 from babyai.levels.levelgen import RoomGridLevel
 from babyai.levels.verifier import (
-    BeforeInstr,
     ObjDesc,
     PickupInstr,
 )
@@ -28,29 +25,6 @@ from gym_minigrid.window import Window
 from gym_minigrid.wrappers import (
     ImgObsWrapper,
     RGBImgObsWrapper,
-)
-
-from descs import (
-    CardinalDirection,
-    CornerDesc,
-    FaceDesc,
-    LocDesc,
-    NegativeObjDesc,
-    OrdinalDirection,
-    RoomDesc,
-    RowDesc,
-    TYPES,
-    WallDesc,
-)
-from instrs import (
-    FaceInstr,
-    GoToCornerInstr,
-    GoToLoc,
-    GoToRoomInstr,
-    GoToRow,
-    GoToWallInstr,
-    MultiAndInstr,
-    ToggleInstr,
 )
 
 T = TypeVar("T")  # Declare type variable

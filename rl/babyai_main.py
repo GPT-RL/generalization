@@ -19,7 +19,6 @@ from babyai_env import (
     RGBImgObsWithDirectionWrapper,
     RenderColorPickupEnv,
     RolloutsWrapper,
-    ZeroOneRewardWrapper,
 )
 from envs import RenderWrapper, VecPyTorch
 from utils import get_gpt_size
