@@ -99,10 +99,8 @@ class Trainer(main.Trainer):
             train_colors: str,
             **_,
         ):
-            missions = None
             _kwargs = dict(room_size=room_size, strict=strict, seed=seed)
-
-            if env == "plant-animal":
+            if env_id == "plant-animal":
                 objects = {*PlantAnimalWrapper.replacements.keys()}
                 test_objects = {
                     PlantAnimalWrapper.purple_animal,
@@ -112,13 +110,7 @@ class Trainer(main.Trainer):
                 objects = [o.split() for o in objects]
                 objects = [(t, c) for (c, t) in objects]
                 kwargs.update(room_objects=objects)
-                _env = PickupEnv(
-                    seed=seed,
-                    room_objects=objects,
-                    goal_objects=objects,
-                    room_size=room_size,
-                    strict=strict,
-                )
+                _env = PickupEnv(room_objects=objects, goal_objects=objects, **_kwargs)
                 _env = PlantAnimalWrapper(_env)
                 longest_mission = "pick up the grasshopper"
 
