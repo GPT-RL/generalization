@@ -144,6 +144,10 @@ class Base(NNBase):
 
         self.train()
 
+    def build_encodings(self, encoded):
+        _, encoded = torch.sort(encoded)
+        return nn.Embedding.from_pretrained(encoded.float())
+
     def build_embeddings(self):
         num_embeddings = int(self.observation_spaces.mission.nvec[0])
         return nn.Sequential(
@@ -160,9 +164,9 @@ class Base(NNBase):
             )
         )
 
-        image = inputs.image.reshape(-1, *self.observation_spaces.image.shape).permute(
-            0, 3, 1, 2
-        )
+        image = inputs.image.reshape(-1, *self.observation_spaces.image.shape)
+        if len(image.shape) == 4:
+            image = image.permute(0, 3, 1, 2)
         image = self.image_net(image)
         directions = inputs.direction.long()
         directions = F.one_hot(directions, num_classes=self.num_directions).squeeze(1)
