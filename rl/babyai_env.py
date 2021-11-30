@@ -18,7 +18,11 @@ from colors import color as ansi_color
 from gym.spaces import Box, Dict, Discrete, MultiDiscrete, Tuple
 from gym_minigrid.minigrid import COLORS, MiniGridEnv, OBJECT_TO_IDX, WorldObj
 from gym_minigrid.window import Window
-from gym_minigrid.wrappers import ImgObsWrapper, RGBImgPartialObsWrapper
+from gym_minigrid.wrappers import (
+    ImgObsWrapper,
+    RGBImgObsWrapper,
+    RGBImgPartialObsWrapper,
+)
 from transformers import GPT2Tokenizer
 
 T = TypeVar("T")  # Declare type variable
@@ -412,6 +416,17 @@ class MissionEnumeratorWrapper(gym.ObservationWrapper):
         return observation
 
 
+class DirectionWrapper(gym.Wrapper):
+    def __init__(self, env):
+        super().__init__(env)
+        self.observation_space = Dict(
+            spaces=dict(
+                **self.observation_space.spaces,
+                direction=Discrete(4),
+            )
+        )
+
+
 class FullyObsWrapper(gym_minigrid.wrappers.FullyObsWrapper):
     def __init__(self, env):
         super().__init__(env)
@@ -421,6 +436,20 @@ class FullyObsWrapper(gym_minigrid.wrappers.FullyObsWrapper):
                 direction=Discrete(4),
             )
         )
+
+    def observation(self, obs):
+        direction = obs["direction"]
+        obs = super().observation(obs)
+        obs["direction"] = direction
+        return obs
+
+
+class RGBImgObsWithDirectionWrapper(RGBImgObsWrapper):
+    """
+    Wrapper to use fully observable RGB image as the only observation output,
+    no language/mission. This can be used to have the agent to solve the
+    gridworld in pixel space.
+    """
 
     def observation(self, obs):
         direction = obs["direction"]
