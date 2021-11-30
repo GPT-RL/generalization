@@ -1,37 +1,50 @@
 import logging
-from typing import Optional
+from typing import cast
 
+import gym
 import torch
 
 import babyai_main
-from envs import VecPyTorch
-from gpt_agent import Agent
+from gpt_agent import Agent, GPTEmbed
 
 
 class Args(babyai_main.Args):
-    data_parallel: bool = True
-    linguistic_analysis_save_interval: Optional[
-        str
-    ] = None  # path to save linguistic analysis data
     randomize_parameters: bool = False
-    train_ln: bool = True
+    train_ln: bool = False
     train_wpe: bool = False
+    gpt: bool = False
+
+
+class ArgsType(Args, babyai_main.ArgsType):
+    pass
 
 
 class Trainer(babyai_main.Trainer):
     @classmethod
-    def make_agent(cls, envs: VecPyTorch, args: Args) -> Agent:
-        action_space = envs.action_space
-        observation_space, *_ = envs.get_attr("original_observation_space")
+    def _make_agent(
+        cls,
+        # encoded: torch.Tensor,
+        action_space: gym.spaces.Discrete,
+        observation_space: gym.spaces.Dict,
+        args: ArgsType,
+    ):
+        kwargs = dict(
+            embedding_size=args.embedding_size,
+            randomize_parameters=args.randomize_parameters,
+            train_wpe=args.train_wpe,
+            train_ln=args.train_ln,
+        )
+        if not (args.train_ln or args.train_wpe):
+            embedding = GPTEmbed(**kwargs)
+            # encoded = embedding.forward(encoded)
         return Agent(
             action_space=action_space,
-            embedding_size=args.embedding_size,
             hidden_size=args.hidden_size,
             observation_space=observation_space,
-            randomize_parameters=args.randomize_parameters,
-            train_ln=args.train_ln,
-            train_wpe=args.train_wpe,
             recurrent=cls.recurrent(args),
+            second_layer=args.second_layer,
+            # encoded=encoded,
+            **kwargs,
         )
 
     @staticmethod
@@ -65,6 +78,14 @@ class Trainer(babyai_main.Trainer):
                 except RuntimeError:
                     pass
 
+    @classmethod
+    def train(cls, args: Args, **kwargs):
+        return (
+            super().train(args, **kwargs)
+            if args.gpt
+            else babyai_main.Trainer().train(args, **kwargs)
+        )
+
 
 if __name__ == "__main__":
-    Trainer.main(Args().parse_args())
+    Trainer.main(cast(ArgsType, Args().parse_args()))

@@ -397,6 +397,21 @@ class TokenizerWrapper(gym.ObservationWrapper):
         return observation
 
 
+class MissionEnumeratorWrapper(gym.ObservationWrapper):
+    def __init__(self, env, missions: typing.Iterable[str]):
+        self.missions = list(missions)
+        self.cache = {k: i for i, k in enumerate(self.missions)}
+        super().__init__(env)
+        spaces = {**self.observation_space.spaces}
+        self.observation_space = Dict(
+            spaces=dict(**spaces, mission=Discrete(len(self.cache)))
+        )
+
+    def observation(self, observation):
+        observation.update(mission=self.cache[observation["mission"]])
+        return observation
+
+
 class FullyObsWrapper(gym_minigrid.wrappers.FullyObsWrapper):
     def __init__(self, env):
         super().__init__(env)

@@ -55,6 +55,8 @@ class Base(NNBase):
         hidden_size: int,
         observation_space: Dict,
         recurrent: bool,
+        second_layer: bool,
+        # encoded: torch.Tensor,
     ):
         super().__init__(
             recurrent=recurrent,
