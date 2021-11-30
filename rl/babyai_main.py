@@ -101,14 +101,14 @@ class Trainer(main.Trainer):
                     PlantAnimalWrapper.purple_animal,
                     PlantAnimalWrapper.black_plant,
                 }
-                room_objects = test_objects if test else objects - test_objects
-                room_objects = [o.split() for o in room_objects]
-                room_objects = [(t, c) for (c, t) in room_objects]
-                kwargs.update(room_objects=room_objects)
+                objects = test_objects if test else objects - test_objects
+                objects = [o.split() for o in objects]
+                objects = [(t, c) for (c, t) in objects]
+                kwargs.update(room_objects=objects)
                 _env = PickupEnv(
                     seed=seed,
-                    room_objects=room_objects,
-                    goal_objects=room_objects,
+                    room_objects=objects,
+                    goal_objects=objects,
                     room_size=room_size,
                     strict=strict,
                 )
