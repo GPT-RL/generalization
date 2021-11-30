@@ -1,3 +1,4 @@
+from torch import nn
 from transformers import GPT2Config, GPT2Model
 
 import babyai_agent
@@ -28,6 +29,24 @@ def build_gpt(gpt_size, randomize_parameters):
 class Agent(babyai_agent.Agent):
     def build_base(self, obs_shape, **kwargs):
         return Base(**kwargs)
+
+
+class GPTEmbed(nn.Module):
+    def __init__(
+        self,
+        embedding_size: str,
+        randomize_parameters: bool,
+        train_wpe: bool,
+        train_ln: bool,
+    ):
+        super().__init__()
+        self.gpt = build_gpt(embedding_size, randomize_parameters)
+        for name, p in self.gpt.named_parameters():
+            requires_grad = (train_wpe and "wpe" in name) or (train_ln and "ln" in name)
+            p.requires_grad_(requires_grad)
+
+    def forward(self, x, **_):
+        return self.gpt.forward(x).last_hidden_state[:, -1]
 
 
 class Base(babyai_agent.Base):

@@ -33,6 +33,21 @@ class Agent(agent.Agent):
         return Base(**kwargs)
 
 
+class GRUEmbed(nn.Module):
+    def __init__(self, num_embeddings: int, hidden_size: int, output_size: int):
+        super().__init__()
+        gru = nn.GRU(hidden_size, hidden_size, batch_first=True)
+        self.embed = nn.Sequential(
+            nn.Embedding(num_embeddings, hidden_size),
+            gru,
+        )
+        self.projection = nn.Linear(hidden_size, output_size)
+
+    def forward(self, x, **_):
+        hidden = self.embed.forward(x)[1].squeeze(0)
+        return self.projection(hidden)
+
+
 class Base(NNBase):
     def __init__(
         self,
