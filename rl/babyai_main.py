@@ -29,22 +29,13 @@ class Args(main.Args):
     embedding_size: Literal[
         "small", "medium", "large", "xl"
     ] = "medium"  # what size of pretrained GPT to use
-    env: str = "GoToLocal"  # env ID for gym
-    go_and_face_synonyms: str = None
-    negation_types: str = None
-    negation_colors: str = None
+    env: str = "plant-animal"  # env ID for gym
     num_dists: int = 1
     room_size: int = 5
-    scaled_reward: bool = False
     second_layer: bool = False
     strict: bool = True
     test_colors: str = None
     train_colors: str = None
-    test_descriptors: str = None
-    test_number: int = None
-    test_wordings: str = None
-    test_walls: str = "south,southeast"
-    train_wordings: str = None
 
     def configure(self) -> None:
         self.add_subparsers(dest="logger_args")
@@ -103,7 +94,6 @@ class Trainer(main.Trainer):
             env_id: str,
             num_dists: int,
             room_size: int,
-            scaled_reward: bool,
             seed: int,
             strict: bool,
             test: bool,
@@ -158,8 +148,6 @@ class Trainer(main.Trainer):
                 _env = FullyObsWrapper(_env)
 
             _env = ActionInObsWrapper(_env)
-            if not (env_id in ("go-to-loc", "go-to-row", "linear") and scaled_reward):
-                _env = ZeroOneRewardWrapper(_env)
             _env = MissionEnumeratorWrapper(_env, missions=missions)
             _env = RolloutsWrapper(_env)
 
