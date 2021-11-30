@@ -8,17 +8,9 @@ from babyai_agent import Agent
 from babyai_env import (
     ActionInObsWrapper,
     FullyObsWrapper,
-    GoToLocEnv,
-    GoToObjEnv,
     PickupEnv,
-    PickupEnvRoomObjects,
-    PickupRedEnv,
     PlantAnimalWrapper,
     RolloutsWrapper,
-    SequenceEnv,
-    SequenceSynonymWrapper,
-    SynonymWrapper,
-    ToggleEnv,
     TokenizerWrapper,
     ZeroOneRewardWrapper,
 )
@@ -76,25 +68,7 @@ class Trainer(main.Trainer):
                     ]
                 )
             )
-            if env_id == "go-to-obj":
-                env = GoToObjEnv(*args, seed=seed + rank, **kwargs)
-                longest_mission = "go to the red ball"
-            elif env_id == "go-to-loc":
-                del kwargs["strict"]
-                del kwargs["goal_objects"]
-                env = GoToLocEnv(*args, seed=seed + rank, **kwargs)
-                longest_mission = "go to (0, 0)"
-            elif env_id == "toggle":
-                env = ToggleEnv(*args, seed=seed + rank, **kwargs)
-                longest_mission = "toggle the red ball"
-            elif env_id == "pickup":
-                env = PickupEnv(*args, seed=seed + rank, num_dists=1, **kwargs)
-                longest_mission = "pick up the red ball"
-            elif env_id == "pickup-synonyms":
-                env = PickupRedEnv(*args, seed=seed + rank, **kwargs)
-                env = SynonymWrapper(env)
-                longest_mission = "pick-up the crimson phone"
-            elif env_id == "plant-animal":
+            if env_id == "plant-animal":
                 del kwargs["goal_objects"]
                 objects = {*PlantAnimalWrapper.replacements.keys()}
                 test_objects = {
@@ -105,24 +79,11 @@ class Trainer(main.Trainer):
                 room_objects = [o.split() for o in room_objects]
                 room_objects = [(t, c) for (c, t) in room_objects]
                 kwargs.update(room_objects=room_objects)
-                env = PickupEnvRoomObjects(*args, seed=seed + rank, **kwargs)
+                env = PickupEnv(*args, seed=seed + rank, **kwargs)
                 env = PlantAnimalWrapper(env)
                 longest_mission = "pick up the grasshopper"
             else:
-                del kwargs["goal_objects"]
-                if env_id == "sequence-paraphrases":
-                    env = SequenceEnv(
-                        *args, seed=seed + rank, num_rows=1, num_cols=1, **kwargs
-                    )
-                    env = SequenceSynonymWrapper(env, test=test)
-                    longest_mission = "go to (0, 0), having already gone to (0, 0)"
-                elif env_id == "sequence":
-                    env = SequenceEnv(
-                        *args, seed=seed + rank, num_rows=1, num_cols=1, **kwargs
-                    )
-                    longest_mission = "go to (0, 0), then go to (0, 0)"
-                else:
-                    raise InvalidEnvIdError()
+                raise InvalidEnvIdError()
 
             env = FullyObsWrapper(env)
             env = ActionInObsWrapper(env)
