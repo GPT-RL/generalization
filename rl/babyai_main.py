@@ -12,6 +12,8 @@ from babyai_env import (
     FullyObsWrapper,
     PickupEnv,
     PlantAnimalWrapper,
+    RGBImgObsWithDirectionWrapper,
+    RenderColorPickupEnv,
     RolloutsWrapper,
     TokenizerWrapper,
     ZeroOneRewardWrapper,
@@ -87,14 +89,19 @@ class Trainer(main.Trainer):
     def make_env(cls, env, allow_early_resets, render: bool = False, *args, **kwargs):
         def _thunk(
             env_id: str,
+            num_dists: int,
             room_size: int,
             seed: int,
             strict: bool,
             test: bool,
+            test_colors: str,
             tokenizer: GPT2Tokenizer,
+            train_colors: str,
             **_,
         ):
             missions = None
+            _kwargs = dict(room_size=room_size, strict=strict, seed=seed)
+
             if env == "plant-animal":
                 objects = {*PlantAnimalWrapper.replacements.keys()}
                 test_objects = {
@@ -120,12 +127,33 @@ class Trainer(main.Trainer):
                         for v in vs:
                             yield f"pick up the {v}"
 
-                missions = list(missions())
+            elif env_id == "colors":
+                test_colors = test_colors.split(",")
+                train_colors = train_colors.split(",")
+                ball = "ball"
+                train_objects = sorted({(ball, col) for col in train_colors})
+                test_objects = sorted({(ball, col) for col in test_colors})
+                objects = test_objects if test else train_objects
+                _env = RenderColorPickupEnv(
+                    *args,
+                    num_dists=num_dists,
+                    room_objects=objects,
+                    goal_objects=objects,
+                    **_kwargs,
+                )
+
+                def missions():
+                    for obj, col in train_objects + test_objects:
+                        yield f"pick up the {col} {obj}"
 
             else:
                 raise RuntimeError(f"{env_id} is not a valid env_id")
 
+            missions = list(missions())
             _env = FullyObsWrapper(_env)
+            if env_id == "colors":
+                _env = RGBImgObsWithDirectionWrapper(_env)
+
             _env = ActionInObsWrapper(_env)
             _env = ZeroOneRewardWrapper(_env)
             _env = TokenizerWrapper(
