@@ -1,4 +1,5 @@
 import abc
+import re
 import typing
 from abc import ABC
 from dataclasses import astuple, dataclass
@@ -15,7 +16,7 @@ from babyai.levels.verifier import (
 )
 from colors import color as ansi_color
 from gym.spaces import Box, Dict, Discrete, MultiDiscrete, Tuple
-from gym_minigrid.minigrid import MiniGridEnv, OBJECT_TO_IDX, WorldObj
+from gym_minigrid.minigrid import COLORS, MiniGridEnv, OBJECT_TO_IDX, WorldObj
 from gym_minigrid.window import Window
 from gym_minigrid.wrappers import ImgObsWrapper, RGBImgPartialObsWrapper
 from transformers import GPT2Tokenizer
@@ -134,6 +135,14 @@ class RenderEnv(RoomGridLevel, ABC):
         return s, self.__reward, self.__done, i
 
 
+class RenderColorEnv(RenderEnv, ABC):
+    @staticmethod
+    def color_obj(color: str, string: str):
+        if re.match("([v^><]|wall) *", string):
+            return string
+        return color.ljust(len(string))
+
+
 class PickupEnv(ReproducibleEnv, RenderEnv):
     def __init__(
         self,
@@ -167,7 +176,8 @@ class PickupEnv(ReproducibleEnv, RenderEnv):
         self.instrs = PickupInstr(ObjDesc(*goal_object), strict=self.strict)
 
 
-COLOR = "red"
+class RenderColorPickupEnv(RenderColorEnv, PickupEnv):
+    pass
 
 
 class MissionWrapper(gym.Wrapper, abc.ABC):
