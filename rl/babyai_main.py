@@ -2,24 +2,27 @@ import functools
 from typing import List, Literal, cast
 
 import gym
+import torch
+from stable_baselines3.common.monitor import Monitor
+from torch.nn.utils.rnn import pad_sequence
+from transformers import BertTokenizer, GPT2Tokenizer
+
 import main
 from babyai_agent import Agent
 from babyai_env import (
     ActionInObsWrapper,
     FullyObsWrapper,
+    MissionEnumeratorWrapper,
     NormalizeColorsWrapper,
     PickupEnv,
     PlantAnimalWrapper,
-    RenderColorPickupEnv,
     RGBImgObsWithDirectionWrapper,
     RGBtoRYBWrapper,
+    RenderColorPickupEnv,
     RolloutsWrapper,
-    TokenizerWrapper,
     ZeroOneRewardWrapper,
 )
 from envs import RenderWrapper, VecPyTorch
-from stable_baselines3.common.monitor import Monitor
-from transformers import GPT2Tokenizer
 
 
 class Args(main.Args):
@@ -36,7 +39,6 @@ class Args(main.Args):
     env: str = "plant-animal"  # env ID for gym
     num_dists: int = 1
     room_size: int = 5
-    second_layer: bool = False
     strict: bool = True
     test_colors: str = None
     train_colors: str = None
@@ -56,30 +58,30 @@ class Trainer(main.Trainer):
         action_space = envs.action_space
         observation_space, *_ = envs.get_attr("original_observation_space")
         missions: List[str]
-        # missions, *_ = envs.get_attr("missions")
-        # if "gpt" in args.pretrained_model:
-        #     tokenizer = GPT2Tokenizer.from_pretrained(args.pretrained_model)
-        # elif "bert" in args.pretrained_model:
-        #     tokenizer = BertTokenizer.from_pretrained(args.pretrained_model)
-        # else:
-        #     raise RuntimeError(f"Invalid model name: {args.pretrained_model}")
-        # encoded = [tokenizer.encode(m, return_tensors="pt") for m in missions]
-        # encoded = [torch.squeeze(m, 0) for m in encoded]
-        # pad_token_id = tokenizer.pad_token_id
-        # if pad_token_id is None:
-        #     pad_token_id = tokenizer.eos_token_id
-        # encoded = pad_sequence(encoded, padding_value=pad_token_id).T
+        missions, *_ = envs.get_attr("missions")
+        if "gpt" in args.pretrained_model:
+            tokenizer = GPT2Tokenizer.from_pretrained(args.pretrained_model)
+        elif "bert" in args.pretrained_model:
+            tokenizer = BertTokenizer.from_pretrained(args.pretrained_model)
+        else:
+            raise RuntimeError(f"Invalid model name: {args.pretrained_model}")
+        encoded = [tokenizer.encode(m, return_tensors="pt") for m in missions]
+        encoded = [torch.squeeze(m, 0) for m in encoded]
+        pad_token_id = tokenizer.pad_token_id
+        if pad_token_id is None:
+            pad_token_id = tokenizer.eos_token_id
+        encoded = pad_sequence(encoded, padding_value=pad_token_id).T
         return cls._make_agent(
             action_space=action_space,
             observation_space=observation_space,
-            # encoded=encoded,
+            encoded=encoded,
             args=args,
         )
 
     @classmethod
     def _make_agent(
         cls,
-        # encoded: torch.Tensor,
+        encoded: torch.Tensor,
         action_space: gym.spaces.Discrete,
         observation_space: gym.spaces.Dict,
         args: ArgsType,
@@ -90,7 +92,7 @@ class Trainer(main.Trainer):
             hidden_size=args.hidden_size,
             observation_space=observation_space,
             recurrent=cls.recurrent(args),
-            # encoded=encoded,
+            encoded=encoded,
         )
 
     @staticmethod
@@ -109,7 +111,6 @@ class Trainer(main.Trainer):
             strict: bool,
             test: bool,
             test_colors: str,
-            tokenizer: GPT2Tokenizer,
             train_colors: str,
             **_,
         ):
@@ -126,7 +127,6 @@ class Trainer(main.Trainer):
                 kwargs.update(room_objects=objects)
                 _env = PickupEnv(objects=objects, **_kwargs)
                 _env = PlantAnimalWrapper(_env)
-                longest_mission = "pick up the grasshopper"
 
                 def missions():
                     for _, vs in _env.replacements.items():
@@ -160,12 +160,7 @@ class Trainer(main.Trainer):
 
             _env = ActionInObsWrapper(_env)
             _env = ZeroOneRewardWrapper(_env)
-            _env = TokenizerWrapper(
-                _env,
-                tokenizer=tokenizer,
-                longest_mission=longest_mission,
-            )
-            # _env = MissionEnumeratorWrapper(_env, missions=missions)
+            _env = MissionEnumeratorWrapper(_env, missions=missions)
             _env = RolloutsWrapper(_env)
 
             _env = Monitor(_env, allow_early_resets=allow_early_resets)
@@ -175,11 +170,6 @@ class Trainer(main.Trainer):
             return _env
 
         return functools.partial(_thunk, env_id=env, **kwargs)
-
-    @classmethod
-    def make_vec_envs(cls, *args, pretrained_model: str, **kwargs):
-        tokenizer = GPT2Tokenizer.from_pretrained(pretrained_model)
-        return super().make_vec_envs(*args, **kwargs, tokenizer=tokenizer)
 
 
 if __name__ == "__main__":

@@ -354,12 +354,10 @@ class RolloutsWrapper(gym.ObservationWrapper):
         self.original_observation_space = Tuple(
             astuple(Spaces(**self.observation_space.spaces))
         )
-        image_space = spaces["image"]
-        mission_space = spaces["mission"]
+        n_discrete = sum(isinstance(s, Discrete) for s in spaces.values())
         self.observation_space = Box(
-            shape=[np.prod(image_space.shape) + 2 + np.prod(mission_space.shape)],
+            shape=[np.prod(spaces["image"].shape) + n_discrete],
             low=-np.inf,
-            # direction_space = spaces["direction"]
             high=np.inf,
         )
 
@@ -370,7 +368,7 @@ class RolloutsWrapper(gym.ObservationWrapper):
                     image=observation["image"].flatten(),
                     direction=np.array([observation["direction"]]),
                     action=np.array([int(observation["action"])]),
-                    mission=observation["mission"],
+                    mission=np.array([int(observation["mission"])]),
                 )
             )
         )
@@ -401,9 +399,8 @@ class MissionEnumeratorWrapper(gym.ObservationWrapper):
         self.cache = {k: i for i, k in enumerate(self.missions)}
         super().__init__(env)
         spaces = {**self.observation_space.spaces}
-        self.observation_space = Dict(
-            spaces=dict(**spaces, mission=Discrete(len(self.cache)))
-        )
+        spaces.update(mission=Discrete(len(self.cache)))
+        self.observation_space = Dict(spaces=spaces)
 
     def observation(self, observation):
         observation.update(mission=self.cache[observation["mission"]])

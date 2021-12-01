@@ -1,15 +1,16 @@
 from dataclasses import astuple
 
-import agent
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from agent import NNBase
-from babyai_env import Spaces
 from gym import Space
 from gym.spaces import Box, Dict, Discrete, MultiDiscrete
 from transformers import BertConfig, GPT2Config, GPTNeoConfig
+
+import agent
+from agent import NNBase
+from babyai_env import Spaces
 from utils import init
 
 
@@ -54,7 +55,7 @@ class Base(NNBase):
         hidden_size: int,
         observation_space: Dict,
         recurrent: bool,
-        # encoded: torch.Tensor,
+        encoded: torch.Tensor,
     ):
         super().__init__(
             recurrent=recurrent,
@@ -93,6 +94,7 @@ class Base(NNBase):
         else:
             raise RuntimeError(f"Invalid model name: {pretrained_model}")
 
+        self.encodings = self.build_encodings(encoded)
         self.embeddings = self.build_embeddings()
 
         init_ = lambda m: init(
@@ -157,11 +159,11 @@ class Base(NNBase):
         return nn.Embedding.from_pretrained(encoded.float())
 
     def build_embeddings(self):
-        num_embeddings = int(self.observation_spaces.mission.nvec[0])
-        return nn.Sequential(
-            nn.Embedding(num_embeddings, self.embedding_size),
-            nn.GRU(self.embedding_size, self.embedding_size, batch_first=True),
-        )
+        return GRUEmbed(1 + int(self.encodings.weight.max()), 100, self.embedding_size)
+
+    def embed_mission(self, mission: torch.Tensor):
+        encoded = self.encodings(mission.long())
+        return self.embeddings(encoded.long())
 
     def forward(self, inputs, rnn_hxs, masks):
         inputs = Spaces(
@@ -181,7 +183,7 @@ class Base(NNBase):
         action = inputs.action.long()
         action = F.one_hot(action, num_classes=self.num_actions).squeeze(1)
 
-        mission = self.embed(inputs.mission.long())
+        mission = self.embed_mission(inputs.mission.squeeze(-1))
         x = torch.cat([image, directions, action, mission], dim=-1)
         x = self.merge(x)
         if self.is_recurrent:
