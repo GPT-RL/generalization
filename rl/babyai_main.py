@@ -109,7 +109,7 @@ class Trainer(main.Trainer):
                 objects = [o.split() for o in objects]
                 objects = [(t, c) for (c, t) in objects]
                 kwargs.update(room_objects=objects)
-                _env = PickupEnv(room_objects=objects, goal_objects=objects, **_kwargs)
+                _env = PickupEnv(objects=objects, **_kwargs)
                 _env = PlantAnimalWrapper(_env)
                 longest_mission = "pick up the grasshopper"
 
@@ -126,11 +126,7 @@ class Trainer(main.Trainer):
                 test_objects = sorted({(ball, col) for col in test_colors})
                 objects = test_objects if test else train_objects
                 _env = RenderColorPickupEnv(
-                    *args,
-                    num_dists=num_dists,
-                    room_objects=objects,
-                    goal_objects=objects,
-                    **_kwargs,
+                    *args, num_dists=num_dists, objects=objects, **_kwargs
                 )
 
                 def missions():

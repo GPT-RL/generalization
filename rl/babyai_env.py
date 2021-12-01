@@ -143,16 +143,14 @@ class RenderColorEnv(RenderEnv, ABC):
 class PickupEnv(RenderEnv, ReproducibleEnv):
     def __init__(
         self,
-        goal_objects: typing.Iterable[typing.Tuple[str, str]],
-        room_objects: typing.Iterable[typing.Tuple[str, str]],
+        objects: typing.Iterable[typing.Tuple[str, str]],
         room_size: int,
         seed: int,
         strict: bool,
         num_dists: int = 1,
     ):
-        self.room_objects = sorted(room_objects)
+        self.objects = sorted(objects)
         self.strict = strict
-        self.goal_objects = sorted(goal_objects)
         self.num_dists = num_dists
         super().__init__(
             room_size=room_size,
@@ -165,9 +163,9 @@ class PickupEnv(RenderEnv, ReproducibleEnv):
         self.place_agent()
         self.connect_all()
 
-        goal_object = self._rand_elem(self.goal_objects)
+        goal_object = self._rand_elem(self.objects)
         self.add_object(0, 0, *goal_object)
-        objects = {*self.room_objects} - {goal_object}
+        objects = {*self.objects} - {goal_object}
         for _ in range(self.num_dists):
             obj = self._rand_elem(objects)
             self.add_object(0, 0, *obj)
@@ -520,7 +518,7 @@ def main(args: "Args"):
         room_size=args.room_size,
         seed=args.seed,
         goal_objects=room_objects,
-        room_objects=room_objects,
+        objects=room_objects,
         strict=True,
     )
     if args.agent_view:
