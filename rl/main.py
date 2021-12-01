@@ -583,14 +583,15 @@ class Trainer:
     def excluded(cls):
         return {
             "config",
+            "host_machine",
+            "load_id",
+            "logger_args",
             "name",
-            "sync_envs",
             "render",
             "render_test",
             "subcommand",
             "sweep_id",
-            "load_id",
-            "logger_args",
+            "sync_envs",
         }
 
 
