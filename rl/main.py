@@ -8,13 +8,13 @@ from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
 from pprint import pformat
-from typing import List, Literal, Optional, cast, get_args
+from typing import List, Literal, Optional, cast
 
 import gym
 import numpy as np
+import sweep_logger
 import torch
 import utils
-import yaml
 from agent import Agent
 from envs import TimeLimitMask, TransposeImage, VecPyTorch, VecPyTorchFrameStack
 from gql import gql
@@ -211,7 +211,7 @@ class Trainer:
             # save for every interval-th episode or for the last epoch
             if (
                 args.save_interval is not None
-                and logger.run_id is not None
+                and logger is not None
                 and (j % args.save_interval == 0 or j == num_updates - 1)
                 and not render
             ):
@@ -308,11 +308,11 @@ class Trainer:
                         SAVE_COUNT: save_count,
                     }
                     logging.info(pformat(log))
-                    if logger.run_id is not None:
+                    if logger is not None:
                         log.update({"run ID": logger.run_id})
 
                     logging.info(pformat(log))
-                    if logger.run_id is not None:
+                    if logger is not None:
                         logger.log(log)
 
     @staticmethod
@@ -375,10 +375,10 @@ class Trainer:
                 }
             )
         logging.info(pformat(log))
-        if logger.run_id is not None:
+        if logger is not None:
             log.update({"run ID": logger.run_id})
         logging.info(pformat(log))
-        if logger.run_id is not None:
+        if logger is not None:
             logger.log(log)
 
         logging.info(
@@ -501,12 +501,30 @@ class Trainer:
     @classmethod
     def main(cls, args: ArgsType):
         logging.getLogger().setLevel(args.log_level)
-        if args.config is not None:
-            with Path(args.config).open() as f:
-                config = yaml.load(f, yaml.FullLoader)
-                args = args.from_dict(
-                    {k: v for k, v in config.items() if k not in cls.excluded()}
+
+        charts = [
+            *[
+                spec(x=HOURS, y=y)
+                for y in (
+                    (TEST_EPISODE_SUCCESS, EPISODE_SUCCESS)
+                    if args.env == "go-to-loc"
+                    else (TEST_EPISODE_RETURN, EPISODE_RETURN)
                 )
+            ],
+            *[
+                spec(x=STEP, y=y)
+                for y in (
+                    TEST_EPISODE_RETURN,
+                    EPISODE_RETURN,
+                    EPISODE_SUCCESS,
+                    TEST_EPISODE_SUCCESS,
+                    FPS,
+                    ENTROPY,
+                    GRADIENT_NORM,
+                    SAVE_COUNT,
+                )
+            ],
+        ]
 
         metadata = dict(reproducibility_info=args.get_reproducibility_info())
         if args.host_machine:
@@ -514,62 +532,32 @@ class Trainer:
         if name := getattr(args, "name", None):
             metadata.update(name=name)
 
-        logger: HasuraLogger
-        with HasuraLogger(args.graphql_endpoint) as logger:
-            valid = (*get_args(RUN_OR_SWEEP), None)
-            assert args.logger_args in valid, f"{args.logger_args} is not in {valid}."
+        params, logger = sweep_logger.initialize(
+            graphql_endpoint=args.graphql_endpoint,
+            config=args.config,
+            charts=charts,
+            sweep_id=getattr(args, "sweep_id", None),
+            load_id=args.load_id,
+            use_logger=args.logger_args is not None,
+            params=args.as_dict(),
+            metadata=metadata,
+        )
+        cls.update_args(args, params)
 
-            if args.logger_args is not None:
-                charts = [
-                    *[
-                        spec(x=HOURS, y=y)
-                        for y in (
-                            (TEST_EPISODE_SUCCESS, EPISODE_SUCCESS)
-                            if args.env == "go-to-loc"
-                            else (TEST_EPISODE_RETURN, EPISODE_RETURN)
-                        )
-                    ],
-                    *[
-                        spec(x=STEP, y=y)
-                        for y in (
-                            TEST_EPISODE_RETURN,
-                            EPISODE_RETURN,
-                            EPISODE_SUCCESS,
-                            TEST_EPISODE_SUCCESS,
-                            FPS,
-                            ENTROPY,
-                            GRADIENT_NORM,
-                            SAVE_COUNT,
-                        )
-                    ],
-                ]
-                sweep_id = getattr(args, "sweep_id", None)
-                parameters = logger.create_run(
-                    metadata=metadata,
-                    sweep_id=sweep_id,
-                    charts=charts,
-                )
-
-                if parameters is not None:
-                    cls.update_args(args, parameters)
-                logger.update_metadata(
-                    dict(parameters=args.as_dict(), run_id=logger.run_id)
-                )
-
-            if args.load_id is not None:
-                parameters = logger.execute(
-                    gql(
-                        """
-    query GetParameters($id: Int!) {
-      run_by_pk(id: $id) {
-        metadata(path: "parameters")
-      }
-    }"""
-                    ),
-                    variable_values=dict(id=args.load_id),
-                )["run_by_pk"]["metadata"]
-                cls.update_args(args, parameters, check_hasattr=False)
-            return cls.train(args=args, logger=logger)
+        if args.load_id is not None:
+            parameters = logger.execute(
+                gql(
+                    """
+query GetParameters($id: Int!) {
+  run_by_pk(id: $id) {
+    metadata(path: "parameters")
+  }
+}"""
+                ),
+                variable_values=dict(id=args.load_id),
+            )["run_by_pk"]["metadata"]
+            cls.update_args(args, parameters, check_hasattr=False)
+        return cls.train(args=args, logger=logger)
 
     @classmethod
     def update_args(cls, args, parameters, check_hasattr=True):
