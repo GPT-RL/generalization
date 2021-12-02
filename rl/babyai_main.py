@@ -2,9 +2,6 @@ import functools
 from typing import List, Literal, cast
 
 import gym
-from stable_baselines3.common.monitor import Monitor
-from transformers import GPT2Tokenizer
-
 import main
 from babyai_agent import Agent
 from babyai_env import (
@@ -12,13 +9,15 @@ from babyai_env import (
     FullyObsWrapper,
     PickupEnv,
     PlantAnimalWrapper,
-    RGBImgObsWithDirectionWrapper,
     RenderColorPickupEnv,
+    RGBImgObsWithDirectionWrapper,
     RolloutsWrapper,
     TokenizerWrapper,
     ZeroOneRewardWrapper,
 )
 from envs import RenderWrapper, VecPyTorch
+from stable_baselines3.common.monitor import Monitor
+from transformers import GPT2Tokenizer
 from utils import get_gpt_size
 
 

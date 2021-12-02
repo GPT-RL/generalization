@@ -41,7 +41,7 @@ The results use four seeds for the the top performing hyperparameter set for eac
 # ╔═╡ 1abe3478-49a7-443f-ab04-b1a97dea3b6b
 md"""
 ## Changes from previous experiments
-In order to run the GPT variant on smaller machines, I used the medium variant, which has 355M parameters as opposed to the XL's 1558 parameters. 
+In order to run the GPT variant on smaller machines, I used the medium variant, which has 355M parameters as opposed to the XL's 1558 parameters.
 
 I also searched several several additional deep learning mechanics:
 - Adam optimizer vs. RMSProp. Adam generally outperforms RMSProp.
@@ -54,7 +54,7 @@ I also searched several several additional deep learning mechanics:
 - adding layer normalization to the observation
 - adding layer normalization to the torso output
 
-Finally I restricted the search on the action hidden size (the extra layer after the GPT layers) to 
+Finally I restricted the search on the action hidden size (the extra layer after the GPT layers) to
  - 32
  - 64
  - 128
@@ -63,7 +63,7 @@ Finally I restricted the search on the action hidden size (the extra layer after
 # ╔═╡ a078faa8-f18b-44d2-9732-96326a1fc644
 md"""
 ## Assessment
-The GPT architecture appears to learn Atari tasks with performance comparable to the A2C baseline. However it does not outperform the baseline. This indicates that gradients are flowing correctly through the frozen weights of GPT but that the current GPT architecture is not leveraging the information stored in the GPT weights to improve performance. 
+The GPT architecture appears to learn Atari tasks with performance comparable to the A2C baseline. However it does not outperform the baseline. This indicates that gradients are flowing correctly through the frozen weights of GPT but that the current GPT architecture is not leveraging the information stored in the GPT weights to improve performance.
 """
 
 # ╔═╡ 654ad80a-a802-49d5-8373-b0b4056fd8f1
@@ -88,17 +88,17 @@ This report compares the performance of a standard A2C baseline against a "GPT-i
 
 #### A2C
 
-- Convolution with 
+- Convolution with
   - output-size $32$
   - kernel-shape $8\times 8$
   - stride $4\times 4$
 - ReLU
-- Convolution with 
+- Convolution with
   - output-size $64$
   - kernel-shape $4\times 4$
   - stride $2\times 2$
 - ReLU
-- Convolution with 
+- Convolution with
   - output-size $64$
   - kernel-shape $3\times 3$
   - stride $1\times 1$
@@ -109,17 +109,17 @@ This report compares the performance of a standard A2C baseline against a "GPT-i
 #### GPT
 (differences in **bold**)
 
-- Convolution with 
+- Convolution with
   - output-size $32$
   - kernel-shape $8\times 8$
   - stride $4\times 4$
 - ReLU
-- Convolution with 
+- Convolution with
   - output-size $64$
   - kernel-shape $4\times 4$
   - stride $2\times 2$
 - ReLU
-- Convolution with 
+- Convolution with
   - output-size $64$
   - kernel-shape $3\times 3$
   - stride $1\times 1$
@@ -267,7 +267,7 @@ function sweep_runs(sweep_ids::AbstractVector{Int}, max_step::Int)
 		}
   	"""
 	rows = @chain gql_query(query; variables=Dict("ids" => sweep_ids, "max_step" => max_step)) begin
-		_["logs_less_than_step"]		
+		_["logs_less_than_step"]
 		map(d -> Dict(
 				"run_id" => d["run_id"],
 				"sweep_id" => d["run"]["sweep_id"],
@@ -278,12 +278,12 @@ function sweep_runs(sweep_ids::AbstractVector{Int}, max_step::Int)
 				"action_hidden_size" => get(d, "action_hidden_size", nothing),
 				"gpt" => get(d, "gpt", nothing),
 				"time" => get(d, "time", nothing),
-				d..., 
+				d...,
 				), _)
 		collect
 	end
 	vcat(DataFrame.(rows)...)
-	
+
 end;
 
 # ╔═╡ b4f3d3e0-ef36-4674-9691-9a09de3d35e9

@@ -66,7 +66,7 @@ We have added a purple horizontal line to our graphs indicating the 10-million-s
 # ╔═╡ a15380dc-fb70-42ed-8025-77ba49dfb073
 md"""
 ## How fast is the new code?
-**Assessment:** The new code (PPO) runs at about the same speed as the old code (A2C). 
+**Assessment:** The new code (PPO) runs at about the same speed as the old code (A2C).
 
 The FPS for PPO is much lower (probably due to the high number of gradient updates performed per frame) but the PPO algorithm is more sample efficient.
 """
@@ -124,7 +124,7 @@ Note that the first graph only runs to 5 million frames which explains the poor 
 # ╔═╡ 9b367184-ecfa-40b1-b439-d6f517d022eb
 md"""
 ## Other Atari games
-As the preceeding graphs demonstrate, hyperparameter search is underway on four Atari games besides Breakout. Once this search is complete, we will select a single, best-performing set of parameters to run on the complete Atari suite. 
+As the preceeding graphs demonstrate, hyperparameter search is underway on four Atari games besides Breakout. Once this search is complete, we will select a single, best-performing set of parameters to run on the complete Atari suite.
 """
 
 # ╔═╡ 3838787a-f138-45ec-9a58-7879aeab9b99
@@ -146,17 +146,17 @@ This report compares the performance of a standard PPO baseline against a "GPT-i
 
 #### PPO baseline
 
-- Convolution with 
+- Convolution with
   - output-size $32$
   - kernel-shape $8\times 8$
   - stride $4\times 4$
 - ReLU
-- Convolution with 
+- Convolution with
   - output-size $64$
   - kernel-shape $4\times 4$
   - stride $2\times 2$
 - ReLU
-- Convolution with 
+- Convolution with
   - output-size $64$
   - kernel-shape $3\times 3$
   - stride $1\times 1$
@@ -167,17 +167,17 @@ This report compares the performance of a standard PPO baseline against a "GPT-i
 #### GPT
 (differences in **bold**)
 
-- Convolution with 
+- Convolution with
   - output-size $32$
   - kernel-shape $8\times 8$
   - stride $4\times 4$
 - ReLU
-- Convolution with 
+- Convolution with
   - output-size $64$
   - kernel-shape $4\times 4$
   - stride $2\times 2$
 - ReLU
-- Convolution with 
+- Convolution with
   - output-size $64$
   - kernel-shape $3\times 3$
   - stride $1\times 1$
@@ -258,7 +258,7 @@ function gql_query(query:: String; variables:: Dict = nothing)
 end;
 
 # ╔═╡ ce12c840-ece3-48bd-8696-40c1f9802695
-for (x,y) in [1=>2] 
+for (x,y) in [1=>2]
 	x
 end
 
@@ -280,7 +280,7 @@ function sweep_runs(sweep_ids::AbstractVector{Int}, max_step::Int)
 		}
   	"""
 	rows = @chain gql_query(query; variables=Dict("ids" => sweep_ids, "max_step" => max_step)) begin
-		_["logs_less_than_step"]		
+		_["logs_less_than_step"]
 		map(d -> Dict(
 				"run_id" => d["run_id"],
 				"sweep_id" => d["run"]["sweep_id"],
@@ -291,18 +291,18 @@ function sweep_runs(sweep_ids::AbstractVector{Int}, max_step::Int)
 				d...,
 				[k => v for (k1, v1, k2, v2) in [
 							(
-								"hours", get(d, "time-delta", 0) / 3600, 
+								"hours", get(d, "time-delta", 0) / 3600,
 								"time-delta", get(d, "hours", 0) * 3600,
 							),
 							(
 								"env", get(d, "env_name", nothing),
 								"env_name", get(d, "env", nothing),
 							)
-						] 
+						]
 						for (k, v) in [
-								(k1, get(d, k1, v1)), 
+								(k1, get(d, k1, v1)),
 								(k2, get(d, k2, v2)),
-								]]...,				
+								]]...,
 				[name => get(d, name, false) for name in [
 							"randomize_parameters"
 						]]...,
@@ -311,12 +311,12 @@ function sweep_runs(sweep_ids::AbstractVector{Int}, max_step::Int)
 							"gpt",
 							"time",
 							"gae",
-							"gradient_clip", 
-							"nonlinearity", 
+							"gradient_clip",
+							"nonlinearity",
 							"normalize_observation",
 							"normalize_torso_output",
 							"optimizer",
-							"num_embeddings", 
+							"num_embeddings",
 							"save_interval",
 							"save_path",
 							"config",
@@ -329,10 +329,10 @@ function sweep_runs(sweep_ids::AbstractVector{Int}, max_step::Int)
 							"entropy",
 							"eps",
 							"eval_interval",
-							"gae_lambda", 
-							"gpt_size", 
-							"linear_lr_decay", 
-							"lr", 
+							"gae_lambda",
+							"gpt_size",
+							"linear_lr_decay",
+							"lr",
 							"max_grad_norm",
 							"num_env_steps",
 							"num_mini_batch",
@@ -355,12 +355,12 @@ function sweep_runs(sweep_ids::AbstractVector{Int}, max_step::Int)
 							"resnet",
 							"rnn",
 							"training_steps",
-						]]... 
+						]]...
 				), _)
 		collect
 	end
 	vcat(DataFrame.(rows)...)
-	
+
 end;
 
 # ╔═╡ 03f1dfc7-970e-4920-9df9-79dd9f048e65
@@ -487,7 +487,7 @@ end
 
 # ╔═╡ 9000d2d6-353d-499f-ae30-0338dc85bfe9
 begin
-	Gadfly.with_theme(gadfly_theme) do	
+	Gadfly.with_theme(gadfly_theme) do
 		plot(
 			sweep_runs([677], 50000000),
 			x=:step, y="episode return",

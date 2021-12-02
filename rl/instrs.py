@@ -3,9 +3,6 @@ from abc import ABC
 
 import numpy as np
 from babyai.levels.verifier import ActionInstr, AndInstr
-from gym_minigrid.minigrid import MiniGridEnv
-from gym_minigrid.roomgrid import Room, RoomGrid
-
 from descs import (
     CardinalDirection,
     LocDesc,
@@ -14,6 +11,8 @@ from descs import (
     RoomDesc,
     RowDesc,
 )
+from gym_minigrid.minigrid import MiniGridEnv
+from gym_minigrid.roomgrid import Room, RoomGrid
 
 
 class GoToRoomInstr(ActionInstr):

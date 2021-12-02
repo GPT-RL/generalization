@@ -1,7 +1,5 @@
-import torch
-from torch import nn
-
 import babyai_agent
+from torch import nn
 from utils import build_gpt
 
 

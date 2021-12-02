@@ -16,14 +16,13 @@ import torch.optim as optim
 import yaml
 from gql import gql
 from run_logger import HasuraLogger
+from spec import spec
 from tap import Tap
 from torch.nn.utils.rnn import pad_sequence
 from torch.optim.lr_scheduler import StepLR
 from torch.utils.data import Dataset
 from tqdm import tqdm
 from transformers import GPT2Config, GPT2Model, GPT2Tokenizer
-
-from spec import spec
 
 GPTSize = Literal["small", "medium", "large", "xl"]
 

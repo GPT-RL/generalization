@@ -56,17 +56,17 @@ This report compares the performance of a standard A2C baseline against a "GPT-i
 
 #### A2C
 
-- Convolution with 
+- Convolution with
   - output-size $32$
   - kernel-shape $8\times 8$
   - stride $4\times 4$
 - ReLU
-- Convolution with 
+- Convolution with
   - output-size $64$
   - kernel-shape $4\times 4$
   - stride $2\times 2$
 - ReLU
-- Convolution with 
+- Convolution with
   - output-size $64$
   - kernel-shape $3\times 3$
   - stride $1\times 1$
@@ -77,17 +77,17 @@ This report compares the performance of a standard A2C baseline against a "GPT-i
 #### GPT
 (differences in **bold**)
 
-- Convolution with 
+- Convolution with
   - output-size $32$
   - kernel-shape $8\times 8$
   - stride $4\times 4$
 - ReLU
-- Convolution with 
+- Convolution with
   - output-size $64$
   - kernel-shape $4\times 4$
   - stride $2\times 2$
 - ReLU
-- Convolution with 
+- Convolution with
   - output-size $64$
   - kernel-shape $3\times 3$
   - stride $1\times 1$
@@ -151,7 +151,7 @@ function sweep_runs(sweep_ids::AbstractVector{Int}, max_step::Int)
 		}
   	"""
 	rows = @chain gql_query(query; variables=Dict("ids" => sweep_ids, "max_step" => max_step)) begin
-		_["logs_less_than_step"]		
+		_["logs_less_than_step"]
 		map(d -> Dict(
 				"run_id" => d["run_id"],
 				"sweep_id" => d["run"]["sweep_id"],
@@ -165,20 +165,20 @@ function sweep_runs(sweep_ids::AbstractVector{Int}, max_step::Int)
 							"gpt",
 							"time",
 							"gae",
-							"gradient_clip", 
-							"nonlinearity", 
+							"gradient_clip",
+							"nonlinearity",
 							"normalize_observation",
 							"normalize_torso_output",
 							"optimizer",
-							"num_embeddings", 
+							"num_embeddings",
 							"save_interval",
 							"save_path"
-						]]... 
+						]]...
 				), _)
 		collect
 	end
 	vcat(DataFrame.(rows)...)
-	
+
 end;
 
 # ╔═╡ 67944dbb-0ebb-44d9-b6f3-79e8d5610f61

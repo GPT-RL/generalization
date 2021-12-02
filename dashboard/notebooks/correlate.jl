@@ -49,10 +49,10 @@ function get_sweep(sweep_ids::AbstractVector{Int}, max_step::Int)
 			}
 		  }
 		}
-  	""" 
+  	"""
 	@chain query begin
 		gql_query(_; variables=Dict("ids" => sweep_ids, "max_step" => max_step))
-		_["logs_less_than_step"]		
+		_["logs_less_than_step"]
 		map(_) do d
 			Dict(
 				"run_id" => d["run_id"],
@@ -66,20 +66,20 @@ function get_sweep(sweep_ids::AbstractVector{Int}, max_step::Int)
 				d...,
 				[k => v for (k1, v1, k2, v2) in [
 							(
-								"hours", get(d, "time-delta", 0) / 3600, 
+								"hours", get(d, "time-delta", 0) / 3600,
 								"time-delta", get(d, "hours", 0) * 3600,
 							),
-						] 
+						]
 						for (k, v) in [
-								(k1, get(d, k1, v1)), 
+								(k1, get(d, k1, v1)),
 								(k2, get(d, k2, v2)),
-								]]...,				
+								]]...,
 				[name => get(d, name, false) for name in [
 							"randomize_parameters"
 						]]...,
 				[name => get(d, name, nothing) for name in [
 							"config",
-						]]... 
+						]]...
 			)
 		end
 		collect
@@ -105,8 +105,8 @@ end
 
 # ╔═╡ 5a29110f-deca-4812-9240-ab445ed665c8
 max_returns = Dict(
-	"BeamRider-v0" => 1590, 
-	"PongNoFrameskip-v0" => 20.7, 
+	"BeamRider-v0" => 1590,
+	"PongNoFrameskip-v0" => 20.7,
 	"Seaquest-v0" => 1204.5,
 	"Qbert-v0" => 14293.3
 ) # from PPO paper
@@ -116,7 +116,7 @@ dframe = @chain sweeps begin
 	filter(:step => >=(8000000), _)
 	groupby(_, [:env])
 	transform(_, ["env", EPISODE_RETURN] =>
-		function (envs, ret) 
+		function (envs, ret)
 			@match [Set(envs)...] (
 				[env] => (ret .- min_returns[env]) ./ max_returns[env] 							)
 		end => [EPISODE_RETURN])
@@ -140,7 +140,7 @@ dframe = @chain sweeps begin
 				"step",
 				"subcommand",
 				"sweep_id",
-				"time", 
+				"time",
 				"time-delta",
 				"value loss",
 			])
@@ -148,14 +148,14 @@ dframe = @chain sweeps begin
 end
 
 # ╔═╡ 2735fbc7-a318-4b4e-8ceb-0e65084cf972
-function filter_by_type(ty) 
+function filter_by_type(ty)
 	filter(name -> eltype(dframe[:, name]) == ty, names(dframe))
 end
 
 # ╔═╡ 1fe4e26a-2786-4094-a7e5-0154b461e874
 df = @chain dframe begin
 	groupby(_, "run ID")
-	combine(_, 
+	combine(_,
 		filter_by_type(Float64) .=> first,
 		filter_by_type(Int64) .=> first,
 		filter_by_type(Bool) .=> first,
@@ -185,13 +185,13 @@ end
 function get_cor_df(df)
 
 	cor_df = DataFrame()
-	
+
 	cor_df.name = names(df)
-	
+
 	cor_mat = cor(Matrix(df))
 	return_index = findfirst(name -> name == "episode_return_mean", names(df))
 	cor_df.correlation = cor_mat[:, return_index]
-	
+
 	sort!(cor_df, [:correlation], )
 	cor_df
 end

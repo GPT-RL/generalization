@@ -5,29 +5,28 @@ from dataclasses import dataclass, replace
 from typing import List, Literal, NamedTuple
 
 import numpy as np
+from babyai_agent import get_size
+from babyai_env import Spaces
+from babyai_main import Trainer
 from gql import Client, gql
 from gql.transport.requests import RequestsHTTPTransport
 from gym_minigrid.minigrid import (
+    IDX_TO_COLOR,
+    IDX_TO_OBJECT,
+    STATE_TO_IDX,
     Ball,
     Box,
     Door,
     Floor,
     Goal,
     Grid,
-    IDX_TO_COLOR,
-    IDX_TO_OBJECT,
     Key,
     Lava,
-    STATE_TO_IDX,
     Wall,
 )
 from gym_minigrid.window import Window
 from tap import Tap
 from transformers import GPT2Tokenizer
-
-from babyai_agent import get_size
-from babyai_env import Spaces
-from babyai_main import Trainer
 from utils import get_gpt_size
 
 INDEX = 0
@@ -98,7 +97,7 @@ query Query($id: Int) {
     embedding_size: metadata(path: "parameters.embedding_size")
     room_size: metadata(path: "parameters.room_size")
     num_dists: metadata(path: "parameters.num_dists")
-    strict: metadata(path: "parameters.strict") 
+    strict: metadata(path: "parameters.strict")
   }
 }
 """
@@ -111,7 +110,7 @@ query Query($id: Int) {
     embedding_size: metadata(path: "parameters.embedding_size")
     room_size: metadata(path: "parameters.room_size")
     num_dists: metadata(path: "parameters.num_dists")
-    strict: metadata(path: "parameters.strict") 
+    strict: metadata(path: "parameters.strict")
   }
 }
 """

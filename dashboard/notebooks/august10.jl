@@ -28,7 +28,7 @@ begin
 	import Plots
 
 	Gadfly.set_default_plot_size(16cm, 14cm)
-	
+
 	# For allowing interactive Gadly Plots
 	struct HTMLDocument
 		embedded
@@ -88,7 +88,7 @@ md"""
 
 # ╔═╡ cf3ec4b5-c187-422b-81e5-dd1f03b9d96c
 md"""
-# Validation of Random Initialization 
+# Validation of Random Initialization
 ```python
 import argparse
 
@@ -164,17 +164,17 @@ md"""
 function original_architecture_description(env, pretrained, random)
 	return md"""
 # "Original" Architecture
-- Convolution with 
+- Convolution with
   - output-size $32$
   - kernel-shape $8\times 8$
   - stride $4\times 4$
 - ReLU
-- Convolution with 
+- Convolution with
   - output-size $64$
   - kernel-shape $4\times 4$
   - stride $2\times 2$
 - ReLU
-- Convolution with 
+- Convolution with
   - output-size $64$
   - kernel-shape $3\times 3$
   - stride $1\times 1$
@@ -210,13 +210,13 @@ md"""
 # ╔═╡ 187cff60-2820-43fd-9486-d0dd6f322fde
 md"""
 # "One-Convolution, Multi-Embedding" Architecture
-- Convolution with 
+- Convolution with
   - **output-size $1024$**
   - kernel-shape $12\times 12$
   - stride $12\times 12$
   - This results in `num_embeddings = 49`
 - **GPT2 Medium Architecture**
-- single layer chosen from 
+- single layer chosen from
   - 32
   - 64
   - 128
@@ -229,12 +229,12 @@ Currently running.
 # ╔═╡ 36db8d48-40f4-4c99-b371-9786ea05bc1f
 md"""
 ## "Two-Convolution, Multi-Embedding" Architecture
-- Convolution with 
+- Convolution with
   - output-size $32$
   - kernel-shape $8\times 8$
   - stride $4\times 4$
 - ReLU
-- Convolution with 
+- Convolution with
   - **output-size $1024$ (GPT embedding size)**
   - kernel-shape $16\times 16$
   - stride $2\times 2$
@@ -250,12 +250,12 @@ Comparison of best run with randomized parameters is currently running.
 # ╔═╡ f739cd9f-f6fb-4203-8af6-801408c69c3d
 md"""
 ## "Two-Convolution, Multi-Embedding" Architecture "No GPT variant"
-- Convolution with 
+- Convolution with
   - output-size $32$
   - kernel-shape $8\times 8$
   - stride $4\times 4$
 - ReLU
-- Convolution with 
+- Convolution with
   - **output-size $1024$ (GPT embedding size)**
   - kernel-shape $16\times 16$
   - stride $2\times 2$
@@ -349,25 +349,25 @@ function sweep_runs(sweep_ids::AbstractVector{Int}, max_step::Int)
 
 		map(d -> Dict(
 				d...,
-				"action_hidden_size" => if isnothing(get(d, "action_hidden_size", 0)) 
-					0 
-				else 
-					get(d, "action_hidden_size", nothing) 
-				end, 
+				"action_hidden_size" => if isnothing(get(d, "action_hidden_size", 0))
+					0
+				else
+					get(d, "action_hidden_size", nothing)
+				end,
 				[k => v for (k1, v1, k2, v2) in [
 							(
-								"hours", get(d, "time-delta", 0) / 3600, 
+								"hours", get(d, "time-delta", 0) / 3600,
 								"time-delta", get(d, "hours", 0) * 3600,
 							),
 							(
 								"env", get(d, "env_name", nothing),
 								"env_name", get(d, "env", nothing),
 							)
-						] 
+						]
 						for (k, v) in [
-								(k1, get(d, k1, v1)), 
+								(k1, get(d, k1, v1)),
 								(k2, get(d, k2, v2)),
-								]]...,				
+								]]...,
 				[name => get(d, name, false) for name in [
 							"randomize_parameters"
 						]]...,
@@ -376,24 +376,24 @@ function sweep_runs(sweep_ids::AbstractVector{Int}, max_step::Int)
 							# "gpt",
 							# "time",
 							# "gae",
-							# "gradient_clip", 
-							# "nonlinearity", 
+							# "gradient_clip",
+							# "nonlinearity",
 							# "normalize_observation",
 							# "normalize_torso_output",
 							# "optimizer",
-							"num_embeddings", 
+							"num_embeddings",
 							# "save_interval",
 							# "save_path",
 							"config",
-							"graphql_endpoint", 
+							"graphql_endpoint",
 							"linguistic_analysis_path",
-							# "hidden_size", 
-							"host_machine", 
+							# "hidden_size",
+							"host_machine",
 							"kernel",
 							"stride",
-							"one_layer", 
+							"one_layer",
 							"transpose",
-						]]... 
+						]]...
 				), _)
 		filter(d -> !isnothing(d["episode return"]), _)
 	end
@@ -402,7 +402,7 @@ end;
 
 # ╔═╡ f53e9f0c-b53d-4db6-abe2-2be82077bf38
 function to_gif(images::Array{Vector{Vector{Float64}}, 1}, scale::Int = 3)
-	anim = @Plots.animate for img in images 
+	anim = @Plots.animate for img in images
 		Plots.heatmap(
 			Matrix(hcat(img...)') ./ 255.0;
 			color=:grays,
@@ -460,35 +460,35 @@ end
 plot_returns(
 	data=filter(sweep_runs([831], 50000000)) do row
 		row.env == "Qbert-v0"
-	end, 
+	end,
 	color=:randomize_parameters,
 	legend_title="Random Parameters"
 )
 
 # ╔═╡ fc36279e-2088-4eba-b48a-f05e82443540
 plot_returns(
-	data=sweep_runs([826], 50000000),  
+	data=sweep_runs([826], 50000000),
 	color=:randomize_parameters,
 	legend_title="Random Parameters"
 )
 
 # ╔═╡ baf58341-a518-40ca-bafa-d2e4127b3089
 plot_returns(
-	data=sweep_runs([787, 690], 50000000), 
+	data=sweep_runs([787, 690], 50000000),
 	color=:randomize_parameters,
 	legend_title="Random Parameters"
 )
 
 # ╔═╡ e7bd101e-a647-4ffd-9770-27c350396831
 plot_returns(
-	data=sweep_runs([687, 672], 50000000), 
+	data=sweep_runs([687, 672], 50000000),
 	color=:randomize_parameters,
 	legend_title="Random Parameters"
 )
 
 # ╔═╡ fdc8f9ff-11e6-4a14-b4f5-44030672bd1d
 plot_returns(
-	data=sweep_runs([827], 50000000), 
+	data=sweep_runs([827], 50000000),
 	color="run ID",
 	legend_title="Random Parameters"
 )
@@ -497,8 +497,8 @@ plot_returns(
 begin
 	@chain sweep_runs([830, 828], 50000000) begin
 		groupby(_, [:sweep_id, :randomize_parameters])
-		DataFrames.transform(_, 
-			[:sweep_id, :randomize_parameters] => 
+		DataFrames.transform(_,
+			[:sweep_id, :randomize_parameters] =>
 			(ids, rps) -> map(zip(ids, rps)) do (id, rp)
 				@match (id, rp) begin
 					(830, _) => "No GPT"
@@ -509,7 +509,7 @@ begin
 			end
 		)
 		plot_returns(
-			data=_, 
+			data=_,
 			color="sweep_id_randomize_parameters_function",
 			legend_title="Architecture"
 		)
@@ -520,8 +520,8 @@ end
 begin
 	@chain sweep_runs([830, 828], 50000000) begin
 		groupby(_, [:sweep_id, :randomize_parameters])
-		DataFrames.transform(_, 
-			[:sweep_id, :randomize_parameters] => 
+		DataFrames.transform(_,
+			[:sweep_id, :randomize_parameters] =>
 			(ids, rps) -> map(zip(ids, rps)) do (id, rp)
 				@match (id, rp) begin
 					(830, _) => "No GPT"
@@ -532,7 +532,7 @@ begin
 			end
 		)
 		plot_returns(
-			data=_, 
+			data=_,
 			color="sweep_id_randomize_parameters_function",
 			legend_title="Architecture"
 		)

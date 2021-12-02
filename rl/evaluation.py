@@ -1,7 +1,5 @@
 import numpy as np
 import torch
-
-import utils
 from envs import make_vec_envs
 
 

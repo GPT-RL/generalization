@@ -2,11 +2,10 @@ import glob
 import os
 
 import torch.nn as nn
+from envs import VecNormalize
 
 # Get a render function
 from transformers import GPT2Config, GPT2Model
-
-from envs import VecNormalize
 
 
 def get_render_func(venv):

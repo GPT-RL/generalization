@@ -117,9 +117,9 @@ md"##"
 
 # ╔═╡ ce675911-0344-43b6-8a8d-6750ddbb1924
 max_returns = Dict(
-	"BeamRider-v0" => 1590, 
-	"PongNoFrameskip-v0" => 20.7, 
-	"BreakoutNoFrameskip-v0" => 274.8, 
+	"BeamRider-v0" => 1590,
+	"PongNoFrameskip-v0" => 20.7,
+	"BreakoutNoFrameskip-v0" => 274.8,
 	"Seaquest-v0" => 1204.5,
 	"Qbert-v0" => 14293.3
 ) ;# from PPO paper
@@ -146,17 +146,17 @@ This report compares the performance of a standard PPO baseline against a "GPT-i
 
 #### PPO baseline
 
-- Convolution with 
+- Convolution with
   - output-size $32$
   - kernel-shape $8\times 8$
   - stride $4\times 4$
 - ReLU
-- Convolution with 
+- Convolution with
   - output-size $64$
   - kernel-shape $4\times 4$
   - stride $2\times 2$
 - ReLU
-- Convolution with 
+- Convolution with
   - output-size $64$
   - kernel-shape $3\times 3$
   - stride $1\times 1$
@@ -167,17 +167,17 @@ This report compares the performance of a standard PPO baseline against a "GPT-i
 #### GPT
 (differences in **bold**)
 
-- Convolution with 
+- Convolution with
   - output-size $32$
   - kernel-shape $8\times 8$
   - stride $4\times 4$
 - ReLU
-- Convolution with 
+- Convolution with
   - output-size $64$
   - kernel-shape $4\times 4$
   - stride $2\times 2$
 - ReLU
-- Convolution with 
+- Convolution with
   - output-size $64$
   - kernel-shape $3\times 3$
   - stride $1\times 1$
@@ -253,7 +253,7 @@ function gql_query(query:: String; variables:: Dict = nothing)
 end;
 
 # ╔═╡ ce12c840-ece3-48bd-8696-40c1f9802695
-for (x,y) in [1=>2] 
+for (x,y) in [1=>2]
 	x
 end
 
@@ -277,7 +277,7 @@ function sweep_runs(sweep_ids::AbstractVector{Int}, max_step::Int)
 		}
   	"""
 	rows = @chain gql_query(query; variables=Dict("ids" => sweep_ids, "max_step" => max_step)) begin
-		_["logs_less_than_step"]		
+		_["logs_less_than_step"]
 		map(d -> Dict(
 				"run_id" => d["run_id"],
 				"sweep_id" => d["run"]["sweep_id"],
@@ -288,18 +288,18 @@ function sweep_runs(sweep_ids::AbstractVector{Int}, max_step::Int)
 				d...,
 				[k => v for (k1, v1, k2, v2) in [
 							(
-								"hours", get(d, "time-delta", 0) / 3600, 
+								"hours", get(d, "time-delta", 0) / 3600,
 								"time-delta", get(d, "hours", 0) * 3600,
 							),
 							(
 								"env", get(d, "env_name", nothing),
 								"env_name", get(d, "env", nothing),
 							)
-						] 
+						]
 						for (k, v) in [
-								(k1, get(d, k1, v1)), 
+								(k1, get(d, k1, v1)),
 								(k2, get(d, k2, v2)),
-								]]...,				
+								]]...,
 				[name => get(d, name, false) for name in [
 							"randomize_parameters"
 						]]...,
@@ -308,12 +308,12 @@ function sweep_runs(sweep_ids::AbstractVector{Int}, max_step::Int)
 							"gpt",
 							"time",
 							"gae",
-							"gradient_clip", 
-							"nonlinearity", 
+							"gradient_clip",
+							"nonlinearity",
 							"normalize_observation",
 							"normalize_torso_output",
 							"optimizer",
-							"num_embeddings", 
+							"num_embeddings",
 							"save_interval",
 							"save_path",
 							"config",
@@ -326,10 +326,10 @@ function sweep_runs(sweep_ids::AbstractVector{Int}, max_step::Int)
 							"entropy",
 							"eps",
 							"eval_interval",
-							"gae_lambda", 
-							"gpt_size", 
-							"linear_lr_decay", 
-							"lr", 
+							"gae_lambda",
+							"gpt_size",
+							"linear_lr_decay",
+							"lr",
 							"max_grad_norm",
 							"num_env_steps",
 							"num_mini_batch",
@@ -352,14 +352,14 @@ function sweep_runs(sweep_ids::AbstractVector{Int}, max_step::Int)
 							"resnet",
 							"rnn",
 							"training_steps",
-							"graphql_endpoint", 
+							"graphql_endpoint",
 							"host_machine",
-						]]... 
+						]]...
 				), _)
 		collect
 	end
 	vcat(DataFrame.(rows)...)
-	
+
 end;
 
 # ╔═╡ 03f1dfc7-970e-4920-9df9-79dd9f048e65
@@ -503,7 +503,7 @@ dframe = @chain sweeps begin
 	filter(:step => >=(8000000), _)
 	groupby(_, [:env])
 	transform(_, ["env", EPISODE_RETURN] =>
-		function (envs, ret) 
+		function (envs, ret)
 			@match [Set(envs)...] (
 				[env] => (ret .- min_returns[env]) ./ max_returns[env]
 			)
@@ -529,7 +529,7 @@ dframe = @chain sweeps begin
 				"step",
 				"subcommand",
 				"sweep_id",
-				"time", 
+				"time",
 				"time-delta",
 				"value loss",
 			])
@@ -537,14 +537,14 @@ dframe = @chain sweeps begin
 end;
 
 # ╔═╡ cadd8b9d-791d-41d6-9f6c-b549d3bbd45f
-function filter_by_type(ty) 
+function filter_by_type(ty)
 	filter(name -> eltype(dframe[:, name]) == ty, names(dframe))
 end;
 
 # ╔═╡ b0d1c3b7-3cd6-4cd6-81b5-ad09f3d5cd10
 df = @chain dframe begin
 	groupby(_, "run ID")
-	combine(_, 
+	combine(_,
 		filter_by_type(Float64) .=> first,
 		filter_by_type(Int64) .=> first,
 		filter_by_type(Bool) .=> first,
@@ -573,12 +573,12 @@ end;
 
 # ╔═╡ 98c0fea9-f348-4e30-81c5-4e2f1e5e239e
 function get_cor_df(env)
-	
+
 	filtered = @chain df begin
 		filter(row -> row.env == env, _)
 		_[!, filter(name -> name != "env", names(_))]
 	end
-	
+
 	bool_df = DataFrame()
 	for name in names(df)
 		if !occursin("episode_return", name)
@@ -589,16 +589,16 @@ function get_cor_df(env)
 		end
 	end
     bool_df.episode_return_mean = df.episode_return_mean
-	
+
 	cor_mat = cor(Matrix(bool_df))
 	return_index = findfirst(name -> name == "episode_return_mean", names(bool_df))
-	
+
 	correlation = cor_mat[:, return_index]
-	
+
 	name = names(bool_df)
 	mapping = Dict(zip(name, correlation))
 	[
-		mapping["num_embeddings = 1"], 
+		mapping["num_embeddings = 1"],
 		mapping["num_embeddings = 2"],
 		mapping["num_embeddings = 4"],
 		mapping["num_embeddings = 8"],
@@ -613,7 +613,7 @@ cor_df = vcat([
 			correlation=get_cor_df(env)
 			) for env in [
 				"Seaquest-v0",
-				"BreakoutNoFrameskip-v4", 
+				"BreakoutNoFrameskip-v4",
 				"BeamRider-v0",
 			]
 		]...)

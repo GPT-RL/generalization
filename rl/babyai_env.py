@@ -10,19 +10,12 @@ import gym
 import gym_minigrid
 import numpy as np
 from babyai.levels.levelgen import RoomGridLevel
-from babyai.levels.verifier import (
-    ObjDesc,
-    PickupInstr,
-)
+from babyai.levels.verifier import ObjDesc, PickupInstr
 from colors import color as ansi_color
 from gym.spaces import Box, Dict, Discrete, MultiDiscrete, Tuple
-from gym_minigrid.minigrid import COLORS, MiniGridEnv, OBJECT_TO_IDX, WorldObj
+from gym_minigrid.minigrid import COLORS, OBJECT_TO_IDX, MiniGridEnv, WorldObj
 from gym_minigrid.window import Window
-from gym_minigrid.wrappers import (
-    ImgObsWrapper,
-    RGBImgObsWrapper,
-    RGBImgPartialObsWrapper,
-)
+from gym_minigrid.wrappers import ImgObsWrapper, RGBImgObsWrapper
 from transformers import GPT2Tokenizer
 
 T = TypeVar("T")  # Declare type variable

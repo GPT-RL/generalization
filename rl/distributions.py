@@ -1,6 +1,7 @@
+from abc import ABC
+
 import torch
 import torch.nn as nn
-
 from utils import AddBias, init
 
 """
@@ -11,8 +12,9 @@ Modify standard PyTorch distributions so they are compatible with this code.
 # Standardize distribution interfaces
 #
 
+
 # Categorical
-class FixedCategorical(torch.distributions.Categorical):
+class FixedCategorical(torch.distributions.Categorical, ABC):
     def sample(self):
         return super().sample().unsqueeze(-1)
 
@@ -30,7 +32,7 @@ class FixedCategorical(torch.distributions.Categorical):
 
 
 # Normal
-class FixedNormal(torch.distributions.Normal):
+class FixedNormal(torch.distributions.Normal, ABC):
     def log_probs(self, actions):
         return super().log_prob(actions).sum(-1, keepdim=True)
 
@@ -42,7 +44,7 @@ class FixedNormal(torch.distributions.Normal):
 
 
 # Bernoulli
-class FixedBernoulli(torch.distributions.Bernoulli):
+class FixedBernoulli(torch.distributions.Bernoulli, ABC):
     def log_probs(self, actions):
         return super.log_prob(actions).view(actions.size(0), -1).sum(-1).unsqueeze(-1)
 

@@ -1,11 +1,10 @@
 import logging
 from typing import cast
 
+import babyai_main
 import gym
 import torch
-
-import babyai_main
-from gpt_agent import Agent, GPTEmbed
+from gpt_agent import Agent
 
 
 class Args(babyai_main.Args):
@@ -34,9 +33,9 @@ class Trainer(babyai_main.Trainer):
             train_wpe=args.train_wpe,
             train_ln=args.train_ln,
         )
-        if not (args.train_ln or args.train_wpe):
-            embedding = GPTEmbed(**kwargs)
-            # encoded = embedding.forward(encoded)
+        # if not (args.train_ln or args.train_wpe):
+        #     embedding = GPTEmbed(**kwargs)
+        #     encoded = embedding.forward(encoded)
         return Agent(
             action_space=action_space,
             hidden_size=args.hidden_size,
