@@ -275,7 +275,6 @@ def train(args: Args, logger: HasuraLogger):
     scheduler = StepLR(optimizer, step_size=1, gamma=args.gamma)
     for epoch in range(1, args.epochs + 1):
 
-        model.eval()
         test_loss = 0
         correct = []
         with torch.no_grad():
@@ -306,7 +305,6 @@ def train(args: Args, logger: HasuraLogger):
         if logger.run_id is not None:
             logger.log(log)
 
-        model.train()
         correct = []
         for batch_idx, (data, target) in enumerate(train_loader):
             data, target = data.to(device), target.to(device)

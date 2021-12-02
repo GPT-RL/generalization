@@ -150,8 +150,6 @@ class Base(NNBase):
 
         self.critic_linear = init_(nn.Linear(hidden_size, 1))
 
-        self.train()
-
     def build_encodings(self, encoded):
         _, encoded = torch.sort(encoded)
         return nn.Embedding.from_pretrained(encoded.float())
