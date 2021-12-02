@@ -177,7 +177,12 @@ class Base(NNBase):
         action = F.one_hot(action, num_classes=self.num_actions).squeeze(1)
 
         tokens = self.encodings.forward(inputs.mission_index.long().squeeze(-1))
-        mission = self.embed(tokens.long())
+        mission = self.embed(tokens)
+        forward = self._embeddings.forward(inputs.mission.long())
+
+        if not torch.allclose(forward.float(), mission.float(), atol=0.02):
+            breakpoint()
+
         x = torch.cat([image, directions, action, mission], dim=-1)
         x = self.merge(x)
         if self.is_recurrent:
