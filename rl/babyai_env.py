@@ -391,7 +391,7 @@ class TokenizerWrapper(gym.ObservationWrapper):
         encoded = tokenizer.encode(longest_mission)
         super().__init__(env)
         spaces = {**self.observation_space.spaces}
-        spaces.update(mission=MultiDiscrete([50257 for _ in encoded]))
+        spaces.update(mission=MultiDiscrete([50257 for _ in range(len(encoded) + 1)]))
         self.observation_space = Dict(spaces=spaces)
 
     def observation(self, observation):
