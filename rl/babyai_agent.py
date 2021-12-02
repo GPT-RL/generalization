@@ -1,16 +1,15 @@
 from dataclasses import astuple
 
+import agent
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from agent import NNBase
+from babyai_env import Spaces
 from gym import Space
 from gym.spaces import Box, Dict, Discrete, MultiDiscrete
 from transformers import BertConfig, GPT2Config, GPTNeoConfig
-
-import agent
-from agent import NNBase
-from babyai_env import Spaces
 from utils import init
 
 
@@ -184,10 +183,7 @@ class Base(NNBase):
         action = F.one_hot(action, num_classes=self.num_actions).squeeze(1)
 
         tokens = self.encodings.forward(inputs.mission_index.long().squeeze(-1))
-        if not torch.allclose(inputs.mission, tokens):
-            print(torch.max(torch.abs(inputs.mission - tokens)))
-            breakpoint()
-        mission = self.embed(inputs.mission.long())
+        mission = self.embed(tokens.long())
         x = torch.cat([image, directions, action, mission], dim=-1)
         x = self.merge(x)
         if self.is_recurrent:
