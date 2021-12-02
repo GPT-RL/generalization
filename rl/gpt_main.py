@@ -22,7 +22,7 @@ class Trainer(babyai_main.Trainer):
     @classmethod
     def _make_agent(
         cls,
-        # encoded: torch.Tensor,
+        encoded: torch.Tensor,
         action_space: gym.spaces.Discrete,
         observation_space: gym.spaces.Dict,
         args: ArgsType,
@@ -41,7 +41,7 @@ class Trainer(babyai_main.Trainer):
             hidden_size=args.hidden_size,
             observation_space=observation_space,
             recurrent=cls.recurrent(args),
-            # encoded=encoded,
+            encoded=encoded,
             **kwargs,
         )
 

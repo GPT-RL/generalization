@@ -1,16 +1,15 @@
 from dataclasses import astuple
 
+import agent
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from agent import NNBase
+from babyai_env import Spaces
 from gym import Space
 from gym.spaces import Box, Dict, Discrete, MultiDiscrete
 from transformers import BertConfig, GPT2Config, GPTNeoConfig
-
-import agent
-from agent import NNBase
-from babyai_env import Spaces
 from utils import init
 
 
@@ -55,7 +54,7 @@ class Base(NNBase):
         hidden_size: int,
         observation_space: Dict,
         recurrent: bool,
-        # encoded: torch.Tensor,
+        encoded: torch.Tensor,
     ):
         super().__init__(
             recurrent=recurrent,
@@ -94,6 +93,7 @@ class Base(NNBase):
         else:
             raise RuntimeError(f"Invalid model name: {pretrained_model}")
 
+        self.encodings = self.build_encodings(encoded)
         self.embeddings = self.build_embeddings()
 
         init_ = lambda m: init(

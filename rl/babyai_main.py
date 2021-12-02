@@ -75,14 +75,14 @@ class Trainer(main.Trainer):
         return cls._make_agent(
             action_space=action_space,
             observation_space=observation_space,
-            # encoded=encoded,
+            encoded=encoded,
             args=args,
         )
 
     @classmethod
     def _make_agent(
         cls,
-        # encoded: torch.Tensor,
+        encoded: torch.Tensor,
         action_space: gym.spaces.Discrete,
         observation_space: gym.spaces.Dict,
         args: ArgsType,
@@ -93,7 +93,7 @@ class Trainer(main.Trainer):
             hidden_size=args.hidden_size,
             observation_space=observation_space,
             recurrent=cls.recurrent(args),
-            # encoded=encoded,
+            encoded=encoded,
         )
 
     @staticmethod
