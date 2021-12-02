@@ -4,7 +4,6 @@ import logging
 import os
 import pickle
 import time
-from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
 from pprint import pformat
@@ -189,9 +188,9 @@ class Trainer:
         rollouts.obs[0].copy_(obs)
         rollouts.to(device)
 
-        episode_rewards = deque(maxlen=10)
-        episode_lengths = deque(maxlen=10)
-        episode_successes = deque(maxlen=10)
+        episode_rewards = []
+        episode_lengths = []
+        episode_successes = []
 
         start = time.time()
         save_count = 0
@@ -290,7 +289,7 @@ class Trainer:
 
                 rollouts.after_update()
 
-                if j % args.log_interval == 0:  # and len(episode_rewards) > 1:
+                if j % args.log_interval == 0:
                     now = time.time()
                     fps = int(total_num_steps / (now - start))
                     log = {
@@ -307,6 +306,11 @@ class Trainer:
                         ENTROPY: dist_entropy,
                         SAVE_COUNT: save_count,
                     }
+
+                    episode_rewards = []
+                    episode_lengths = []
+                    episode_successes = []
+
                     logging.info(pformat(log))
                     if logger is not None:
                         log.update({"run ID": logger.run_id})
@@ -374,6 +378,7 @@ class Trainer:
                     TEST_EPISODE_SUCCESS: np.mean(episode_success),
                 }
             )
+
         logging.info(pformat(log))
         if logger is not None:
             log.update({"run ID": logger.run_id})
