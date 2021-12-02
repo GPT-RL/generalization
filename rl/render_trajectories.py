@@ -27,7 +27,6 @@ from gym_minigrid.minigrid import (
 from gym_minigrid.window import Window
 from tap import Tap
 from transformers import GPT2Tokenizer
-from utils import get_gpt_size
 
 INDEX = 0
 IDX_TO_STATE = {v: k for k, v in STATE_TO_IDX.items()}
@@ -145,7 +144,7 @@ query Query($id: Int) {
     blobs = client.execute(document, variable_values=dict(id=args.id))
     blobs = blobs["run_blob"]
 
-    tokenizer = GPT2Tokenizer.from_pretrained(get_gpt_size(metadata.embedding_size))
+    tokenizer = GPT2Tokenizer.from_pretrained(metadata.embedding_size)
     env = Trainer().make_env(
         env_id="",
         seed=0,

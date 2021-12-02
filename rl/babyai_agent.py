@@ -10,7 +10,7 @@ from babyai_env import Spaces
 from gym import Space
 from gym.spaces import Box, Dict, Discrete, MultiDiscrete
 from transformers import GPT2Config
-from utils import get_gpt_size, init
+from utils import init
 
 
 def get_size(space: Space):
@@ -50,7 +50,7 @@ class GRUEmbed(nn.Module):
 class Base(NNBase):
     def __init__(
         self,
-        embedding_size: str,
+        pretrained_model: str,
         hidden_size: int,
         observation_space: Dict,
         recurrent: bool,
@@ -65,12 +65,16 @@ class Base(NNBase):
         self.num_directions = self.observation_spaces.direction.n
         self.num_actions = self.observation_spaces.action.n
 
-        self.embedding_size = GPT2Config.from_pretrained(
-            get_gpt_size(embedding_size),
-            use_cache=False,
-            output_attentions=False,
-            output_hidden_states=False,
-        ).n_embd
+        if "gpt2" in pretrained_model:
+            config = GPT2Config.from_pretrained(
+                pretrained_model,
+                use_cache=False,
+                output_attentions=False,
+                output_hidden_states=False,
+            )
+        else:
+            raise RuntimeError(f"Invalid model name: {pretrained_model}")
+        self.embedding_size = config.n_embd
 
         self.embeddings = self.build_embeddings()
 

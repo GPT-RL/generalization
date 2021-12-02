@@ -26,7 +26,6 @@ GPTSize = Literal["small", "medium", "large", "xl"]
 
 
 def build_gpt(gpt_size: GPTSize, randomize_parameters: bool):
-    gpt_size = get_gpt_size(gpt_size)
     return (
         GPT2Model(
             GPT2Config.from_pretrained(

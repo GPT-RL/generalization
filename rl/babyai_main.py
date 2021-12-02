@@ -20,16 +20,23 @@ from babyai_env import (
 from envs import RenderWrapper, VecPyTorch
 from stable_baselines3.common.monitor import Monitor
 from transformers import GPT2Tokenizer
-from utils import get_gpt_size
 
 
 class Args(main.Args):
-    embedding_size: Literal[
-        "small", "medium", "large", "xl"
-    ] = "medium"  # what size of pretrained GPT to use
+    pretrained_model: Literal[
+        "gpt2",
+        "gpt2-medium",
+        "gpt2-large",
+        "gpt2-xl",
+        "bert-base-uncased",
+        "bert-large-uncased",
+        "EleutherAI/gpt-neo-1.3B",
+        "EleutherAI/gpt-neo-2.7B",
+    ] = "gpt2-large"  # what size of pretrained GPT to use
     env: str = "plant-animal"  # env ID for gym
     num_dists: int = 1
     room_size: int = 5
+    second_layer: bool = False
     strict: bool = True
     test_colors: str = None
     train_colors: str = None
@@ -50,7 +57,7 @@ class Trainer(main.Trainer):
         observation_space, *_ = envs.get_attr("original_observation_space")
         missions: List[str]
         # missions, *_ = envs.get_attr("missions")
-        # tokenizer = GPT2Tokenizer.from_pretrained(get_gpt_size(args.embedding_size))
+        # tokenizer = GPT2Tokenizer.from_pretrained(args.pretrained_model)
         # encoded = [tokenizer.encode(m, return_tensors="pt") for m in missions]
         # encoded = [torch.squeeze(m, 0) for m in encoded]
         # encoded = pad_sequence(encoded, padding_value=tokenizer.eos_token_id).T
@@ -71,7 +78,7 @@ class Trainer(main.Trainer):
     ):
         return Agent(
             action_space=action_space,
-            embedding_size=args.embedding_size,
+            pretrained_model=args.pretrained_model,
             hidden_size=args.hidden_size,
             observation_space=observation_space,
             recurrent=cls.recurrent(args),
@@ -162,8 +169,8 @@ class Trainer(main.Trainer):
         return functools.partial(_thunk, env_id=env, **kwargs)
 
     @classmethod
-    def make_vec_envs(cls, *args, embedding_size: int, **kwargs):
-        tokenizer = GPT2Tokenizer.from_pretrained(get_gpt_size(embedding_size))
+    def make_vec_envs(cls, *args, pretrained_model: str, **kwargs):
+        tokenizer = GPT2Tokenizer.from_pretrained(pretrained_model)
         return super().make_vec_envs(*args, **kwargs, tokenizer=tokenizer)
 
 

@@ -11,13 +11,13 @@ class Agent(babyai_agent.Agent):
 class GPTEmbed(nn.Module):
     def __init__(
         self,
-        embedding_size: str,
+        pretrained_model: str,
         randomize_parameters: bool,
         train_wpe: bool,
         train_ln: bool,
     ):
         super().__init__()
-        self.gpt = build_gpt(embedding_size, randomize_parameters)
+        self.gpt = build_gpt(pretrained_model, randomize_parameters)
         for name, p in self.gpt.named_parameters():
             requires_grad = (train_wpe and "wpe" in name) or (train_ln and "ln" in name)
             p.requires_grad_(requires_grad)
@@ -30,17 +30,17 @@ class Base(babyai_agent.Base):
     def __init__(
         self,
         *args,
-        embedding_size: str,
+        pretrained_model: str,
         randomize_parameters: bool,
         train_ln: bool,
         train_wpe: bool,
         **kwargs,
     ):
-        self._embedding_size = embedding_size
+        self._embedding_size = pretrained_model
         self.randomize_parameters = randomize_parameters
         self.train_wpe = train_wpe
         self.train_ln = train_ln
-        super().__init__(*args, embedding_size=embedding_size, **kwargs)
+        super().__init__(*args, pretrained_model=pretrained_model, **kwargs)
 
     def build_embeddings(self):
         gpt = build_gpt(self._embedding_size, self.randomize_parameters)

@@ -28,7 +28,7 @@ class Trainer(babyai_main.Trainer):
         args: ArgsType,
     ):
         kwargs = dict(
-            embedding_size=args.embedding_size,
+            pretrained_model=args.pretrained_model,
             randomize_parameters=args.randomize_parameters,
             train_wpe=args.train_wpe,
             train_ln=args.train_ln,
