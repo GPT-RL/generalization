@@ -158,11 +158,11 @@ class Base(NNBase):
         return nn.Embedding.from_pretrained(encoded.float())
 
     def build_embeddings(self):
-        num_embeddings = int(self.observation_spaces.mission.nvec[0])
-        return nn.Sequential(
-            nn.Embedding(num_embeddings, self.embedding_size),
-            nn.GRU(self.embedding_size, self.embedding_size, batch_first=True),
-        )
+        return GRUEmbed(1 + int(self.encodings.weight.max()), 100, self.embedding_size)
+
+    def embed_mission(self, mission: torch.Tensor):
+        encoded = self.encodings(mission.long())
+        return self.embeddings(encoded.long())
 
     def forward(self, inputs, rnn_hxs, masks):
         inputs = Spaces(

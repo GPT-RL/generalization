@@ -55,13 +55,13 @@ class Base(babyai_agent.Base):
         )
 
     def build_embeddings(self):
-        gpt = build_gpt(self.pretrained_model, self.randomize_parameters)
-        for name, p in gpt.named_parameters():
-            requires_grad = (self.train_wpe and "wpe" in name) or (
-                self.train_ln and "ln" in name
+        if self.train_wpe or self.train_ln:
+            return GPTEmbed(
+                pretrained_model=self.pretrained_model,
+                randomize_parameters=self.randomize_parameters,
+                train_wpe=self.train_wpe,
+                train_ln=self.train_ln,
             )
-            p.requires_grad_(requires_grad)
-        return gpt
 
     def embed(self, inputs):
-        return self.embeddings.forward(inputs).last_hidden_state[:, -1]
+        return self.embeddings.forward(inputs)
