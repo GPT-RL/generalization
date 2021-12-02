@@ -3,6 +3,7 @@ from typing import List, Literal, cast
 
 import gym
 import main
+import torch
 from babyai_agent import Agent
 from babyai_env import (
     ActionInObsWrapper,
@@ -20,7 +21,8 @@ from babyai_env import (
 )
 from envs import RenderWrapper, VecPyTorch
 from stable_baselines3.common.monitor import Monitor
-from transformers import GPT2Tokenizer
+from torch.nn.utils.rnn import pad_sequence
+from transformers import BertTokenizer, GPT2Tokenizer
 
 
 class Args(main.Args):
@@ -57,19 +59,19 @@ class Trainer(main.Trainer):
         action_space = envs.action_space
         observation_space, *_ = envs.get_attr("original_observation_space")
         missions: List[str]
-        # missions, *_ = envs.get_attr("missions")
-        # if "gpt" in args.pretrained_model:
-        #     tokenizer = GPT2Tokenizer.from_pretrained(args.pretrained_model)
-        # elif "bert" in args.pretrained_model:
-        #     tokenizer = BertTokenizer.from_pretrained(args.pretrained_model)
-        # else:
-        #     raise RuntimeError(f"Invalid model name: {args.pretrained_model}")
-        # encoded = [tokenizer.encode(m, return_tensors="pt") for m in missions]
-        # encoded = [torch.squeeze(m, 0) for m in encoded]
-        # pad_token_id = tokenizer.pad_token_id
-        # if pad_token_id is None:
-        #     pad_token_id = tokenizer.eos_token_id
-        # encoded = pad_sequence(encoded, padding_value=pad_token_id).T
+        missions, *_ = envs.get_attr("missions")
+        if "gpt" in args.pretrained_model:
+            tokenizer = GPT2Tokenizer.from_pretrained(args.pretrained_model)
+        elif "bert" in args.pretrained_model:
+            tokenizer = BertTokenizer.from_pretrained(args.pretrained_model)
+        else:
+            raise RuntimeError(f"Invalid model name: {args.pretrained_model}")
+        encoded = [tokenizer.encode(m, return_tensors="pt") for m in missions]
+        encoded = [torch.squeeze(m, 0) for m in encoded]
+        pad_token_id = tokenizer.pad_token_id
+        if pad_token_id is None:
+            pad_token_id = tokenizer.eos_token_id
+        encoded = pad_sequence(encoded, padding_value=pad_token_id).T
         return cls._make_agent(
             action_space=action_space,
             observation_space=observation_space,
