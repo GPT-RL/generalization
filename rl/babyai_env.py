@@ -508,6 +508,12 @@ class RGBtoRYBWrapper(gym.ObservationWrapper):
         return observation
 
 
+class NormalizeColorsWrapper(gym.ObservationWrapper):
+    def observation(self, observation):
+        observation.update(image=observation["image"] / 256)
+        return observation
+
+
 class RGBImgObsWithDirectionWrapper(RGBImgObsWrapper):
     """
     Wrapper to use fully observable RGB image as the only observation output,

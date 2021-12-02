@@ -7,6 +7,7 @@ from babyai_agent import Agent
 from babyai_env import (
     ActionInObsWrapper,
     FullyObsWrapper,
+    NormalizeColorsWrapper,
     PickupEnv,
     PlantAnimalWrapper,
     RenderColorPickupEnv,
@@ -142,6 +143,7 @@ class Trainer(main.Trainer):
             if env_id == "colors":
                 _env = RGBImgObsWithDirectionWrapper(_env)
                 _env = RGBtoRYBWrapper(_env)
+                _env = NormalizeColorsWrapper(_env)
 
             _env = ActionInObsWrapper(_env)
             _env = ZeroOneRewardWrapper(_env)
