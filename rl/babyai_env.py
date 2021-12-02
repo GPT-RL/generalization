@@ -438,6 +438,76 @@ class FullyObsWrapper(gym_minigrid.wrappers.FullyObsWrapper):
         return obs
 
 
+def rgb_to_ryb(rgb: np.ndarray, max_value=256):
+    """
+    Source:
+    https://github.com/prdx23/acrylic/blob/90caa585b20a03a35213361aef10228400bdf985/acrylic/Converters.py#L35
+    https://www.jstage.jst.go.jp/article/tievciieej/5/2/5_110/_pdf/-char/en
+    """
+    assert rgb.shape[-1] == 3
+    rgb = rgb / max_value
+    white = rgb.min(initial=1, axis=-1, keepdims=True)
+    black = (1 - rgb).min(initial=1, axis=-1, keepdims=True)
+    rgb = rgb - white
+
+    rgb_r, rgb_g, rgb_b = np.split(rgb, 3, axis=-1)
+    yellow = np.minimum(rgb_r, rgb_g)
+    ryb_r = rgb_r - yellow
+    ryb_y = (yellow + rgb_g) / 2
+    ryb_b = (rgb_b + rgb_g - yellow) / 2
+    ryb = np.concatenate([ryb_r, ryb_y, ryb_b], axis=-1)
+
+    ryb_max = ryb.max(initial=0, axis=-1, keepdims=True)
+    rgb_max = rgb.max(initial=0, axis=-1, keepdims=True)
+    rgb_max[rgb_max == 0] = 1
+    norm = ryb_max / rgb_max
+
+    is_black = np.all(rgb == np.zeros_like(rgb), axis=-1, keepdims=True)
+    norm[is_black] = 1
+    ryb = ryb / norm
+    ryb = ryb + black
+    return ryb.round(1) * max_value
+
+
+RGB = np.array(
+    [
+        [
+            [1, 1, 1],
+            [0, 0, 0],
+            [1, 0, 0],
+            [0, 1, 0],
+            [0, 0, 1],
+            [1, 0.5, 0],
+            [1, 1, 0],
+            [0.5, 0, 1],
+        ]
+    ]
+)
+
+RYB = np.array(
+    [
+        [
+            [0, 0, 0],
+            [1, 1, 1],
+            [1, 0, 0],
+            [0, 1, 1],
+            [0, 0, 1],
+            [1, 1, 0],
+            [0, 1, 0],
+            [1, 0, 1],
+        ]
+    ]
+)
+
+assert np.array_equal(rgb_to_ryb(RGB, max_value=1), RYB)
+
+
+class RGBtoRYBWrapper(gym.ObservationWrapper):
+    def observation(self, observation):
+        observation.update(image=rgb_to_ryb(observation["image"]))
+        return observation
+
+
 class RGBImgObsWithDirectionWrapper(RGBImgObsWrapper):
     """
     Wrapper to use fully observable RGB image as the only observation output,

@@ -11,6 +11,7 @@ from babyai_env import (
     PlantAnimalWrapper,
     RenderColorPickupEnv,
     RGBImgObsWithDirectionWrapper,
+    RGBtoRYBWrapper,
     RolloutsWrapper,
     TokenizerWrapper,
     ZeroOneRewardWrapper,
@@ -140,6 +141,7 @@ class Trainer(main.Trainer):
             _env = FullyObsWrapper(_env)
             if env_id == "colors":
                 _env = RGBImgObsWithDirectionWrapper(_env)
+                _env = RGBtoRYBWrapper(_env)
 
             _env = ActionInObsWrapper(_env)
             _env = ZeroOneRewardWrapper(_env)
