@@ -1,4 +1,5 @@
 import babyai_agent
+import torch
 from torch import nn
 from utils import build_gpt
 
@@ -36,14 +37,25 @@ class Base(babyai_agent.Base):
         train_wpe: bool,
         **kwargs,
     ):
-        self._embedding_size = pretrained_model
+        self.pretrained_model = pretrained_model
         self.randomize_parameters = randomize_parameters
         self.train_wpe = train_wpe
         self.train_ln = train_ln
         super().__init__(*args, pretrained_model=pretrained_model, **kwargs)
 
+    def build_encodings(self, encoded):
+        return nn.Embedding.from_pretrained(encoded.float())
+
+    def embed_mission(self, mission: torch.Tensor):
+        encoded = self.encodings.forward(mission.long())
+        return (
+            encoded
+            if self.embeddings is None
+            else self.embeddings.forward(encoded.long())
+        )
+
     def build_embeddings(self):
-        gpt = build_gpt(self._embedding_size, self.randomize_parameters)
+        gpt = build_gpt(self.pretrained_model, self.randomize_parameters)
         for name, p in gpt.named_parameters():
             requires_grad = (self.train_wpe and "wpe" in name) or (
                 self.train_ln and "ln" in name

@@ -391,9 +391,8 @@ class TokenizerWrapper(gym.ObservationWrapper):
         encoded = tokenizer.encode(longest_mission)
         super().__init__(env)
         spaces = {**self.observation_space.spaces}
-        self.observation_space = Dict(
-            spaces=dict(**spaces, mission=MultiDiscrete([50257 for _ in encoded]))
-        )
+        spaces.update(mission=MultiDiscrete([50257 for _ in encoded]))
+        self.observation_space = Dict(spaces=spaces)
 
     def observation(self, observation):
         mission = self.tokenizer.encode(observation["mission"])
@@ -410,9 +409,8 @@ class MissionEnumeratorWrapper(gym.ObservationWrapper):
         self.cache = {k: i for i, k in enumerate(self.missions)}
         super().__init__(env)
         spaces = {**self.observation_space.spaces}
-        self.observation_space = Dict(
-            spaces=dict(**spaces, mission_index=Discrete(len(self.cache)))
-        )
+        spaces.update(mission_index=Discrete(len(self.cache)))
+        self.observation_space = Dict(spaces=spaces)
 
     def observation(self, observation):
         observation.update(mission_index=self.cache[observation["mission"]])
