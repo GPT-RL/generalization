@@ -1,5 +1,4 @@
 import babyai_agent
-import torch
 from babyai_main import make_tokenizer
 from torch import nn
 from utils import build_gpt
@@ -51,14 +50,6 @@ class Base(babyai_agent.Base):
     def build_encodings(self, encoded):
         return nn.Embedding.from_pretrained(encoded.float())
 
-    def embed_mission(self, mission: torch.Tensor):
-        encoded = self.encodings.forward(mission.long())
-        return (
-            encoded
-            if self.embeddings is None
-            else self.embeddings.forward(encoded.long())
-        )
-
     def build_embeddings(self):
         if self.train_wpe or self.train_ln:
             return GPTEmbed(
@@ -69,4 +60,4 @@ class Base(babyai_agent.Base):
             )
 
     def embed(self, inputs):
-        return self.embeddings.forward(inputs)
+        return inputs if self.embeddings is None else self.embeddings.forward(inputs)

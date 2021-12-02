@@ -160,10 +160,6 @@ class Base(NNBase):
     def build_embeddings(self):
         return GRUEmbed(1 + int(self.encodings.weight.max()), 100, self.embedding_size)
 
-    def embed_mission(self, mission: torch.Tensor):
-        encoded = self.encodings(mission.long())
-        return self.embeddings(encoded.long())
-
     def forward(self, inputs, rnn_hxs, masks):
         inputs = Spaces(
             *torch.split(
