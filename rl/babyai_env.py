@@ -354,12 +354,19 @@ class RolloutsWrapper(gym.ObservationWrapper):
         self.original_observation_space = Tuple(
             astuple(Spaces(**self.observation_space.spaces))
         )
-        image_space = spaces["image"]
-        mission_space = spaces["mission"]
+
+        def sizes():
+            for space in spaces.values():
+                if isinstance(space, Box):
+                    yield np.prod(space.shape)
+                elif isinstance(space, MultiDiscrete):
+                    yield space.nvec.size
+                elif isinstance(space, Discrete):
+                    yield 1
+
         self.observation_space = Box(
-            shape=[np.prod(image_space.shape) + 2 + np.prod(mission_space.shape)],
+            shape=[sum(sizes())],
             low=-np.inf,
-            # direction_space = spaces["direction"]
             high=np.inf,
         )
 
