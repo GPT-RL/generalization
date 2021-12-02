@@ -54,7 +54,6 @@ class Base(NNBase):
         hidden_size: int,
         observation_space: Dict,
         recurrent: bool,
-        second_layer: bool,
         # encoded: torch.Tensor,
     ):
         super().__init__(
@@ -97,22 +96,11 @@ class Base(NNBase):
             # )
             # try:
             #     output = self.image_net(dummy_input)
-            #     assert not second_layer
             # except RuntimeError:
-            self.image_net = (
-                nn.Sequential(
-                    init_(nn.Conv2d(d, 32, 3, stride=2)),
-                    nn.ReLU(),
-                    init_(nn.Conv2d(32, 32, 3, stride=1)),
-                    nn.ReLU(),
-                    nn.Flatten(),
-                )
-                if second_layer
-                else nn.Sequential(
-                    init_(nn.Conv2d(d, 32, 3, 2)),
-                    nn.ReLU(),
-                    nn.Flatten(),
-                )
+            self.image_net = nn.Sequential(
+                init_(nn.Conv2d(d, 32, 3, 2)),
+                nn.ReLU(),
+                nn.Flatten(),
             )
             output = self.image_net(dummy_input)
         else:

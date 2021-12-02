@@ -41,7 +41,6 @@ class Trainer(babyai_main.Trainer):
             hidden_size=args.hidden_size,
             observation_space=observation_space,
             recurrent=cls.recurrent(args),
-            second_layer=args.second_layer,
             # encoded=encoded,
             **kwargs,
         )
