@@ -9,7 +9,7 @@ from agent import NNBase
 from babyai_env import Spaces
 from gym import Space
 from gym.spaces import Box, Dict, Discrete, MultiDiscrete
-from transformers import GPT2Config
+from transformers import BertConfig, GPT2Config, GPTNeoConfig
 from utils import init
 
 
@@ -65,16 +65,33 @@ class Base(NNBase):
         self.num_directions = self.observation_spaces.direction.n
         self.num_actions = self.observation_spaces.action.n
 
-        if "gpt2" in pretrained_model:
+        if "neo" in pretrained_model:
+            config = GPTNeoConfig.from_pretrained(
+                pretrained_model,
+                use_cache=False,
+                output_attentions=False,
+                output_hidden_states=False,
+            )
+            self.embedding_size = config.hidden_size
+        elif "gpt2" in pretrained_model:
             config = GPT2Config.from_pretrained(
                 pretrained_model,
                 use_cache=False,
                 output_attentions=False,
                 output_hidden_states=False,
             )
+            self.embedding_size = config.n_embd
+        elif "bert" in pretrained_model:
+            config = BertConfig.from_pretrained(
+                pretrained_model,
+                use_cache=False,
+                output_attentions=False,
+                output_hidden_states=False,
+            )
+            self.embedding_size = config.hidden_size
+
         else:
             raise RuntimeError(f"Invalid model name: {pretrained_model}")
-        self.embedding_size = config.n_embd
 
         self.embeddings = self.build_embeddings()
 

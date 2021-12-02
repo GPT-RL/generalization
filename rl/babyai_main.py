@@ -57,10 +57,18 @@ class Trainer(main.Trainer):
         observation_space, *_ = envs.get_attr("original_observation_space")
         missions: List[str]
         # missions, *_ = envs.get_attr("missions")
-        # tokenizer = GPT2Tokenizer.from_pretrained(args.pretrained_model)
+        # if "gpt" in args.pretrained_model:
+        #     tokenizer = GPT2Tokenizer.from_pretrained(args.pretrained_model)
+        # elif "bert" in args.pretrained_model:
+        #     tokenizer = BertTokenizer.from_pretrained(args.pretrained_model)
+        # else:
+        #     raise RuntimeError(f"Invalid model name: {args.pretrained_model}")
         # encoded = [tokenizer.encode(m, return_tensors="pt") for m in missions]
         # encoded = [torch.squeeze(m, 0) for m in encoded]
-        # encoded = pad_sequence(encoded, padding_value=tokenizer.eos_token_id).T
+        # pad_token_id = tokenizer.pad_token_id
+        # if pad_token_id is None:
+        #     pad_token_id = tokenizer.eos_token_id
+        # encoded = pad_sequence(encoded, padding_value=pad_token_id).T
         return cls._make_agent(
             action_space=action_space,
             observation_space=observation_space,
