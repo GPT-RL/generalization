@@ -26,6 +26,7 @@ class Spaces:
     image: T
     direction: T
     mission: T
+    mission_index: T
     action: T
 
 
@@ -378,6 +379,7 @@ class RolloutsWrapper(gym.ObservationWrapper):
                     direction=np.array([observation["direction"]]),
                     action=np.array([int(observation["action"])]),
                     mission=observation["mission"],
+                    mission_index=np.array([int(observation["mission_index"])]),
                 )
             )
         )
@@ -409,11 +411,11 @@ class MissionEnumeratorWrapper(gym.ObservationWrapper):
         super().__init__(env)
         spaces = {**self.observation_space.spaces}
         self.observation_space = Dict(
-            spaces=dict(**spaces, mission=Discrete(len(self.cache)))
+            spaces=dict(**spaces, mission_index=Discrete(len(self.cache)))
         )
 
     def observation(self, observation):
-        observation.update(mission=self.cache[observation["mission"]])
+        observation.update(mission_index=self.cache[observation["mission"]])
         return observation
 
 
@@ -600,7 +602,6 @@ def main(args: "Args"):
     env = PickupEnv(
         room_size=args.room_size,
         seed=args.seed,
-        goal_objects=room_objects,
         objects=room_objects,
         strict=True,
     )

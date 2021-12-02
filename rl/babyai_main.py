@@ -7,6 +7,7 @@ from babyai_agent import Agent
 from babyai_env import (
     ActionInObsWrapper,
     FullyObsWrapper,
+    MissionEnumeratorWrapper,
     NormalizeColorsWrapper,
     PickupEnv,
     PlantAnimalWrapper,
@@ -160,12 +161,12 @@ class Trainer(main.Trainer):
 
             _env = ActionInObsWrapper(_env)
             _env = ZeroOneRewardWrapper(_env)
+            _env = MissionEnumeratorWrapper(_env, missions=missions)
             _env = TokenizerWrapper(
                 _env,
                 tokenizer=tokenizer,
                 longest_mission=longest_mission,
             )
-            # _env = MissionEnumeratorWrapper(_env, missions=missions)
             _env = RolloutsWrapper(_env)
 
             _env = Monitor(_env, allow_early_resets=allow_early_resets)

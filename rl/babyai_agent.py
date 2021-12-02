@@ -1,15 +1,16 @@
 from dataclasses import astuple
 
-import agent
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from agent import NNBase
-from babyai_env import Spaces
 from gym import Space
 from gym.spaces import Box, Dict, Discrete, MultiDiscrete
 from transformers import BertConfig, GPT2Config, GPTNeoConfig
+
+import agent
+from agent import NNBase
+from babyai_env import Spaces
 from utils import init
 
 
