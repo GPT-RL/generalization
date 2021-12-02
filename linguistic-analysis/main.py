@@ -127,7 +127,6 @@ def main(args: Args):
     tokenizer = GPT2TokenizerFast.from_pretrained(args.gpt_size)
     token_texts = tokenizer.batch_decode([[i] for i in range(tokenizer.vocab_size)])
     model = GPT2LMHeadModel.from_pretrained(args.gpt_size).cuda()
-    model.eval()
     embs = model.get_input_embeddings().weight.detach().cuda()
     np_embs = embs.cpu().numpy()
 

@@ -196,8 +196,6 @@ class CNNBase(NNBase):
 
         self.critic_linear = init_(nn.Linear(hidden_size, 1))
 
-        self.train()
-
     def forward(self, inputs, rnn_hxs, masks):
         x = self.main(inputs / 255.0)
 
@@ -233,8 +231,6 @@ class MLPBase(NNBase):
         )
 
         self.critic_linear = init_(nn.Linear(hidden_size, 1))
-
-        self.train()
 
     def forward(self, inputs, rnn_hxs, masks):
         x = inputs
