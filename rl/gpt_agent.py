@@ -1,5 +1,6 @@
 import babyai_agent
 import torch
+from babyai_main import make_tokenizer
 from torch import nn
 from utils import build_gpt
 
@@ -18,13 +19,17 @@ class GPTEmbed(nn.Module):
         train_ln: bool,
     ):
         super().__init__()
+        tokenizer = make_tokenizer(pretrained_model)
+        self.pad_token_id = tokenizer.eos_token_id
         self.gpt = build_gpt(pretrained_model, randomize_parameters)
         for name, p in self.gpt.named_parameters():
             requires_grad = (train_wpe and "wpe" in name) or (train_ln and "ln" in name)
             p.requires_grad_(requires_grad)
 
     def forward(self, x, **_):
-        return self.gpt.forward(x).last_hidden_state[:, -1]
+        return self.gpt.forward(
+            x, attention_mask=x != self.pad_token_id
+        ).last_hidden_state[:, -1]
 
 
 class Base(babyai_agent.Base):

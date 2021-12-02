@@ -52,6 +52,16 @@ class ArgsType(main.ArgsType, Args):
     pass
 
 
+def make_tokenizer(pretrained_model):
+    if "gpt" in pretrained_model:
+        tokenizer = GPT2Tokenizer.from_pretrained(pretrained_model)
+    elif "bert" in pretrained_model:
+        tokenizer = BertTokenizer.from_pretrained(pretrained_model)
+    else:
+        raise RuntimeError(f"Invalid model name: {pretrained_model}")
+    return tokenizer
+
+
 class Trainer(main.Trainer):
     @classmethod
     def make_agent(cls, envs: VecPyTorch, args: ArgsType) -> Agent:
@@ -59,12 +69,8 @@ class Trainer(main.Trainer):
         observation_space, *_ = envs.get_attr("original_observation_space")
         missions: List[str]
         missions, *_ = envs.get_attr("missions")
-        if "gpt" in args.pretrained_model:
-            tokenizer = GPT2Tokenizer.from_pretrained(args.pretrained_model)
-        elif "bert" in args.pretrained_model:
-            tokenizer = BertTokenizer.from_pretrained(args.pretrained_model)
-        else:
-            raise RuntimeError(f"Invalid model name: {args.pretrained_model}")
+        pretrained_model = args.pretrained_model
+        tokenizer = make_tokenizer(pretrained_model)
         encoded = [tokenizer.encode(m, return_tensors="pt") for m in missions]
         encoded = [torch.squeeze(m, 0) for m in encoded]
         pad_token_id = tokenizer.pad_token_id
