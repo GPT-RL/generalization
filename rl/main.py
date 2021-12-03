@@ -342,7 +342,7 @@ class Trainer:
         )
         masks = torch.zeros(num_processes, 1, device=device)
 
-        while len(episode_rewards) < 10:
+        while len(episode_rewards) < 100:
             with torch.no_grad():
                 _, action, _, recurrent_hidden_states = agent.forward(
                     obs, recurrent_hidden_states, masks
