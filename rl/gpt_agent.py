@@ -46,13 +46,12 @@ class Base(babyai_agent.Base):
         self.train_wpe = train_wpe
         self.train_ln = train_ln
         super().__init__(*args, pretrained_model=pretrained_model, **kwargs)
-        self._embeddings = self.build_embeddings(force=True)
 
     def build_encodings(self, encoded):
         return nn.Embedding.from_pretrained(encoded.float())
 
-    def build_embeddings(self, force=False):
-        if self.train_wpe or self.train_ln or force:
+    def build_embeddings(self):
+        if self.train_wpe or self.train_ln:
             return GPTEmbed(
                 pretrained_model=self.pretrained_model,
                 randomize_parameters=self.randomize_parameters,
@@ -61,8 +60,4 @@ class Base(babyai_agent.Base):
             )
 
     def embed(self, inputs):
-        return (
-            inputs
-            if self.embeddings is None
-            else self.embeddings.forward(inputs.long())
-        )
+        return inputs if self.embeddings is None else self.embeddings.forward(inputs)
