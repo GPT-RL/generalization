@@ -38,10 +38,11 @@ class Trainer(babyai_main.Trainer):
             encoded = embedding.forward(encoded)
         return Agent(
             action_space=action_space,
+            encoded=encoded,
             hidden_size=args.hidden_size,
+            multiplicative_interaction=args.multiplicative_interaction,
             observation_space=observation_space,
             recurrent=cls.recurrent(args),
-            encoded=encoded,
             **kwargs,
         )
 

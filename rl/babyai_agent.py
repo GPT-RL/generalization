@@ -50,17 +50,19 @@ class GRUEmbed(nn.Module):
 class Base(NNBase):
     def __init__(
         self,
-        pretrained_model: str,
-        hidden_size: int,
-        observation_space: Dict,
-        recurrent: bool,
         encoded: torch.Tensor,
+        hidden_size: int,
+        multiplicative_interaction: bool,
+        observation_space: Dict,
+        pretrained_model: str,
+        recurrent: bool,
     ):
         super().__init__(
             recurrent=recurrent,
             recurrent_input_size=hidden_size,
             hidden_size=hidden_size,
         )
+        self.multiplicative_interaction = multiplicative_interaction
         self.observation_spaces = Spaces(*observation_space.spaces)
         self.num_directions = self.observation_spaces.direction.n
         self.num_actions = self.observation_spaces.action.n
@@ -132,18 +134,28 @@ class Base(NNBase):
             )
             output = self.image_net(dummy_input)
 
-        self.merge = nn.Sequential(
-            init_(
-                nn.Linear(
-                    output.size(-1)
-                    + self.num_directions
-                    + self.num_actions
-                    + self.embedding_size,
-                    hidden_size,
-                )
-            ),
-            nn.ReLU(),
-        )
+        if self.multiplicative_interaction:
+            self.merge = nn.ModuleList(
+                [
+                    nn.Linear(output.size(-1), hidden_size),
+                    nn.Embedding(self.num_directions, hidden_size),
+                    nn.Embedding(self.num_actions, hidden_size),
+                    nn.Linear(self.embedding_size, hidden_size),
+                ]
+            )
+        else:
+            self.merge = nn.Sequential(
+                init_(
+                    nn.Linear(
+                        output.size(-1)
+                        + self.num_directions
+                        + self.num_actions
+                        + self.embedding_size,
+                        hidden_size,
+                    )
+                ),
+                nn.ReLU(),
+            )
 
         init_ = lambda m: init(
             m, nn.init.orthogonal_, lambda x: nn.init.constant_(x, 0)
@@ -172,14 +184,24 @@ class Base(NNBase):
             image = image.permute(0, 3, 1, 2)
         image = self.image_net(image)
         directions = inputs.direction.long()
-        directions = F.one_hot(directions, num_classes=self.num_directions).squeeze(1)
         action = inputs.action.long()
-        action = F.one_hot(action, num_classes=self.num_actions).squeeze(1)
 
         tokens = self.encodings.forward(inputs.mission_index.long().squeeze(-1))
         mission = self.embed(tokens.long())
-        x = torch.cat([image, directions, action, mission], dim=-1)
-        x = self.merge(x)
+        if self.multiplicative_interaction:
+            project_image, embed_directions, embed_actions, project_mission = self.merge
+            x = (
+                project_image(image)
+                + embed_directions(directions).squeeze(1)
+                + embed_actions(action).squeeze(1)
+            ) * project_mission(mission)
+        else:
+            directions = F.one_hot(directions, num_classes=self.num_directions).squeeze(
+                1
+            )
+            action = F.one_hot(action, num_classes=self.num_actions).squeeze(1)
+            x = torch.cat([image, directions, action, mission], dim=-1)
+            x = self.merge(x)
         if self.is_recurrent:
             x, rnn_hxs = self._forward_gru(x, rnn_hxs, masks)
         return self.critic_linear(x), x, rnn_hxs

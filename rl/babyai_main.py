@@ -37,6 +37,7 @@ class Args(main.Args):
         "EleutherAI/gpt-neo-2.7B",
     ] = "gpt2-large"  # what size of pretrained GPT to use
     env: str = "plant-animal"  # env ID for gym
+    multiplicative_interaction: bool = True
     num_dists: int = 1
     room_size: int = 5
     strict: bool = True
@@ -87,18 +88,19 @@ class Trainer(main.Trainer):
     @classmethod
     def _make_agent(
         cls,
-        encoded: torch.Tensor,
         action_space: gym.spaces.Discrete,
-        observation_space: gym.spaces.Dict,
         args: ArgsType,
+        encoded: torch.Tensor,
+        observation_space: gym.spaces.Dict,
     ):
         return Agent(
             action_space=action_space,
-            pretrained_model=args.pretrained_model,
-            hidden_size=args.hidden_size,
-            observation_space=observation_space,
-            recurrent=cls.recurrent(args),
             encoded=encoded,
+            hidden_size=args.hidden_size,
+            multiplicative_interaction=args.multiplicative_interaction,
+            observation_space=observation_space,
+            pretrained_model=args.pretrained_model,
+            recurrent=cls.recurrent(args),
         )
 
     @staticmethod
