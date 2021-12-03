@@ -186,7 +186,7 @@ class Base(NNBase):
         directions = inputs.direction.long()
         action = inputs.action.long()
 
-        tokens = self.encodings.forward(inputs.mission_index.long().squeeze(-1))
+        tokens = self.encodings.forward(inputs.mission.long().squeeze(-1))
         mission = self.embed(tokens.long())
         if self.multiplicative_interaction:
             project_image, embed_directions, embed_actions, project_mission = self.merge

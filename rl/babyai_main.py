@@ -16,7 +16,6 @@ from babyai_env import (
     RGBImgObsWithDirectionWrapper,
     RGBtoRYBWrapper,
     RolloutsWrapper,
-    TokenizerWrapper,
     ZeroOneRewardWrapper,
 )
 from envs import RenderWrapper, VecPyTorch
@@ -119,7 +118,6 @@ class Trainer(main.Trainer):
             strict: bool,
             test: bool,
             test_colors: str,
-            tokenizer: GPT2Tokenizer,
             train_colors: str,
             **_,
         ):
@@ -136,7 +134,6 @@ class Trainer(main.Trainer):
                 kwargs.update(room_objects=objects)
                 _env = PickupEnv(objects=objects, **_kwargs)
                 _env = PlantAnimalWrapper(_env)
-                longest_mission = "pick up the grasshopper"
 
                 def missions():
                     for _, vs in _env.replacements.items():
@@ -171,11 +168,6 @@ class Trainer(main.Trainer):
             _env = ActionInObsWrapper(_env)
             _env = ZeroOneRewardWrapper(_env)
             _env = MissionEnumeratorWrapper(_env, missions=missions)
-            _env = TokenizerWrapper(
-                _env,
-                tokenizer=tokenizer,
-                longest_mission=longest_mission,
-            )
             _env = RolloutsWrapper(_env)
 
             _env = Monitor(_env, allow_early_resets=allow_early_resets)
@@ -185,11 +177,6 @@ class Trainer(main.Trainer):
             return _env
 
         return functools.partial(_thunk, env_id=env, **kwargs)
-
-    @classmethod
-    def make_vec_envs(cls, *args, pretrained_model: str, **kwargs):
-        tokenizer = GPT2Tokenizer.from_pretrained(pretrained_model)
-        return super().make_vec_envs(*args, **kwargs, tokenizer=tokenizer)
 
 
 if __name__ == "__main__":

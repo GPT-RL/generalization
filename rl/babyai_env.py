@@ -3,7 +3,6 @@ import re
 import typing
 from abc import ABC
 from dataclasses import astuple, dataclass
-from itertools import chain, cycle, islice
 from typing import Generator, Optional, TypeVar
 
 import gym
@@ -16,7 +15,6 @@ from gym.spaces import Box, Dict, Discrete, MultiDiscrete, Tuple
 from gym_minigrid.minigrid import COLORS, OBJECT_TO_IDX, MiniGridEnv, WorldObj
 from gym_minigrid.window import Window
 from gym_minigrid.wrappers import ImgObsWrapper, RGBImgObsWrapper
-from transformers import GPT2Tokenizer
 
 T = TypeVar("T")  # Declare type variable
 
@@ -26,7 +24,6 @@ class Spaces:
     image: T
     direction: T
     mission: T
-    mission_index: T
     action: T
 
 
@@ -378,29 +375,10 @@ class RolloutsWrapper(gym.ObservationWrapper):
                     image=observation["image"].flatten(),
                     direction=np.array([observation["direction"]]),
                     action=np.array([int(observation["action"])]),
-                    mission=observation["mission"],
-                    mission_index=np.array([int(observation["mission_index"])]),
+                    mission=np.array([int(observation["mission"])]),
                 )
             )
         )
-
-
-class TokenizerWrapper(gym.ObservationWrapper):
-    def __init__(self, env, tokenizer: GPT2Tokenizer, longest_mission: str):
-        self.tokenizer: GPT2Tokenizer = tokenizer
-        encoded = tokenizer.encode(longest_mission)
-        super().__init__(env)
-        spaces = {**self.observation_space.spaces}
-        spaces.update(mission=MultiDiscrete([50257 for _ in range(len(encoded) + 1)]))
-        self.observation_space = Dict(spaces=spaces)
-
-    def observation(self, observation):
-        mission = self.tokenizer.encode(observation["mission"])
-        length = len(self.observation_space.spaces["mission"].nvec)
-        eos = self.tokenizer.eos_token_id
-        mission = [*islice(chain(mission, cycle([eos])), length)]
-        observation.update(mission=mission)
-        return observation
 
 
 class MissionEnumeratorWrapper(gym.ObservationWrapper):
@@ -409,11 +387,11 @@ class MissionEnumeratorWrapper(gym.ObservationWrapper):
         self.cache = {k: i for i, k in enumerate(self.missions)}
         super().__init__(env)
         spaces = {**self.observation_space.spaces}
-        spaces.update(mission_index=Discrete(len(self.cache)))
+        spaces.update(mission=Discrete(len(self.cache)))
         self.observation_space = Dict(spaces=spaces)
 
     def observation(self, observation):
-        observation.update(mission_index=self.cache[observation["mission"]])
+        observation.update(mission=self.cache[observation["mission"]])
         return observation
 
 
