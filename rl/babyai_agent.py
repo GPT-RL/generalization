@@ -207,4 +207,4 @@ class Base(NNBase):
         return self.critic_linear(x), x, rnn_hxs
 
     def embed(self, inputs):
-        return self.embeddings.forward(inputs)[1].squeeze(0)
+        return self.embeddings.forward(inputs)
