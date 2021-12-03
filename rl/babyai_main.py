@@ -122,7 +122,23 @@ class Trainer(main.Trainer):
             **_,
         ):
             _kwargs = dict(room_size=room_size, strict=strict, seed=seed)
-            if env_id == "plant-animal":
+            if env_id == "pickup":
+                objects = {*PlantAnimalWrapper.replacements.keys()}
+                test_objects = {
+                    PlantAnimalWrapper.purple_animal,
+                    PlantAnimalWrapper.black_plant,
+                }
+                objects = test_objects if test else objects - test_objects
+                objects = [o.split() for o in objects]
+                objects = [(t, c) for (c, t) in objects]
+                kwargs.update(room_objects=objects)
+                _env = PickupEnv(objects=objects, **_kwargs)
+
+                def missions():
+                    for k in PlantAnimalWrapper.replacements:
+                        yield f"pick up the {k}"
+
+            elif env_id == "plant-animal":
                 objects = {*PlantAnimalWrapper.replacements.keys()}
                 test_objects = {
                     PlantAnimalWrapper.purple_animal,
