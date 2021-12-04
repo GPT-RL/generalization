@@ -4,17 +4,16 @@ import logging
 import os
 import pickle
 import time
-from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
 from pprint import pformat
-from typing import List, Literal, Optional, cast, get_args
+from typing import List, Literal, Optional, cast
 
 import gym
 import numpy as np
+import sweep_logger
 import torch
 import utils
-import yaml
 from agent import Agent
 from envs import TimeLimitMask, TransposeImage, VecPyTorch, VecPyTorchFrameStack
 from gql import gql
@@ -48,8 +47,10 @@ class InvalidEnvId(RuntimeError):
 
 EPISODE_RETURN = "episode return"
 EPISODE_LENGTH = "episode length"
+EPISODE_SUCCESS = "episode success"
 TEST_EPISODE_RETURN = "test episode return"
 TEST_EPISODE_LENGTH = "test episode length"
+TEST_EPISODE_SUCCESS = "test episode success"
 ACTION_LOSS = "action loss"
 VALUE_LOSS = "value loss"
 FPS = "fps"
@@ -84,6 +85,7 @@ class Args(Tap):
     allow_early_resets: bool = False
     alpha: float = 0.99  # Adam alpha
     clip_param: float = 0.1  # PPO clip parameter
+    config: Optional[str] = None  # If given, yaml config from which to load params
     cuda: bool = True  # enable CUDA
     entropy_coef: float = 0.01  # auxiliary entropy objective coefficient
     env: str = "BreakoutNoFrameskip-v4"  # env ID for gym
@@ -110,10 +112,10 @@ class Args(Tap):
     render_test: bool = False
     save_interval: Optional[int] = None  # how many updates to save between
     seed: int = 0  # random seed
+    sync_envs: bool = False
     test_interval: Optional[int] = None  # how many updates to evaluate between
     use_proper_time_limits: bool = False  # compute returns with time limits
     value_coef: float = 1  # value loss coefficient
-    config: Optional[str] = None  # If given, yaml config from which to load params
 
     def configure(self) -> None:
         self.add_subparsers(dest="logger_args")
@@ -186,8 +188,9 @@ class Trainer:
         rollouts.obs[0].copy_(obs)
         rollouts.to(device)
 
-        episode_rewards = deque(maxlen=10)
-        episode_lengths = deque(maxlen=10)
+        episode_rewards = []
+        episode_lengths = []
+        episode_successes = []
 
         start = time.time()
         save_count = 0
@@ -207,7 +210,7 @@ class Trainer:
             # save for every interval-th episode or for the last epoch
             if (
                 args.save_interval is not None
-                and logger.run_id is not None
+                and logger is not None
                 and (j % args.save_interval == 0 or j == num_updates - 1)
                 and not render
             ):
@@ -241,6 +244,8 @@ class Trainer:
                     if "episode" in info.keys():
                         episode_rewards.append(info["episode"]["r"])
                         episode_lengths.append(info["episode"]["l"])
+                    if "success" in info.keys():
+                        episode_successes.append(info["success"])
 
                 # If done then clean the history of observations.
                 masks = torch.FloatTensor([[0.0] if done_ else [1.0] for done_ in done])
@@ -284,12 +289,13 @@ class Trainer:
 
                 rollouts.after_update()
 
-                if j % args.log_interval == 0:  # and len(episode_rewards) > 1:
+                if j % args.log_interval == 0:
                     now = time.time()
                     fps = int(total_num_steps / (now - start))
                     log = {
                         EPISODE_RETURN: np.mean(episode_rewards),
                         EPISODE_LENGTH: np.mean(episode_lengths),
+                        EPISODE_SUCCESS: np.mean(episode_successes),
                         ACTION_LOSS: action_loss,
                         VALUE_LOSS: value_loss,
                         FPS: fps,
@@ -300,12 +306,17 @@ class Trainer:
                         ENTROPY: dist_entropy,
                         SAVE_COUNT: save_count,
                     }
+
+                    episode_rewards = []
+                    episode_lengths = []
+                    episode_successes = []
+
                     logging.info(pformat(log))
-                    if logger.run_id is not None:
+                    if logger is not None:
                         log.update({"run ID": logger.run_id})
 
                     logging.info(pformat(log))
-                    if logger.run_id is not None:
+                    if logger is not None:
                         logger.log(log)
 
     @staticmethod
@@ -323,6 +334,7 @@ class Trainer:
 
         episode_rewards = []
         episode_lengths = []
+        episode_success = []
 
         obs = envs.reset()
         recurrent_hidden_states = torch.zeros(
@@ -348,6 +360,8 @@ class Trainer:
                 if "episode" in info.keys():
                     episode_rewards.append(info["episode"]["r"])
                     episode_lengths.append(info["episode"]["l"])
+                if "success" in info.keys():
+                    episode_success.append(info["success"])
 
         envs.close()
         now = time.time()
@@ -361,13 +375,15 @@ class Trainer:
                 {
                     TEST_EPISODE_RETURN: np.mean(episode_rewards),
                     TEST_EPISODE_LENGTH: np.mean(episode_lengths),
+                    TEST_EPISODE_SUCCESS: np.mean(episode_success),
                 }
             )
+
         logging.info(pformat(log))
-        if logger.run_id is not None:
+        if logger is not None:
             log.update({"run ID": logger.run_id})
         logging.info(pformat(log))
-        if logger.run_id is not None:
+        if logger is not None:
             logger.log(log)
 
         logging.info(
@@ -441,6 +457,7 @@ class Trainer:
         render,
         render_test,
         seed,
+        sync_envs,
         test,
         num_frame_stack=None,
         **kwargs,
@@ -448,11 +465,13 @@ class Trainer:
         if test:
             render = render_test
         envs = [
-            cls.make_env(seed=seed + i, render=render, test=test, **kwargs)
+            cls.make_env(
+                seed=seed + i, render=render, test=test, device=device, **kwargs
+            )
             for i in range(num_processes)
         ]
 
-        if len(envs) > 1:
+        if len(envs) > 1 and not sync_envs:
             envs = SubprocVecEnv(envs)
         else:
             envs = DummyVecEnv(envs)
@@ -487,12 +506,30 @@ class Trainer:
     @classmethod
     def main(cls, args: ArgsType):
         logging.getLogger().setLevel(args.log_level)
-        if args.config is not None:
-            with Path(args.config).open() as f:
-                config = yaml.load(f, yaml.FullLoader)
-                args = args.from_dict(
-                    {k: v for k, v in config.items() if k not in cls.excluded()}
+
+        charts = [
+            *[
+                spec(x=HOURS, y=y)
+                for y in (
+                    (TEST_EPISODE_SUCCESS, EPISODE_SUCCESS)
+                    if args.env == "go-to-loc"
+                    else (TEST_EPISODE_RETURN, EPISODE_RETURN)
                 )
+            ],
+            *[
+                spec(x=STEP, y=y)
+                for y in (
+                    TEST_EPISODE_RETURN,
+                    EPISODE_RETURN,
+                    EPISODE_SUCCESS,
+                    TEST_EPISODE_SUCCESS,
+                    FPS,
+                    ENTROPY,
+                    GRADIENT_NORM,
+                    SAVE_COUNT,
+                )
+            ],
+        ]
 
         metadata = dict(reproducibility_info=args.get_reproducibility_info())
         if args.host_machine:
@@ -500,62 +537,32 @@ class Trainer:
         if name := getattr(args, "name", None):
             metadata.update(name=name)
 
-        logger: HasuraLogger
-        with HasuraLogger(args.graphql_endpoint) as logger:
-            valid = (*get_args(RUN_OR_SWEEP), None)
-            assert args.logger_args in valid, f"{args.logger_args} is not in {valid}."
+        params, logger = sweep_logger.initialize(
+            graphql_endpoint=args.graphql_endpoint,
+            config=args.config,
+            charts=charts,
+            sweep_id=getattr(args, "sweep_id", None),
+            load_id=args.load_id,
+            use_logger=args.logger_args is not None,
+            params=args.as_dict(),
+            metadata=metadata,
+        )
+        cls.update_args(args, params)
 
-            if args.logger_args is not None:
-                charts = [
-                    *[
-                        spec(x=HOURS, y=y)
-                        for y in (
-                            TEST_EPISODE_RETURN,
-                            EPISODE_RETURN,
-                            EPISODE_LENGTH,
-                        )
-                    ],
-                    *[
-                        spec(x=STEP, y=y)
-                        for y in (
-                            TEST_EPISODE_RETURN,
-                            EPISODE_RETURN,
-                            TEST_EPISODE_LENGTH,
-                            EPISODE_LENGTH,
-                            FPS,
-                            ENTROPY,
-                            GRADIENT_NORM,
-                            SAVE_COUNT,
-                        )
-                    ],
-                ]
-                sweep_id = getattr(args, "sweep_id", None)
-                parameters = logger.create_run(
-                    metadata=metadata,
-                    sweep_id=sweep_id,
-                    charts=charts,
-                )
-
-                if parameters is not None:
-                    cls.update_args(args, parameters)
-                logger.update_metadata(
-                    dict(parameters=args.as_dict(), run_id=logger.run_id)
-                )
-
-            if args.load_id is not None:
-                parameters = logger.execute(
-                    gql(
-                        """
-    query GetParameters($id: Int!) {
-      run_by_pk(id: $id) {
-        metadata(path: "parameters")
-      }
-    }"""
-                    ),
-                    variable_values=dict(id=args.load_id),
-                )["run_by_pk"]["metadata"]
-                cls.update_args(args, parameters, check_hasattr=False)
-            return cls.train(args=args, logger=logger)
+        if args.load_id is not None:
+            parameters = logger.execute(
+                gql(
+                    """
+query GetParameters($id: Int!) {
+  run_by_pk(id: $id) {
+    metadata(path: "parameters")
+  }
+}"""
+                ),
+                variable_values=dict(id=args.load_id),
+            )["run_by_pk"]["metadata"]
+            cls.update_args(args, parameters, check_hasattr=False)
+        return cls.train(args=args, logger=logger)
 
     @classmethod
     def update_args(cls, args, parameters, check_hasattr=True):
@@ -569,13 +576,15 @@ class Trainer:
     def excluded(cls):
         return {
             "config",
+            "host_machine",
+            "load_id",
+            "logger_args",
             "name",
             "render",
             "render_test",
             "subcommand",
             "sweep_id",
-            "load_id",
-            "logger_args",
+            "sync_envs",
         }
 
 
