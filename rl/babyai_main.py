@@ -40,6 +40,7 @@ class Args(main.Args):
     num_dists: int = 1
     room_size: int = 5
     strict: bool = True
+    test_organisms: str = None
     test_colors: str = None
     train_colors: str = None
 
@@ -116,6 +117,7 @@ class Trainer(main.Trainer):
             seed: int,
             strict: bool,
             test: bool,
+            test_organisms: str,
             test_colors: str,
             tokenizer: GPT2Tokenizer,
             train_colors: str,
@@ -123,10 +125,13 @@ class Trainer(main.Trainer):
         ):
             _kwargs = dict(room_size=room_size, strict=strict, seed=seed)
             if env_id == "plant-animal":
-                objects = {*PlantAnimalWrapper.replacements.keys()}
                 test_objects = {
-                    PlantAnimalWrapper.purple_animal,
-                    PlantAnimalWrapper.black_plant,
+                    getattr(PlantAnimalWrapper, a) for a in test_organisms.split(",")
+                }
+                objects = {
+                    k
+                    for k in PlantAnimalWrapper.replacements.keys()
+                    if k not in test_objects
                 }
                 objects = test_objects if test else objects - test_objects
                 objects = [o.split() for o in objects]
@@ -140,6 +145,8 @@ class Trainer(main.Trainer):
                     for _, vs in _env.replacements.items():
                         for v in vs:
                             yield f"pick up the {v}"
+                    for k in _env.replacements:
+                        yield f"pick up the {k}"
 
             elif env_id == "colors":
                 test_colors = test_colors.split(",")
