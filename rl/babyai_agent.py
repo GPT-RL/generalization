@@ -40,6 +40,7 @@ class Base(NNBase):
         hidden_size: int,
         observation_space: Dict,
         recurrent: bool,
+        second_layer: bool,
     ):
         super().__init__(
             recurrent=recurrent,
@@ -66,18 +67,42 @@ class Base(NNBase):
             nn.init.calculate_gain("relu"),
         )
         h, w, d = self.observation_spaces.image.shape
+        dummy_input = torch.zeros(1, d, h, w)
 
         self.conv = nn.Sequential(
-            init_(nn.Conv2d(d, 32, 3, 2)),
+            init_(nn.Conv2d(d, 32, 8, stride=4)),
+            nn.ReLU(),
+            init_(nn.Conv2d(32, 64, 4, stride=2)),
+            nn.ReLU(),
+            init_(nn.Conv2d(64, 32, 3, stride=1)),
             nn.ReLU(),
             nn.Flatten(),
         )
-        conv_output_size = self.conv(torch.zeros(1, d, h, w)).size(-1)
+        try:
+            output = self.conv(dummy_input)
+            assert not second_layer
+        except RuntimeError:
+            self.conv = (
+                nn.Sequential(
+                    init_(nn.Conv2d(d, 32, 3, stride=2)),
+                    nn.ReLU(),
+                    init_(nn.Conv2d(32, 32, 3, stride=1)),
+                    nn.ReLU(),
+                    nn.Flatten(),
+                )
+                if second_layer
+                else nn.Sequential(
+                    init_(nn.Conv2d(d, 32, 3, 2)),
+                    nn.ReLU(),
+                    nn.Flatten(),
+                )
+            )
+            output = self.conv(dummy_input)
 
         self.merge = nn.Sequential(
             init_(
                 nn.Linear(
-                    conv_output_size
+                    output.size(-1)
                     + self.num_directions
                     + self.num_actions
                     + self.embedding_size,

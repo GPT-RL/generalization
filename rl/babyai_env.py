@@ -6,25 +6,55 @@ from abc import ABC
 from dataclasses import astuple, dataclass
 from itertools import chain, cycle, islice
 from typing import Callable, Generator, Optional, TypeVar
+from typing import Set, Union
 
 import gym
 import gym_minigrid
 import numpy as np
 from babyai.levels.levelgen import RoomGridLevel
 from babyai.levels.verifier import (
-    ActionInstr,
     BeforeInstr,
+    GoToInstr,
     ObjDesc,
     PickupInstr,
-    GoToInstr,
 )
 from colors import color as ansi_color
 from gym.spaces import Box, Dict, Discrete, MultiDiscrete, Tuple
-from gym_minigrid.minigrid import COLOR_NAMES, MiniGridEnv, OBJECT_TO_IDX, WorldObj
-from gym_minigrid.roomgrid import RoomGrid
+from gym_minigrid.minigrid import (
+    COLOR_NAMES,
+    MiniGridEnv,
+    OBJECT_TO_IDX,
+    WorldObj,
+    COLORS,
+)
 from gym_minigrid.window import Window
-from gym_minigrid.wrappers import ImgObsWrapper, RGBImgPartialObsWrapper
+from gym_minigrid.wrappers import (
+    ImgObsWrapper,
+    RGBImgObsWrapper,
+    RGBImgPartialObsWrapper,
+)
 from transformers import GPT2Tokenizer
+
+from descs import (
+    CardinalDirection,
+    CornerDesc,
+    FaceDesc,
+    LocDesc,
+    NegativeObjDesc,
+    OrdinalDirection,
+    RoomDesc,
+    TYPES,
+    WallDesc,
+)
+from instrs import (
+    FaceInstr,
+    GoToCornerInstr,
+    GoToLoc,
+    GoToRoomInstr,
+    GoToWallInstr,
+    MultiAndInstr,
+    ToggleInstr,
+)
 
 T = TypeVar("T")  # Declare type variable
 
@@ -60,12 +90,12 @@ class RenderEnv(RoomGridLevel, ABC):
         self.__done = None
         self.__action = None
 
-    def row_objs(self, i: int) -> Generator[Optional[WorldObj], None, None]:
-        for j in range(self.width):
-            if np.all(self.agent_pos == (i, j)):
-                yield Agent(color="blue", type="agent")
+    def row_objs(self, y: int) -> Generator[Optional[WorldObj], None, None]:
+        for x in range(self.width):
+            if np.all(self.agent_pos == (x, y)):
+                yield Agent(color="grey", type="agent")
             else:
-                yield self.grid.get(i, j)
+                yield self.grid.get(x, y)
 
     def row_strings(self, i: int) -> Generator[str, None, None]:
         for obj in self.row_objs(i):
@@ -73,13 +103,13 @@ class RenderEnv(RoomGridLevel, ABC):
                 string = ""
             elif isinstance(obj, Agent):
                 if self.agent_dir == 0:
-                    string = "v"
-                elif self.agent_dir == 1:
                     string = ">"
+                elif self.agent_dir == 1:
+                    string = "v"
                 elif self.agent_dir == 2:
-                    string = "^"
-                elif self.agent_dir == 3:
                     string = "<"
+                elif self.agent_dir == 3:
+                    string = "^"
                 else:
                     breakpoint()
                     raise RuntimeError
@@ -88,7 +118,7 @@ class RenderEnv(RoomGridLevel, ABC):
 
             string = f"{string:<{self.max_string_length}}"
             if obj is not None:
-                string = ansi_color(string, obj.color)
+                string = ansi_color(string, tuple(COLORS[obj.color]))
             yield string + "\033[0m"
 
     @property
@@ -120,10 +150,14 @@ class RenderEnv(RoomGridLevel, ABC):
                 if self.__action is None
                 else MiniGridEnv.Actions(self.__action).name,
             )
-            if pause:
-                input("Press enter to continue.")
+            self.pause(pause)
         else:
             return super().render(mode=mode, **kwargs)
+
+    @staticmethod
+    def pause(pause):
+        if pause:
+            input("Press enter to continue.")
 
     def step(self, action):
         self.__action = action
@@ -131,95 +165,7 @@ class RenderEnv(RoomGridLevel, ABC):
         return s, self.__reward, self.__done, i
 
 
-class ToggleInstr(ActionInstr):
-    """
-    Pick up an object matching a given description
-    eg: pick up the grey ball
-    """
-
-    def __init__(self, obj_desc, strict=False):
-        super().__init__()
-        self.desc = obj_desc
-        self.strict = strict
-
-    def surface(self, env):
-        return "toggle " + self.desc.surface(env)
-
-    def reset_verifier(self, env):
-        super().reset_verifier(env)
-        self.desc.find_matching_objs(env)
-
-    def verify_action(self, action):
-        # Only verify when the pickup action is performed
-        if action != self.env.actions.toggle:
-            return "continue"
-
-        # For each object position
-        for pos in self.desc.obj_poss:
-            # If the agent is next to (and facing) the object
-            if np.array_equal(pos, self.env.front_pos):
-                return "success"
-
-        if self.strict:
-            return "failure"  # not allowed to toggle except in front of correct object
-
-        return "continue"
-
-
-class LocDesc:
-    """
-    Description of a set of objects in an environment
-    """
-
-    def __init__(self, grid: RoomGrid, i: int, j: int):
-        assert 1 <= i < grid.height - 1
-        assert 1 <= j < grid.width - 1
-        self.i = i
-        self.j = j
-
-    def __repr__(self):
-        return f"({self.i}, {self.j})"
-
-    def surface(self):
-        """
-        Generate a natural language representation of the object description
-        """
-        return repr(self)
-
-    @property
-    def array(self):
-        return np.array([self.i, self.j])
-
-    @staticmethod
-    def find_matching_objs(*args, **kwargs):
-        return [], []
-
-
-class GoToLoc(ActionInstr):
-    """
-    Pick up an object matching a given description
-    eg: pick up the grey ball
-    """
-
-    def __init__(self, loc_desc: LocDesc):
-        self.desc = loc_desc
-        super().__init__()
-
-    def surface(self, env):
-        return "go to " + self.desc.surface()
-
-    def reset_verifier(self, env: MiniGridEnv):
-        super().reset_verifier(env)
-
-    def verify_action(self, *args, **kwargs):
-        # Only verify when the pickup action is performed
-        if np.array_equal(self.env.agent_pos, self.desc.array):
-            return "success"
-
-        return "continue"
-
-
-class GoToObjEnv(RenderEnv):
+class GoToObjEnv(RenderEnv, ReproducibleEnv):
     def __init__(
         self,
         goal_objects,
@@ -248,7 +194,7 @@ class GoToObjEnv(RenderEnv):
         self.instrs = GoToInstr(ObjDesc(*goal_object))
 
 
-class PickupEnv(ReproducibleEnv, RenderEnv):
+class PickupEnv(RenderEnv, ReproducibleEnv):
     def __init__(
         self,
         goal_objects: typing.Iterable[typing.Tuple[str, str]],
@@ -284,7 +230,7 @@ class PickupEnv(ReproducibleEnv, RenderEnv):
         self.instrs = PickupInstr(ObjDesc(*goal_object), strict=self.strict)
 
 
-class GoToLocEnv(RenderEnv):
+class GoToLocEnv(RenderEnv, ReproducibleEnv):
     def __init__(
         self,
         room_size: int,
@@ -311,7 +257,140 @@ class GoToLocEnv(RenderEnv):
         self.instrs = GoToLoc(LocDesc(self.grid, *self._rand_elem(locs)))
 
 
-class ToggleEnv(RenderEnv):
+class InvalidDirectionError(RuntimeError):
+    pass
+
+
+class DirectionsEnv(GoToLocEnv):
+    def __init__(
+        self,
+        room_size: int,
+        seed: int,
+        strict: bool,
+        directions: Set[Union[CardinalDirection, OrdinalDirection]],
+        adjacencies: bool,
+        **kwargs,
+    ):
+        directions = sorted(directions, key=directions_key)
+
+        def get_instr():
+            direction = self._rand_elem(directions)
+            if isinstance(direction, CardinalDirection):
+                return GoToWallInstr(
+                    desc=WallDesc(direction=direction, random=None, **kwargs),
+                    strict=strict,
+                )
+            elif isinstance(direction, OrdinalDirection):
+                return GoToCornerInstr(
+                    desc=CornerDesc(
+                        direction=direction,
+                        random=None,
+                        adjacencies=adjacencies,
+                        **kwargs,
+                    ),
+                    strict=strict,
+                )
+            else:
+                raise InvalidDirectionError
+
+        self.get_instr = get_instr
+
+        super().__init__(room_size, seed)
+
+    def gen_mission(self):
+        self.place_agent()
+        self.connect_all()
+        self.add_distractors(num_distractors=self.num_dists, all_unique=False)
+        self.check_objs_reachable()
+        self.instrs = self.get_instr()
+
+
+class GoAndFaceDirections(typing.NamedTuple):
+    room_direction: OrdinalDirection
+    wall_direction: Union[CardinalDirection, OrdinalDirection]
+    face_direction: CardinalDirection
+
+
+def directions_key(directions: Union[CardinalDirection, OrdinalDirection]):
+    return directions.value, str(type(directions))
+
+
+def go_and_face_directions_key(directions: GoAndFaceDirections):
+    return (
+        directions.room_direction.value,
+        directions_key(directions.wall_direction),
+        directions.face_direction.value,
+    )
+
+
+class GoAndFaceEnv(RenderEnv, ReproducibleEnv):
+    def __init__(
+        self, room_size: int, seed: int, directions: Set[GoAndFaceDirections], **kwargs
+    ):
+        directions = sorted(directions, key=go_and_face_directions_key)
+
+        def get_instr():
+            idx = self._rand_int(0, len(directions))
+            d = directions[idx]
+            random = self.np_random
+
+            def get_kwargs_starting_with(s: str):
+                for k, v in kwargs.items():
+                    if k.startswith(s):
+                        yield k[len(s) :], v
+
+            if isinstance(d.wall_direction, CardinalDirection):
+                wall_instr = GoToWallInstr(
+                    desc=WallDesc(
+                        direction=d.wall_direction,
+                        random=random,
+                        **dict(get_kwargs_starting_with("wall_")),
+                    ),
+                    strict=False,
+                )
+            elif isinstance(d.wall_direction, OrdinalDirection):
+                wall_instr = GoToCornerInstr(
+                    desc=CornerDesc(
+                        direction=d.wall_direction,
+                        random=random,
+                        **dict(get_kwargs_starting_with("corner_")),
+                    ),
+                    strict=False,
+                )
+            else:
+                raise InvalidDirectionError
+            room_desc = RoomDesc(
+                direction=d.room_direction,
+                random=random,
+                **dict(get_kwargs_starting_with("room_")),
+            )
+            go_to_room_instr = GoToRoomInstr(room_desc)
+            face_desc = FaceDesc(
+                direction=d.face_direction,
+                random=random,
+                **dict(get_kwargs_starting_with("face_")),
+            )
+            face_instr = FaceInstr(desc=face_desc)
+            instr = MultiAndInstr(go_to_room_instr, wall_instr, face_instr)
+            return instr
+
+        self.get_instr = get_instr
+
+        super().__init__(
+            room_size=room_size,
+            num_rows=2,
+            num_cols=2,
+            seed=seed,
+        )
+
+    def gen_mission(self):
+        self.place_agent()
+        self.connect_all()
+        self.check_objs_reachable()
+        self.instrs = self.get_instr()
+
+
+class ToggleEnv(RenderEnv, ReproducibleEnv):
     def __init__(
         self,
         goal_objects: typing.Iterable[typing.Tuple[str, str]],
@@ -340,10 +419,10 @@ class ToggleEnv(RenderEnv):
         self.instrs = ToggleInstr(ObjDesc(*goal_object), strict=self.strict)
 
 
-class PickupEnvRoomObjects(ReproducibleEnv, RenderEnv):
+class PickupEnvRoomObjects(RenderEnv, ReproducibleEnv):
     def __init__(
         self,
-        room_objects: typing.Iterable[typing.Tuple[str, str]],
+        room_objects: typing.Iterable,
         room_size: int,
         seed: int,
         strict: bool,
@@ -372,6 +451,95 @@ class PickupEnvRoomObjects(ReproducibleEnv, RenderEnv):
         self.instrs = PickupInstr(ObjDesc(*goal_object), strict=self.strict)
 
 
+class NegationObject(typing.NamedTuple):
+    positive: bool
+    type: str = None
+    color: str = None
+
+
+class NegationEnv(RenderEnv):
+    def __init__(
+        self,
+        goal_objects: typing.Iterable[NegationObject],
+        room_objects: typing.Iterable[typing.Tuple[str, str]],
+        room_size: int,
+        seed: int,
+        strict: bool,
+        num_dists: int = 1,
+    ):
+        self.room_objects = sorted(room_objects)
+        self.strict = strict
+        self.goal_objects = sorted(goal_objects, key=lambda x: tuple(map(str, x)))
+        self.num_dists = num_dists
+        super().__init__(
+            room_size=room_size,
+            num_rows=1,
+            num_cols=1,
+            seed=seed,
+        )
+
+    def gen_mission(self):
+        self.place_agent()
+        self.connect_all()
+        positive, goal_type, goal_color = _, *goal_object = self._rand_elem(
+            self.goal_objects
+        )
+        # print(positive, goal_type, goal_color)
+        if goal_type is not None and goal_color is not None:
+            goals = [goal_object]
+            distractors = [
+                (t, c)
+                for (t, c) in self.room_objects
+                if t != goal_type or c != goal_color
+            ]
+        else:
+            goals = [
+                (t, c)
+                for (t, c) in self.room_objects
+                if t == goal_type or c == goal_color
+            ]
+            if goal_type is None and goal_color is not None:
+                distractors = [
+                    (t, c) for (t, c) in self.room_objects if (c != goal_color)
+                ]
+            elif goal_color is None and goal_type is not None:
+                distractors = [
+                    (t, c) for (t, c) in self.room_objects if (t != goal_type)
+                ]
+            else:
+                raise RuntimeError(
+                    f"Invalid goal_type ({goal_type}), goal_color({goal_color}) specification."
+                )
+
+        if not positive:
+            goals, distractors = distractors, goals
+        # print("goals")
+        # print(goals, sep="\n")
+        # print("distractors")
+        # print(distractors, sep="\n")
+        # print("positive", positive)
+
+        goal = self._rand_elem(goals)
+        distractor = self._rand_elem(distractors)
+        if positive:
+            desc = ObjDesc(*goal)
+        else:
+            desc = NegativeObjDesc(type=goal_type, color=goal_color)
+
+        # print("goal")
+        # print(goal)
+        # print("chosen distractor")
+        # print(distractor)
+        self.add_object(0, 0, *goal)
+        self.add_object(0, 0, *distractor)
+        for _ in range(self.num_dists):
+            obj = self._rand_elem(goals if self.np_random.choice(2) else distractors)
+            self.add_object(0, 0, *obj)
+
+        self.check_objs_reachable()
+        self.instrs = PickupInstr(desc, strict=self.strict)
+
+
 COLOR = "red"
 
 
@@ -388,7 +556,7 @@ class PickupRedEnv(PickupEnv):
         )
 
 
-class SequenceEnv(RenderEnv):
+class SequenceEnv(RenderEnv, ReproducibleEnv):
     def __init__(self, *args, strict: bool, **kwargs):
         self.strict = strict
         super().__init__(*args, **kwargs)
@@ -396,15 +564,22 @@ class SequenceEnv(RenderEnv):
     def gen_mission(self):
         self.place_agent()
         self.connect_all()
-        objs = {(ty, COLOR) for ty in TYPES}
-        goal1 = self._rand_elem(objs)
-        goal2 = self._rand_elem(objs - {goal1})
-        for obj in [goal1, goal2]:
-            self.add_object(0, 0, *obj)
-        instr1 = GoToInstr(ObjDesc(*goal1))
-        instr2 = GoToInstr(ObjDesc(*goal2))
+        locs = list(
+            itertools.product(
+                range(1, self.grid.height - 1),
+                range(1, self.grid.width - 1),
+            )
+        )
+
+        instr1 = GoToLoc(LocDesc(self.grid, *self._rand_elem(locs)))
+        instr2 = GoToLoc(LocDesc(self.grid, *self._rand_elem(locs)))
         self.check_objs_reachable()
         self.instrs = BeforeInstr(instr1, instr2, strict=True)
+
+    def render(self, mode="human", pause=True, **kwargs):
+        super().render(mode=mode, pause=False, **kwargs)
+        print("Done:", self.instrs.a_done, self.instrs.b_done)
+        self.pause(pause)
 
 
 class MissionWrapper(gym.Wrapper, abc.ABC):
@@ -426,10 +601,9 @@ class MissionWrapper(gym.Wrapper, abc.ABC):
     def render(self, mode="human", pause=True, **kwargs):
         self.env.render(pause=False)
         print(self._mission)
-        if pause:
-            input("Press enter to coninue.")
+        self.env.pause(pause)
 
-    def change_mission(self, mission):
+    def change_mission(self, mission: str) -> str:
         raise NotImplementedError
 
 
@@ -544,7 +718,7 @@ class PlantAnimalWrapper(MissionWrapper):
         ],
     }
 
-    def change_mission(self, mission):
+    def change_mission(self, mission: str) -> str:
         for k, v in self.replacements.items():
             if k in mission:
                 replacement = self.np_random.choice(v)
@@ -553,7 +727,7 @@ class PlantAnimalWrapper(MissionWrapper):
         return mission
 
 
-class SynonymWrapper(MissionWrapper):
+class PickupSynonymWrapper(MissionWrapper):
     synonyms = {
         "pick-up": ["take", "grab", "get"],
         "red": ["crimson"],
@@ -561,10 +735,6 @@ class SynonymWrapper(MissionWrapper):
         "ball": ["sphere", "globe"],
         "phone": ["cell", "mobile"],
     }
-
-    def __init__(self, env):
-        super().__init__(env)
-        self._mission
 
     def change_mission(self, mission):
         mission = mission.replace("key", "phone")
@@ -583,17 +753,39 @@ class InvalidInstructionError(RuntimeError):
     pass
 
 
-class SequenceSynonymWrapper(MissionWrapper):
-    def __init__(self, env, test: bool):
+class SequenceParaphrasesWrapper(MissionWrapper):
+    def __init__(
+        self,
+        env,
+        test: bool,
+        train_wordings: typing.List[str],
+        test_wordings: typing.List[str],
+    ):
         super().__init__(env)
-        self.test = test
-
-    def change_mission(self, mission):
-        def after_reverse(instr1: str, instr2: str):
-            return f"After you {instr1}, {instr2}"
 
         def before(instr1: str, instr2: str):
             return f"{instr1} before you {instr2}"
+
+        def before_reverse(instr1: str, instr2: str):
+            return f"Before you {instr2}, {instr1}"
+
+        def after(instr1: str, instr2: str):
+            return f"{instr2} after you {instr1}"
+
+        def after_reverse(instr1: str, instr2: str):
+            return f"After you {instr1}, {instr2}"
+
+        def once(instr1: str, instr2: str):
+            return f"{instr2} once you {instr1}"
+
+        def once_reverse(instr1: str, instr2: str):
+            return f"Once you {instr1}, {instr2}"
+
+        def having_reverse(instr1: str, instr2: str):
+            return f"Having already {past(instr1)}, {instr2}"
+
+        def having(instr1: str, instr2: str):
+            return f"{instr2}, having already {past(instr1)}"
 
         def then(instr1: str, instr2: str):
             return f"{instr1}, then {instr2}"
@@ -601,47 +793,39 @@ class SequenceSynonymWrapper(MissionWrapper):
         def _next(instr1: str, instr2: str):
             return f"{instr1}. Next, {instr2}"
 
-        def having(instr1: str, instr2: str):
-            return f"{instr2}, having already {past(instr1)}"
+        wordings = dict(
+            before=before,
+            before_reverse=before_reverse,
+            after=after,
+            after_reverse=after_reverse,
+            once=once,
+            once_reverse=once_reverse,
+            having_reverse=having_reverse,
+            having=having,
+            then=then,
+            _next=_next,
+        )
 
-        def after(instr1: str, instr2: str):
-            return f"{instr2} after you {instr1}"
-
-        def before_reverse(instr1: str, instr2: str):
-            return f"Before you {instr2}, {instr1}"
-
-        wordings = [after, after_reverse, before_reverse, then, _next, having]
+        self.wordings = [wordings[w] for w in train_wordings]
+        self.test_wordings = [wordings[w] for w in test_wordings]
 
         def past(instr: str):
             return instr.replace(" go ", " gone ")
 
+        self.test = test
+
+    def change_mission(self, mission):
         match = re.match(r"(.*), then (.*)", mission)
         if not match:
             match = re.match(r"(.*) after you (.*)", mission)
             if not match:
                 breakpoint()
 
-        wording: Callable[[str, str], str] = (
-            before if self.test else self.np_random.choice(wordings)
+        wording: Callable[[str, str], str] = self.np_random.choice(
+            self.test_wordings if self.test else self.wordings
         )
         mission = wording(*match.group(1, 2))
         return mission
-
-
-def get_train_and_test_objects():
-    all_objects = set(itertools.product(TYPES, COLORS))
-
-    def pairs():
-
-        remaining = set(all_objects)
-
-        for _type, color in zip(TYPES, itertools.cycle(COLORS)):
-            remaining.remove((_type, color))
-            yield _type, color
-        # yield from remaining
-
-    train_objects = [*pairs()]
-    return TrainTest(train=train_objects, test=list(all_objects))
 
 
 class ActionInObsWrapper(gym.Wrapper):
@@ -716,7 +900,7 @@ class TokenizerWrapper(gym.ObservationWrapper):
         return observation
 
 
-class FullyObsWrapper(gym_minigrid.wrappers.FullyObsWrapper):
+class DirectionWrapper(gym.Wrapper):
     def __init__(self, env):
         super().__init__(env)
         self.observation_space = Dict(
@@ -725,6 +909,22 @@ class FullyObsWrapper(gym_minigrid.wrappers.FullyObsWrapper):
                 direction=Discrete(4),
             )
         )
+
+
+class FullyObsWrapper(gym_minigrid.wrappers.FullyObsWrapper):
+    def observation(self, obs):
+        direction = obs["direction"]
+        obs = super().observation(obs)
+        obs["direction"] = direction
+        return obs
+
+
+class RGBImgObsWithDirectionWrapper(RGBImgObsWrapper):
+    """
+    Wrapper to use fully observable RGB image as the only observation output,
+    no language/mission. This can be used to have the agent to solve the
+    gridworld in pixel space.
+    """
 
     def observation(self, obs):
         direction = obs["direction"]
@@ -794,19 +994,13 @@ def main(args: "Args"):
             step(env.actions.done)
             return
 
-    env = SequenceEnv(
-        seed=args.seed,
-        strict=args.strict,
+    room_objects = [(ty, col) for ty in TYPES for col in COLOR_NAMES]
+    env = PickupEnvRoomObjects(
+        room_objects=room_objects,
         room_size=args.room_size,
-        num_rows=1,
-        num_cols=1,
-    )
-    env = SequenceEnv(
         seed=args.seed,
-        strict=args.strict,
-        room_size=args.room_size,
-        num_rows=1,
-        num_cols=1,
+        strict=not args.not_strict,
+        num_dists=args.num_dists,
     )
     if args.agent_view:
         env = RGBImgPartialObsWrapper(env)
@@ -825,5 +1019,7 @@ if __name__ == "__main__":
         tile_size: int = 32
         agent_view: bool = False
         test: bool = False
+        not_strict: bool = False
+        num_dists: int = 1
 
     main(Args().parse_args())
