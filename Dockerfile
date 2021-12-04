@@ -1,4 +1,4 @@
-# inspired by https://sourcery.ai/blog/python-docker/ 
+# inspired by https://sourcery.ai/blog/python-docker/
 FROM nvidia/cuda:11.2.1-cudnn8-devel-ubuntu20.04 as base
 ARG CUDA_SHORT=112
 
@@ -7,7 +7,7 @@ ENV LANG C.UTF-8
 ENV LC_ALL C.UTF-8
 
 # no .pyc files
-ENV PYTHONDONTWRITEBYTECODE 1  
+ENV PYTHONDONTWRITEBYTECODE 1
 
 # traceback on segfau8t
 ENV PYTHONFAULTHANDLER 1
@@ -48,8 +48,8 @@ RUN apt-get update -q \
     apt-get install -yq \
 
       # required by poetry
-      python \ 
-      python3-pip \ 
+      python \
+      python3-pip \
 
       # required for redis
       gcc \

@@ -4,6 +4,7 @@ from itertools import chain
 from pathlib import Path
 from typing import List, Tuple
 
+import babyai_env
 import jsonlines
 import numpy as np
 import pandas as pd
@@ -11,8 +12,6 @@ import torch
 import umap
 from tap import Tap
 from transformers import GPT2LMHeadModel, GPT2TokenizerFast
-
-import babyai_env
 
 BASE_PATH = Path("/root/.cache/GPT/linguistic_analysis")
 UMAP_CONFIGS = [

@@ -1,6 +1,5 @@
-from transformers import GPT2Config, GPT2Model
-
 import babyai_agent
+from transformers import GPT2Config, GPT2Model
 from utils import get_gpt_size
 
 

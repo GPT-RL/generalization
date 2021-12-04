@@ -37,7 +37,7 @@ begin
 	import Plots
 
 	Gadfly.set_default_plot_size(16cm, 14cm)
-	
+
 	# For allowing interactive Gadly Plots
 	struct HTMLDocument
 		embedded
@@ -113,19 +113,19 @@ begin
 	# Handles image processing
 	# From here: https://discourse.julialang.org/t/json-list-of-lists-to-julia-matrix-preferably-fast-and-with-low-memory-overhead/53410/3
 	using StructTypes
-	struct Sample                
+	struct Sample
 		observation::Array{Vector{Vector{Float64}}, 1}
-		perception_tokens::Array{Vector{String}, 1}     
+		perception_tokens::Array{Vector{String}, 1}
 		perception_log_prob::Float64
 		actions::Vector{Float64}
-	end                               
+	end
 	StructTypes.StructType(::Type{Sample}) = StructTypes.Struct()
-	
+
 	"Convert a list of lists representing matrix rows to a dense Float64 matrix."
 	function to_mat(arrs::JSON3.Array)
 		Matrix(hcat(typed_copy.(arrs)...)')
 	end
-	
+
 	"Copy a JSON3.Array containing real valued elements into a regular Vector{Float64}."
 	function typed_copy(j3arr)
 		n = length(j3arr)
@@ -135,7 +135,7 @@ begin
 		end
 		x
 	end
-	
+
 	samples = JSONLines.LineIterator("/workspace/linguistic_analysis/$la_run_id/steps.jsonl";structtype=Sample) |> collect
 end;
 
@@ -228,7 +228,7 @@ ling_analysis_colors = collect(Plots.palette(:tab10));
 # ╔═╡ 4ea56a0c-9b6a-449f-99ed-3069bc62a289
 plot(
 	pairwise_distance_summary,
-	x=:embedding, xgroup=:quantile, 
+	x=:embedding, xgroup=:quantile,
 	y=:mean, ymin=:ymin, ymax=:ymax,
 	color=:embedding,
 	Scale.x_discrete(;levels=["Random", "Perception", "GPT-2"]),
@@ -286,17 +286,17 @@ md"""
 function original_architecture_description(env, pretrained, random)
 	return md"""
 # "Original" Architecture
-- Convolution with 
+- Convolution with
   - output-size $32$
   - kernel-shape $8\times 8$
   - stride $4\times 4$
 - ReLU
-- Convolution with 
+- Convolution with
   - output-size $64$
   - kernel-shape $4\times 4$
   - stride $2\times 2$
 - ReLU
-- Convolution with 
+- Convolution with
   - output-size $64$
   - kernel-shape $3\times 3$
   - stride $1\times 1$
@@ -324,12 +324,12 @@ original_architecture_description("Breakout", 8, 2)
 # ╔═╡ dc703eee-24a7-48c5-80d5-ca3868d5fff7
 md"""
 ## "Two-Convolution, Single-Embedding" Architecture
-- Convolution with 
+- Convolution with
   - output-size $32$
   - kernel-shape $8\times 8$
   - stride $4\times 4$
 - ReLU
-- Convolution with 
+- Convolution with
   - output-size $64$
   - kernel-shape $4\times 4$
   - stride $2\times 2$
@@ -340,18 +340,18 @@ md"""
 # ╔═╡ 2c8a1454-14a4-4dfb-a6cc-6eecf1f46acf
 md"""
 ## "Two-Convolution, Multi-Embedding" Architecture
-- Convolution with 
+- Convolution with
   - output-size $32$
   - kernel-shape $8\times 8$
   - stride $4\times 4$
 - ReLU
-- Convolution with 
+- Convolution with
   - **output-size $1024$ (GPT embedding size)**
   - kernel-shape $16\times 16$
   - stride $2\times 2$
   - This results in `num_embeddings = 9`
 - **GPT2 Medium Architecture**
-- single layer chosen from 
+- single layer chosen from
   - 32
   - 64
   - 128
@@ -365,13 +365,13 @@ Comparison of best run with randomized parameters is currently running.
 # ╔═╡ 62e13fee-3b74-4e7e-bf7e-baa9e1bfa8f5
 md"""
 ## "One-Convolution, Multi-Embedding" Architecture
-- Convolution with 
+- Convolution with
   - **output-size $1024$ (GPT embedding size)**
   - **kernel-shape $64\times 64$**
   - stride $4\times 4$
   - This results in `num_embeddings = 9`
 - **GPT2 Medium Architecture**
-- single layer chosen from 
+- single layer chosen from
   - 32
   - 64
   - 128
@@ -382,13 +382,13 @@ md"""
 # ╔═╡ e9f9051c-a21f-45b4-95fe-257de222fcd6
 md"""
 # "One-Convolution, Multi-Embedding" Architecture
-- Convolution with 
+- Convolution with
   - **output-size $1024$**
   - kernel-shape $12\times 12$
   - stride $12\times 12$
   - This results in `num_embeddings = 49`
 - **GPT2 Medium Architecture**
-- single layer chosen from 
+- single layer chosen from
   - 32
   - 64
   - 128
@@ -476,25 +476,25 @@ function sweep_runs(sweep_ids::AbstractVector{Int}, max_step::Int)
 
 		map(d -> Dict(
 				d...,
-				"action_hidden_size" => if isnothing(get(d, "action_hidden_size", 0)) 
-					0 
-				else 
-					get(d, "action_hidden_size", nothing) 
-				end, 
+				"action_hidden_size" => if isnothing(get(d, "action_hidden_size", 0))
+					0
+				else
+					get(d, "action_hidden_size", nothing)
+				end,
 				[k => v for (k1, v1, k2, v2) in [
 							(
-								"hours", get(d, "time-delta", 0) / 3600, 
+								"hours", get(d, "time-delta", 0) / 3600,
 								"time-delta", get(d, "hours", 0) * 3600,
 							),
 							(
 								"env", get(d, "env_name", nothing),
 								"env_name", get(d, "env", nothing),
 							)
-						] 
+						]
 						for (k, v) in [
-								(k1, get(d, k1, v1)), 
+								(k1, get(d, k1, v1)),
 								(k2, get(d, k2, v2)),
-								]]...,				
+								]]...,
 				[name => get(d, name, false) for name in [
 							"randomize_parameters"
 						]]...,
@@ -503,22 +503,22 @@ function sweep_runs(sweep_ids::AbstractVector{Int}, max_step::Int)
 							# "gpt",
 							# "time",
 							# "gae",
-							# "gradient_clip", 
-							# "nonlinearity", 
+							# "gradient_clip",
+							# "nonlinearity",
 							# "normalize_observation",
 							# "normalize_torso_output",
 							# "optimizer",
-							# "num_embeddings", 
+							# "num_embeddings",
 							# "save_interval",
 							# "save_path",
 							"config",
-							"graphql_endpoint", 
+							"graphql_endpoint",
 							"linguistic_analysis_path",
-							# "hidden_size", 
-							"host_machine", 
+							# "hidden_size",
+							"host_machine",
 							# "kernel",
 							# "stride"
-						]]... 
+						]]...
 				), _)
 		filter(d -> !isnothing(d["episode return"]), _)
 	end
@@ -527,7 +527,7 @@ end;
 
 # ╔═╡ f53e9f0c-b53d-4db6-abe2-2be82077bf38
 function to_gif(images::Array{Vector{Vector{Float64}}, 1}, scale::Int = 3)
-	anim = @Plots.animate for img in images 
+	anim = @Plots.animate for img in images
 		Plots.heatmap(
 			Matrix(hcat(img...)') ./ 255.0;
 			color=:grays,
@@ -558,8 +558,8 @@ ppo_scores = Dict(
 
 # ╔═╡ 0a6d3d99-37bc-40f4-95e5-91ef76b29844
 function plot_returns(;
-		sweep_ids::AbstractVector{Int}, 
-		max_step::Int, 
+		sweep_ids::AbstractVector{Int},
+		max_step::Int,
 		color,
 		legend_title::String=color,
 		labels=nothing
@@ -588,40 +588,40 @@ end
 
 # ╔═╡ fc36279e-2088-4eba-b48a-f05e82443540
 plot_returns(
-	sweep_ids=[826], 
-	max_step=50000000, 
+	sweep_ids=[826],
+	max_step=50000000,
 	color=:randomize_parameters,
 	legend_title="Random Parameters"
 )
 
 # ╔═╡ baf58341-a518-40ca-bafa-d2e4127b3089
 plot_returns(
-	sweep_ids=[787, 690], 
-	max_step=50000000, 
+	sweep_ids=[787, 690],
+	max_step=50000000,
 	color=:randomize_parameters,
 	legend_title="Random Parameters"
 )
 
 # ╔═╡ e7bd101e-a647-4ffd-9770-27c350396831
 plot_returns(
-	sweep_ids=[687, 672], 
-	max_step=50000000, 
+	sweep_ids=[687, 672],
+	max_step=50000000,
 	color=:randomize_parameters,
 	legend_title="Random Parameters"
 )
 
 # ╔═╡ ac8cdb25-ebf2-4a07-855e-b6f34632c340
 plot_returns(
-	sweep_ids=[817], 
-	max_step=50000000, 
+	sweep_ids=[817],
+	max_step=50000000,
 	color=:randomize_parameters,
 	legend_title="Random Parameters"
 )
 
 # ╔═╡ b48cc867-bc2a-4f26-a77a-883f3254e7b8
 plot_returns(
-	sweep_ids=[824], 
-	max_step=50000000, 
+	sweep_ids=[824],
+	max_step=50000000,
 	color="action_hidden_size",
 	legend_title="Action hidden-size",
 )

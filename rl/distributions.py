@@ -1,15 +1,16 @@
 import torch
 import torch.nn as nn
-
 from utils import AddBias, init
 
 """
 Modify standard PyTorch distributions so they are compatible with this code.
 """
 
+
 #
 # Standardize distribution interfaces
 #
+
 
 # Categorical
 class FixedCategorical(torch.distributions.Categorical):

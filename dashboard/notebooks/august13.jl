@@ -28,7 +28,7 @@ begin
 	import Plots
 
 	Gadfly.set_default_plot_size(16cm, 14cm)
-	
+
 	# For allowing interactive Gadly Plots
 	struct HTMLDocument
 		embedded
@@ -81,12 +81,12 @@ md"""
 # ╔═╡ 36db8d48-40f4-4c99-b371-9786ea05bc1f
 md"""
 # "Two-Convolution, Multi-Embedding" Architecture
-- Convolution with 
+- Convolution with
   - output-size $32$
   - kernel-shape $8\times 8$
   - stride $4\times 4$
 - ReLU
-- Convolution with 
+- Convolution with
   - **output-size $1024$ (GPT embedding size)**
   - kernel-shape $16\times 16$
   - stride $2\times 2$
@@ -102,12 +102,12 @@ Comparison of best run with randomized parameters is currently running.
 # ╔═╡ 28f09bbc-e85c-413b-a94a-846d14b06556
 md"""
 # "Two-Convolution, Multi-Embedding" Architecture "No GPT variant"
-- Convolution with 
+- Convolution with
   - output-size $32$
   - kernel-shape $8\times 8$
   - stride $4\times 4$
 - ReLU
-- Convolution with 
+- Convolution with
   - **output-size $1024$ (GPT embedding size)**
   - kernel-shape $16\times 16$
   - stride $2\times 2$
@@ -134,17 +134,17 @@ md"""
 # ╔═╡ 737eccff-ff97-44b2-8c3a-fc6dbff1df86
 description = md"""
 # "Original" Architecture
-- Convolution with 
+- Convolution with
   - output-size $32$
   - kernel-shape $8\times 8$
   - stride $4\times 4$
 - ReLU
-- Convolution with 
+- Convolution with
   - output-size $64$
   - kernel-shape $4\times 4$
   - stride $2\times 2$
 - ReLU
-- Convolution with 
+- Convolution with
   - output-size $64$
   - kernel-shape $3\times 3$
   - stride $1\times 1$
@@ -180,7 +180,7 @@ md"""
   - Try Baby AI next
   - Auxiliary task to reconstruct input?
   - reproduce Abbeel result.
-  
+
   - Use mean and std for graphs
   - On supervised, ablate training of positional weights
   - On supervised, ablate training of layernorm params
@@ -246,25 +246,25 @@ function sweep_runs(sweep_ids::AbstractVector{Int}, max_step::Int)
 
 		map(d -> Dict(
 				d...,
-				"action_hidden_size" => if isnothing(get(d, "action_hidden_size", 0)) 
-					0 
-				else 
-					get(d, "action_hidden_size", nothing) 
-				end, 
+				"action_hidden_size" => if isnothing(get(d, "action_hidden_size", 0))
+					0
+				else
+					get(d, "action_hidden_size", nothing)
+				end,
 				[k => v for (k1, v1, k2, v2) in [
 							(
-								"hours", get(d, "time-delta", 0) / 3600, 
+								"hours", get(d, "time-delta", 0) / 3600,
 								"time-delta", get(d, "hours", 0) * 3600,
 							),
 							(
 								"env", get(d, "env_name", nothing),
 								"env_name", get(d, "env", nothing),
 							)
-						] 
+						]
 						for (k, v) in [
-								(k1, get(d, k1, v1)), 
+								(k1, get(d, k1, v1)),
 								(k2, get(d, k2, v2)),
-								]]...,				
+								]]...,
 				[name => get(d, name, false) for name in [
 							"randomize_parameters"
 						]]...,
@@ -273,26 +273,26 @@ function sweep_runs(sweep_ids::AbstractVector{Int}, max_step::Int)
 							# "gpt",
 							# "time",
 							# "gae",
-							# "gradient_clip", 
-							# "nonlinearity", 
+							# "gradient_clip",
+							# "nonlinearity",
 							# "normalize_observation",
 							# "normalize_torso_output",
 							# "optimizer",
-							"num_embeddings", 
+							"num_embeddings",
 							# "save_interval",
 							# "save_path",
 							"config",
-							"graphql_endpoint", 
+							"graphql_endpoint",
 							"linguistic_analysis_path",
-							# "hidden_size", 
-							"host_machine", 
+							# "hidden_size",
+							"host_machine",
 							"kernel",
 							"stride",
-							"one_layer", 
+							"one_layer",
 							"transpose",
-							"actor_steps", 
-							"batch_size", 
-							"checkpoint_frequency", 
+							"actor_steps",
+							"batch_size",
+							"checkpoint_frequency",
 							"decaying_lr_and_clip_param",
 							"entropy_coeff",
 							"lambda_",
@@ -328,7 +328,7 @@ function sweep_runs(sweep_ids::AbstractVector{Int}, max_step::Int)
 							"use_proper_time_limits",
 							"value loss",
 							"value_coef",
-						]]... 
+						]]...
 				), _)
 		filter(d -> !isnothing(d["episode return"]), _)
 	end
@@ -338,8 +338,8 @@ end;
 # ╔═╡ 9f0af273-08b0-4bc2-939b-caf3bf423ac5
 torch_vs_jax_data = @chain sweep_runs([865, 832], 10000000) begin
 		groupby(_, [:sweep_id])
-		DataFrames.transform(_, 
-			[:sweep_id] => 
+		DataFrames.transform(_,
+			[:sweep_id] =>
 			(ids) -> map(ids) do id
 				@match id begin
 					865 => "Jax version"
@@ -352,7 +352,7 @@ end;
 
 # ╔═╡ f53e9f0c-b53d-4db6-abe2-2be82077bf38
 function to_gif(images::Array{Vector{Vector{Float64}}, 1}, scale::Int = 3)
-	anim = @Plots.animate for img in images 
+	anim = @Plots.animate for img in images
 		Plots.heatmap(
 			Matrix(hcat(img...)') ./ 255.0;
 			color=:grays,
@@ -437,8 +437,8 @@ end
 begin
 	@chain sweep_runs([860, 830, 828], 50000000) begin
 		groupby(_, [:sweep_id, :randomize_parameters])
-		DataFrames.transform(_, 
-			[:sweep_id, :randomize_parameters] => 
+		DataFrames.transform(_,
+			[:sweep_id, :randomize_parameters] =>
 			(ids, rps) -> map(zip(ids, rps)) do (id, rp)
 				@match (id, rp) begin
 					(860, _) => "No GPT (after hyperparameter search)"
@@ -450,7 +450,7 @@ begin
 			end
 		)
 		plot_returns(
-			data=_, 
+			data=_,
 			color="sweep_id_randomize_parameters_function",
 			legend_title="Architecture"
 		)
@@ -461,8 +461,8 @@ end
 begin
 	@chain sweep_runs([869, 861, 826], 5000000) begin
 		groupby(_, [:sweep_id, :randomize_parameters])
-		DataFrames.transform(_, 
-			[:sweep_id, :randomize_parameters] => 
+		DataFrames.transform(_,
+			[:sweep_id, :randomize_parameters] =>
 			(ids, rps) -> map(zip(ids, rps)) do (id, rp)
 				@match (id, rp) begin
 					(861, _) => "No GPT (after hyperparameter search)"
@@ -474,7 +474,7 @@ begin
 			end
 		)
 		plot_returns(
-			data=_, 
+			data=_,
 			color="sweep_id_randomize_parameters_function",
 			legend_title="Architecture"
 		)
@@ -483,7 +483,7 @@ end
 
 # ╔═╡ 22ff27c0-3c7b-4c29-b3a1-c6dccf6e1e3f
 plot_returns(
-	data=torch_vs_jax_data, 
+	data=torch_vs_jax_data,
 	color="run ID",
 	legend_title="Architecture"
 )

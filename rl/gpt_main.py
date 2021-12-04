@@ -1,9 +1,8 @@
 import logging
 from typing import cast
 
-import torch
-
 import babyai_main
+import torch
 from envs import VecPyTorch
 from gpt_agent import Agent
 

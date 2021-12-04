@@ -35,17 +35,17 @@ This report compares the performance of a standard A2C baseline against a "GPT-i
 
 #### A2C
 
-- Convolution with 
+- Convolution with
   - output-size $32$
   - kernel-shape $8\times 8$
   - stride $4\times 4$
 - ReLU
-- Convolution with 
+- Convolution with
   - output-size $64$
   - kernel-shape $4\times 4$
   - stride $2\times 2$
 - ReLU
-- Convolution with 
+- Convolution with
   - output-size $64$
   - kernel-shape $3\times 3$
   - stride $1\times 1$
@@ -56,17 +56,17 @@ This report compares the performance of a standard A2C baseline against a "GPT-i
 #### GPT
 (differences in **bold**)
 
-- Convolution with 
+- Convolution with
   - output-size $32$
   - kernel-shape $8\times 8$
   - stride $4\times 4$
 - ReLU
-- Convolution with 
+- Convolution with
   - output-size $64$
   - kernel-shape $4\times 4$
   - stride $2\times 2$
 - ReLU
-- Convolution with 
+- Convolution with
   - output-size $64$
   - kernel-shape $3\times 3$
   - stride $1\times 1$
@@ -129,7 +129,7 @@ end;
 # ╔═╡ f7306428-2a04-43da-822e-85bed96216d8
 md"""
 ## Analysis
-The Abbeel paper ([Pretrained Transformers as Universal Computation Engines](https://arxiv.org/abs/2103.05247)) does not present state of the art performance after convergence. Instead it presents faster learning. It achieves this result by learning a very small number of parameters (relative to the baselines), forcing the networks to take advantage of information stored in the pretrained GPT network. 
+The Abbeel paper ([Pretrained Transformers as Universal Computation Engines](https://arxiv.org/abs/2103.05247)) does not present state of the art performance after convergence. Instead it presents faster learning. It achieves this result by learning a very small number of parameters (relative to the baselines), forcing the networks to take advantage of information stored in the pretrained GPT network.
 
 In contrast, our GPT model learns just as many parameters as the baseline and therefore it is not forced to take advantage of the GPT network. Instead the GPT network simply adds noise to the learning process.
 """

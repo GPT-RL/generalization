@@ -5,37 +5,16 @@ import typing
 from abc import ABC
 from dataclasses import astuple, dataclass
 from itertools import chain, cycle, islice
-from typing import Callable, Generator, Optional, TypeVar
-from typing import Set, Union
+from typing import Callable, Generator, Optional, Set, TypeVar, Union
 
 import gym
 import gym_minigrid
 import numpy as np
 from babyai.levels.levelgen import RoomGridLevel
-from babyai.levels.verifier import (
-    BeforeInstr,
-    GoToInstr,
-    ObjDesc,
-    PickupInstr,
-)
+from babyai.levels.verifier import BeforeInstr, GoToInstr, ObjDesc, PickupInstr
 from colors import color as ansi_color
-from gym.spaces import Box, Dict, Discrete, MultiDiscrete, Tuple
-from gym_minigrid.minigrid import (
-    COLOR_NAMES,
-    MiniGridEnv,
-    OBJECT_TO_IDX,
-    WorldObj,
-    COLORS,
-)
-from gym_minigrid.window import Window
-from gym_minigrid.wrappers import (
-    ImgObsWrapper,
-    RGBImgObsWrapper,
-    RGBImgPartialObsWrapper,
-)
-from transformers import GPT2Tokenizer
-
 from descs import (
+    TYPES,
     CardinalDirection,
     CornerDesc,
     FaceDesc,
@@ -43,8 +22,21 @@ from descs import (
     NegativeObjDesc,
     OrdinalDirection,
     RoomDesc,
-    TYPES,
     WallDesc,
+)
+from gym.spaces import Box, Dict, Discrete, MultiDiscrete, Tuple
+from gym_minigrid.minigrid import (
+    COLOR_NAMES,
+    COLORS,
+    OBJECT_TO_IDX,
+    MiniGridEnv,
+    WorldObj,
+)
+from gym_minigrid.window import Window
+from gym_minigrid.wrappers import (
+    ImgObsWrapper,
+    RGBImgObsWrapper,
+    RGBImgPartialObsWrapper,
 )
 from instrs import (
     FaceInstr,
@@ -55,6 +47,7 @@ from instrs import (
     MultiAndInstr,
     ToggleInstr,
 )
+from transformers import GPT2Tokenizer
 
 T = TypeVar("T")  # Declare type variable
 

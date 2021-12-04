@@ -13,9 +13,15 @@ from typing import List, Literal, Optional, cast, get_args
 import gym
 import numpy as np
 import torch
+import utils
 import yaml
+from agent import Agent
+from envs import TimeLimitMask, TransposeImage, VecPyTorch, VecPyTorchFrameStack
 from gql import gql
 from gym.wrappers.clip_action import ClipAction
+from ppo import PPO
+from rollouts import Rollouts
+from spec import spec
 from stable_baselines3.common.atari_wrappers import (
     ClipRewardEnv,
     EpisodicLifeEnv,
@@ -28,18 +34,6 @@ from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
 from sweep_logger import HasuraLogger
 from tap import Tap
-
-import utils
-from agent import Agent
-from envs import (
-    TimeLimitMask,
-    TransposeImage,
-    VecPyTorch,
-    VecPyTorchFrameStack,
-)
-from ppo import PPO
-from rollouts import Rollouts
-from spec import spec
 
 try:
     # noinspection PyUnresolvedReferences

@@ -1,16 +1,12 @@
 import functools
 from typing import Generator, Literal, Union, cast
 
-from gym_minigrid.minigrid import COLOR_NAMES
-from stable_baselines3.common.monitor import Monitor
-from transformers import GPT2Tokenizer
-
 import main
 from babyai_agent import Agent
 from babyai_env import (
     ActionInObsWrapper,
-    DirectionWrapper,
     DirectionsEnv,
+    DirectionWrapper,
     FullyObsWrapper,
     GoAndFaceDirections,
     GoAndFaceEnv,
@@ -31,8 +27,11 @@ from babyai_env import (
     TokenizerWrapper,
     ZeroOneRewardWrapper,
 )
-from descs import CardinalDirection, OrdinalDirection, TYPES
+from descs import TYPES, CardinalDirection, OrdinalDirection
 from envs import RenderWrapper, VecPyTorch
+from gym_minigrid.minigrid import COLOR_NAMES
+from stable_baselines3.common.monitor import Monitor
+from transformers import GPT2Tokenizer
 from utils import get_gpt_size
 
 
