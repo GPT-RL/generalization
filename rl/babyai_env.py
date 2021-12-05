@@ -603,18 +603,18 @@ class MissionWrapper(gym.Wrapper, abc.ABC):
 class PlantAnimalWrapper(MissionWrapper):
     green_animal = "green box"
     orange_animal = "yellow box"
-    green_plant = "green ball"
-    orange_plant = "yellow ball"
+    green_food = "green ball"
+    orange_food = "yellow ball"
     white_animal = "grey box"
-    white_plant = "grey ball"
+    white_food = "grey ball"
     purple_animal = "purple box"
-    purple_plant = "purple ball"
+    purple_food = "purple ball"
     # pink_animal = "pink box"
     # pink_plant = "pink ball"
     black_animal = "blue box"
     black_plant = "blue ball"
     red_animal = "red box"
-    red_plant = "red ball"
+    red_food = "red ball"
     replacements = {
         red_animal: [
             "rooster",
@@ -623,10 +623,9 @@ class PlantAnimalWrapper(MissionWrapper):
             "ladybug",
             "cardinal",
         ],
-        red_plant: [
+        red_food: [
             "cherry",
             "tomato",
-            "chili",
             "apple",
             "raspberry",
             "cranberry",
@@ -634,7 +633,6 @@ class PlantAnimalWrapper(MissionWrapper):
             "pomegranate",
             "radish",
             "beet",
-            "rose",
         ],
         black_animal: [
             "gorilla",
@@ -647,25 +645,22 @@ class PlantAnimalWrapper(MissionWrapper):
         # pink_animal: ["flamingo", "pig"],
         # pink_plant: ["lychee", "dragonfruit"],
         purple_animal: ["purple animal"],
-        purple_plant: [
+        purple_food: [
             "grape",
             "eggplant",
             "plum",
             "shallot",
-            "lilac",
         ],
         white_animal: [
             "polar bear",
             "swan",
-            "ermine",
             "sheep",
             "seagull",
         ],
-        white_plant: [
+        white_food: [
             "coconut",
             "cauliflower",
             "onion",
-            "garlic",
         ],
         green_animal: [
             "iguana",
@@ -676,7 +671,7 @@ class PlantAnimalWrapper(MissionWrapper):
             "lizard",
             "caterpillar",
         ],
-        green_plant: [
+        green_food: [
             "lime",
             "kiwi",
             "broccoli",
@@ -692,13 +687,11 @@ class PlantAnimalWrapper(MissionWrapper):
         ],
         orange_animal: [
             "tiger",
-            "lion",
             "orangutan",
             "goldfish",
             "clownfish",
-            "fox",
         ],
-        orange_plant: [
+        orange_food: [
             "peach",
             "yam",
             "tangerine",
@@ -707,7 +700,6 @@ class PlantAnimalWrapper(MissionWrapper):
             "clementine",
             "kumquat",
             "pumpkin",
-            "marigold",
         ],
     }
 
