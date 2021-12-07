@@ -86,7 +86,7 @@ class Net(nn.Module):
             if architecture == "baseline"
             else GPTEmbed(model_name=model_name, **kwargs)
         )
-        self.gpt = nn.Sequential(
+        self.model = nn.Sequential(
             encoder,
             nn.Linear(self.embedding_size, hidden_size),
             nn.ReLU(),
@@ -95,7 +95,7 @@ class Net(nn.Module):
         )
 
     def forward(self, x):
-        return self.gpt(x)
+        return self.model(x)
 
 
 def shuffle(df: pd.DataFrame, **kwargs):
