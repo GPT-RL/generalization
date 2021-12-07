@@ -162,7 +162,7 @@ class Args(Tap):
     n_train: int = 300
     no_cuda: bool = False
     randomize_parameters: bool = False
-    save_model: bool = False
+    save_interval: int = None
     seed: int = 1
     test_batch_size: int = 1000
     train_ln: bool = False
@@ -259,7 +259,7 @@ def train(args: Args, logger: HasuraLogger):
         load_path = get_save_path(args.load_id)
         logging.info(f"Loading checkpoint from {load_path}...")
         model.load_state_dict(torch.load(load_path))
-    if args.save_model:
+    if args.save_interval:
         save_path.parent.mkdir(parents=True, exist_ok=True)
 
     optimizer = optim.Adadelta(model.parameters(), lr=args.lr)
@@ -277,6 +277,12 @@ def train(args: Args, logger: HasuraLogger):
             correct += [pred.eq(target.view_as(pred)).squeeze(-1).float()]
             loss.backward()
             optimizer.step()
+            if (
+                batch_idx == 0
+                and args.save_interval is not None
+                and epoch % args.save_interval == 0
+            ):
+                torch.save(model.state_dict(), str(save_path))
             if batch_idx == 0 and epoch % args.log_interval == 0:
                 accuracy = torch.cat(correct).mean()
                 log = {
@@ -317,9 +323,6 @@ def train(args: Args, logger: HasuraLogger):
                 if logger.run_id is not None:
                     logger.log(log)
         scheduler.step()
-
-    if args.save_model:
-        torch.save(model.state_dict(), str(save_path))
 
 
 EXCLUDED = {
