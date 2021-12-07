@@ -195,10 +195,10 @@ def train(args: Args, logger: HasuraLogger):
 
     device = torch.device("cuda" if use_cuda else "cpu")
 
-    train_kwargs = dict(batch_size=args.batch_size, pin_memory=False)
-    test_kwargs = dict(batch_size=args.test_batch_size, pin_memory=False)
+    train_kwargs = dict(batch_size=args.batch_size)
+    test_kwargs = dict(batch_size=args.test_batch_size)
     if use_cuda:
-        cuda_kwargs = dict(num_workers=1, shuffle=True)
+        cuda_kwargs = dict(num_workers=1, shuffle=True, pin_memory=True)
         train_kwargs.update(cuda_kwargs)
         test_kwargs.update(cuda_kwargs)
 
