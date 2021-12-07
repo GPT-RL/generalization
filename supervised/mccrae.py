@@ -2,6 +2,7 @@ from __future__ import print_function
 
 import logging
 import os
+import time
 import zipfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -268,10 +269,14 @@ def train(args: Args, logger: HasuraLogger):
     optimizer = optim.Adadelta(model.parameters(), lr=args.lr)
 
     scheduler = StepLR(optimizer, step_size=1, gamma=args.gamma)
+    start_time = time.time()
+    save_count = 0
+    frames = 0
     for epoch in range(1, args.epochs + 1):
 
         correct = []
         for batch_idx, (data, target) in enumerate(train_loader):
+            frames += len(data)
             data, target = data.to(device), target.to(device)
             optimizer.zero_grad()
             output = model(data)
@@ -287,13 +292,18 @@ def train(args: Args, logger: HasuraLogger):
                 and epoch % args.save_interval == 0
             ):
                 torch.save(model.state_dict(), str(save_path))
+                save_count += 1
             if batch_idx == 0 and epoch % args.log_interval == 0:
                 accuracy = torch.cat(correct).mean()
+                seconds = time.time() - start_time
                 log = {
                     EPOCH: epoch,
                     LOSS: loss.item(),
                     ACCURACY: accuracy.item(),
                     RUN_ID: logger.run_id,
+                    HOURS: seconds / 3600,
+                    SAVE_COUNT: save_count,
+                    FPS: frames / seconds,
                 }
                 pprint(log)
                 if logger.run_id is not None:
@@ -322,6 +332,7 @@ def train(args: Args, logger: HasuraLogger):
                     TEST_LOSS: test_loss,
                     TEST_ACCURACY: test_accuracy.item(),
                     RUN_ID: logger.run_id,
+                    HOURS: (time.time() - start_time) / 3600,
                 }
                 pprint(log)
                 if logger.run_id is not None:
@@ -383,15 +394,16 @@ def main(args: ArgsType):
         assert args.logger_args in valid, f"{args.logger_args} is not in {valid}."
 
         if args.logger_args is not None:
-            charts = [
-                spec(x=x, y=y)
+            charts = [spec(x=HOURS, y=y) for y in (ACCURACY, TEST_ACCURACY,)] + [
+                spec(x=EPOCH, y=y)
                 for y in (
+                    SAVE_COUNT,
+                    FPS,
                     LOSS,
                     ACCURACY,
                     TEST_LOSS,
                     TEST_ACCURACY,
                 )
-                for x in (HOURS, EPOCH)
             ]
             metadata = dict(reproducibility_info=args.get_reproducibility_info())
             if args.host_machine:
