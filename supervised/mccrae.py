@@ -238,7 +238,10 @@ def train(args: Args, logger: HasuraLogger):
     train_idxs = idxs[: args.n_train]
     test_idxs = idxs[args.n_train :]
 
-    train_dataset = _Dataset(inputs=inputs[train_idxs], targets=targets[train_idxs])
+    train_inputs = inputs[train_idxs]
+    train_targets = targets[train_idxs]
+    prior = torch.tensor(train_targets.mean(axis=0, keepdims=True)).to(device)
+    train_dataset = _Dataset(inputs=train_inputs, targets=train_targets)
     test_dataset = _Dataset(inputs=inputs[test_idxs], targets=targets[test_idxs])
     train_loader = torch.utils.data.DataLoader(train_dataset, **train_kwargs)
     test_loader = torch.utils.data.DataLoader(test_dataset, **test_kwargs)
@@ -272,7 +275,8 @@ def train(args: Args, logger: HasuraLogger):
             data, target = data.to(device), target.to(device)
             optimizer.zero_grad()
             output = model(data)
-            loss = F.binary_cross_entropy(output, target)
+            weight = target / prior + (1 - target) / (1 - prior)
+            loss = F.binary_cross_entropy(output, target, weight=weight / 2)
             pred = output.round()
             correct += [pred.eq(target.view_as(pred)).squeeze(-1).float()]
             loss.backward()
