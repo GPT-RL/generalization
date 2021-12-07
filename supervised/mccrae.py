@@ -91,7 +91,6 @@ class Net(nn.Module):
             nn.Linear(self.embedding_size, hidden_size),
             nn.ReLU(),
             nn.Linear(hidden_size, output_size),
-            nn.ReLU(),
             nn.Sigmoid(),
         )
 
