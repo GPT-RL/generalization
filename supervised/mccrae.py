@@ -258,7 +258,7 @@ def train(args: Args, logger: HasuraLogger):
             correct += [pred.eq(target.view_as(pred)).squeeze(-1).float()]
             loss.backward()
             optimizer.step()
-            if batch_idx % args.log_interval == 0:
+            if batch_idx == 0 and epoch % args.log_interval == 0:
                 accuracy = torch.cat(correct).mean()
                 log = {
                     EPOCH: epoch,
@@ -273,31 +273,31 @@ def train(args: Args, logger: HasuraLogger):
                 if args.dry_run:
                     break
 
-        test_loss = 0
-        correct = []
-        with torch.no_grad():
-            for data, target in test_loader:
-                data, target = data.to(device), target.to(device)
-                output = model(data)
-                test_loss += F.binary_cross_entropy(
-                    output, target, reduction="sum"
-                ).item()  # sum up batch loss
-                pred = output.round()
-                correct += [pred.eq(target.view_as(pred)).squeeze(-1).float()]
+                test_loss = 0
+                correct = []
+                with torch.no_grad():
+                    for data, target in test_loader:
+                        data, target = data.to(device), target.to(device)
+                        output = model(data)
+                        test_loss += F.binary_cross_entropy(
+                            output, target, reduction="sum"
+                        ).item()  # sum up batch loss
+                        pred = output.round()
+                        correct += [pred.eq(target.view_as(pred)).squeeze(-1).float()]
 
-        test_loss /= len(test_loader.dataset)
-        test_accuracy = torch.cat(correct).mean()
+                test_loss /= len(test_loader.dataset)
+                test_accuracy = torch.cat(correct).mean()
 
-        log = {
-            EPOCH: epoch,
-            TEST_LOSS: test_loss,
-            TEST_ACCURACY: test_accuracy.item(),
-            RUN_ID: logger.run_id,
-        }
-        pprint(log)
-        if logger.run_id is not None:
-            logger.log(log)
-        scheduler.step()
+                log = {
+                    EPOCH: epoch,
+                    TEST_LOSS: test_loss,
+                    TEST_ACCURACY: test_accuracy.item(),
+                    RUN_ID: logger.run_id,
+                }
+                pprint(log)
+                if logger.run_id is not None:
+                    logger.log(log)
+                scheduler.step()
 
     if args.save_model:
         torch.save(model.state_dict(), str(save_path))
