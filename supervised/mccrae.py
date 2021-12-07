@@ -2,8 +2,8 @@ from __future__ import print_function
 
 import logging
 import os
-import re
 import zipfile
+from dataclasses import dataclass
 from pathlib import Path
 from pprint import pprint
 from typing import Literal, Optional, cast, get_args
@@ -22,10 +22,10 @@ from tap import Tap
 from torch.nn.utils.rnn import pad_sequence
 from torch.optim.lr_scheduler import StepLR
 from torch.utils.data import Dataset
-from tqdm import tqdm
+from torch.utils.data.dataset import T_co
 from transformers import GPT2Config, GPT2Model, GPT2Tokenizer
 
-GPTSize = Literal["small", "medium", "large", "xl"]
+GPTSize = Literal["gpt2", "gpt2-medium", "gpt2-large", "gpt2-xl"]
 
 
 def build_gpt(gpt_size: GPTSize, randomize_parameters: bool):
@@ -51,50 +51,34 @@ def build_gpt(gpt_size: GPTSize, randomize_parameters: bool):
 class GPTEmbed(nn.Module):
     def __init__(
         self,
-        embedding_size: GPTSize,
+        model_name: GPTSize,
         randomize_parameters: bool,
         train_wpe: bool,
         train_ln: bool,
     ):
         super().__init__()
-        self.gpt = build_gpt(embedding_size, randomize_parameters)
+        self.gpt = build_gpt(model_name, randomize_parameters)
         for name, p in self.gpt.named_parameters():
             requires_grad = (train_wpe and "wpe" in name) or (train_ln and "ln" in name)
             p.requires_grad_(requires_grad)
 
     def forward(self, x, **_):
-        return self.gpt.forward(x).last_hidden_state[:, :, -1]
+        return self.gpt.forward(x).last_hidden_state[:, -1]
 
 
 class Net(nn.Module):
-    def __init__(self, embedding_size: GPTSize, hidden_size: int, **kwargs):
+    def __init__(self, model_name: GPTSize, output_size: int, **kwargs):
         super(Net, self).__init__()
-        self.embedding_size = GPT2Config.from_pretrained(
-            get_gpt_size(embedding_size)
-        ).n_embd
-        self.K = nn.Linear(hidden_size, hidden_size)
-        self.Q = nn.Linear(hidden_size, hidden_size)
+        self.embedding_size = GPT2Config.from_pretrained(model_name).n_embd
         self.gpt = nn.Sequential(
-            GPTEmbed(embedding_size=embedding_size, **kwargs),
-            nn.Linear(self.embedding_size, hidden_size),
+            GPTEmbed(model_name=model_name, **kwargs),
+            nn.Linear(self.embedding_size, output_size),
             nn.ReLU(),
+            nn.Sigmoid(),
         )
 
     def forward(self, x):
-        embedded = self.gpt(x)
-        n_classes = x.size(1) - 1
-        lemma, choices = torch.split(embedded, [1, n_classes], dim=1)
-        lemma = self.K(lemma)
-        choices = self.Q(choices)
-        weights = (lemma * choices).sum(-1)
-        output = F.log_softmax(weights, dim=1)
-        return output
-
-
-def get_gpt_size(gpt_size: GPTSize):
-    gpt_size = "" if gpt_size == "small" else f"-{gpt_size}"
-    gpt_size = f"gpt2{gpt_size}"
-    return gpt_size
+        return self.gpt(x)
 
 
 def shuffle(df: pd.DataFrame, **kwargs):
@@ -107,51 +91,19 @@ LEMMA = "lemma"
 TARGET = "target"
 
 
-def explode_antonyms(data: pd.DataFrame):
-    data[ANTONYM] = data.apply(
-        func=lambda x: re.split("[;|]", x.antonyms),
-        axis=1,
-    )
-    data = data.explode(ANTONYM)
-    return data
+@dataclass
+class _Dataset(Dataset):
+    inputs: np.ndarray
+    targets: np.ndarray
 
-
-def get_inputs_and_targets(data, seed):
-    lemmas = data[LEMMA].copy().reset_index(drop=True)
-    data = shuffle(data, random_state=seed)  # shuffle data
-    data[NON_ANTONYM] = lemmas
-    # permute choices (otherwise correct answer is always 0)
-    input_columns = [ANTONYM, NON_ANTONYM]
-    jj, ii = np.meshgrid(np.arange(2), np.arange(len(data)))
-    jj = np.random.default_rng(seed).permuted(
-        jj, axis=1
-    )  # shuffle indices along y-axis
-    permuted_inputs = data[input_columns].to_numpy()[
-        ii, jj
-    ]  # shuffle data using indices
-    data[input_columns] = permuted_inputs
-    inputs = torch.stack(
-        [torch.stack(list(data[col])) for col in [LEMMA, *input_columns]], dim=1
-    )
-    targets = torch.tensor(jj[:, 0])
-    return inputs, targets
-
-
-class Antonyms(Dataset):
-    def __init__(
-        self,
-        data: pd.DataFrame,
-        seed: int,
-    ):
-        inputs, targets = get_inputs_and_targets(data, seed)
-        self.inputs = inputs
-        self.targets = targets
+    def __post_init__(self):
+        assert len(self.inputs) == len(self.targets)
 
     def __len__(self):
         return len(self.inputs)
 
-    def __getitem__(self, idx):
-        return self.inputs[idx], self.targets[idx]
+    def __getitem__(self, index) -> T_co:
+        return self.inputs[index], self.targets[index]
 
 
 RUN_OR_SWEEP = Literal["run", "sweep"]
@@ -176,9 +128,9 @@ def configure_logger_args(args: Tap):
 class Args(Tap):
     batch_size: int = 32
     config: Optional[str] = None  # If given, yaml config from which to load params
-    data_path: str = "antonyms.zip"
+    data_path: str = "mccrae.csv.zip"
     dry_run: bool = False
-    embedding_size: GPTSize = "small"
+    model_name: GPTSize = "gpt2"
     epochs: int = 14
     disjoint_only: bool = False
     gamma: float = 0.99
@@ -189,8 +141,8 @@ class Args(Tap):
     log_interval: int = 10
     log_level: str = "INFO"
     lr: float = 1.0
-    n_classes: int = 3
-    n_train: int = 9000
+    n_features: int = 4
+    n_train: int = 300
     n_test: int = 320
     no_cuda: bool = False
     randomize_parameters: bool = False
@@ -218,29 +170,6 @@ def get_save_path(run_id: Optional[int]):
     )
 
 
-def isin(a: torch.Tensor, b: torch.Tensor):
-    assert len(a.shape) == 2
-    assert len(b.shape) == 2
-    assert a.size(-1) == b.size(-1)
-    equal = a.unsqueeze(1) == b.unsqueeze(0)
-    equal = cast(torch.Tensor, equal)
-    return equal.all(-1).any(1)
-
-
-def split_data(data: pd.DataFrame, n_test: int):
-    lemmas = torch.stack(list(data[LEMMA]))
-    antonyms = torch.stack(list(data[ANTONYM]))
-    vocab = torch.cat([lemmas, antonyms])
-    vocab = torch.unique(vocab, dim=0)
-    test_vocab = vocab[:n_test]
-
-    lemma_in_test = isin(lemmas, test_vocab)
-    antonym_in_test = isin(antonyms, test_vocab)
-    is_train = ~lemma_in_test & ~antonym_in_test
-    is_test = lemma_in_test & antonym_in_test
-    return pd.Series(is_train), pd.Series(is_test)
-
-
 def train(args: Args, logger: HasuraLogger):
     # Training settings
     use_cuda = not args.no_cuda and torch.cuda.is_available()
@@ -257,55 +186,45 @@ def train(args: Args, logger: HasuraLogger):
         test_kwargs.update(cuda_kwargs)
 
     with zipfile.ZipFile(args.data_path) as zip_file:
-        with zip_file.open("antonyms.csv") as file:
-            data: pd.DataFrame = pd.read_csv(file)
+        with zip_file.open("mccrae.csv") as file:
+            df: pd.DataFrame = pd.read_csv(file, sep="\t")
 
-    data = shuffle(data, random_state=args.seed)
-    data = explode_antonyms(data)
+    common_features = df.Feature.value_counts().index[: args.n_features]
+    df = df[df.Feature.isin(common_features)]
+    feature_arrays = df.groupby("Concept").apply(
+        lambda group: (
+            cast(
+                np.ndarray,
+                np.expand_dims(group.Feature.values, 0)
+                == np.expand_dims(common_features.values, 1),
+            )
+        ).any(1)
+    )
+    feature_arrays = feature_arrays[feature_arrays.apply(np.any)]
+    targets = np.stack(feature_arrays.values.tolist(), axis=0).astype(np.float32)
 
-    tokenizer = GPT2Tokenizer.from_pretrained(get_gpt_size(args.embedding_size))
-    columns = [LEMMA, ANTONYM]
+    tokenizer = GPT2Tokenizer.from_pretrained(args.model_name)
 
-    with tqdm(
-        desc="Encoding data", total=sum(len(data[col]) for col in columns)
-    ) as bar:
+    tokens = [
+        tokenizer.encode(text, return_tensors="pt").squeeze(0)
+        for text in feature_arrays.index
+    ]
+    inputs = pad_sequence(tokens, padding_value=tokenizer.eos_token_id).T.numpy()
+    idxs = np.arange(len(inputs))
 
-        def encode(s: str):
-            bar.update(1)
-            return tuple(tokenizer.encode(s))
+    rng = np.random.default_rng(args.seed)
+    rng.shuffle(idxs)
+    train_idxs = idxs[: args.n_train]
+    test_idxs = idxs[args.n_train :]
 
-        for col in columns:
-            data[col] = data[col].apply(encode)
-
-    padded = pad_sequence(
-        list(map(torch.tensor, [*data[LEMMA], *data[ANTONYM]])),
-        padding_value=tokenizer.eos_token_id,
-    ).T
-    lemmas, antonyms = torch.split(padded, [len(data), len(data)])
-
-    vocab = padded.unique(dim=0)
-    train_vocab = vocab[torch.randperm(len(vocab))][: args.n_train]
-
-    lemma_is_in_train = isin(lemmas, train_vocab).numpy()
-    antonym_is_in_train = isin(antonyms, train_vocab).numpy()
-
-    add_to_train_data = lemma_is_in_train & antonym_is_in_train
-    add_to_test_data = ~lemma_is_in_train & ~antonym_is_in_train
-
-    data[LEMMA] = lemmas
-    data[ANTONYM] = antonyms
-
-    train_data = data[add_to_train_data].copy()
-    test_data = data[add_to_test_data].copy()
-
-    train_dataset = Antonyms(train_data, seed=args.seed)
-    test_dataset = Antonyms(test_data, seed=args.seed)
+    train_dataset = _Dataset(inputs=inputs[train_idxs], targets=targets[train_idxs])
+    test_dataset = _Dataset(inputs=inputs[test_idxs], targets=targets[test_idxs])
     train_loader = torch.utils.data.DataLoader(train_dataset, **train_kwargs)
     test_loader = torch.utils.data.DataLoader(test_dataset, **test_kwargs)
 
     model = Net(
-        embedding_size=args.embedding_size,
-        hidden_size=args.hidden_size,
+        model_name=args.model_name,
+        output_size=targets.shape[1],
         randomize_parameters=args.randomize_parameters,
         train_wpe=args.train_wpe,
         train_ln=args.train_ln,
@@ -329,10 +248,8 @@ def train(args: Args, logger: HasuraLogger):
             data, target = data.to(device), target.to(device)
             optimizer.zero_grad()
             output = model(data)
-            loss = F.nll_loss(output, target)
-            pred = output.argmax(
-                dim=1, keepdim=True
-            )  # get the index of the max log-probability
+            loss = F.binary_cross_entropy(output, target)
+            pred = output.round()
             correct += [pred.eq(target.view_as(pred)).squeeze(-1).float()]
             loss.backward()
             optimizer.step()
@@ -357,12 +274,10 @@ def train(args: Args, logger: HasuraLogger):
             for data, target in test_loader:
                 data, target = data.to(device), target.to(device)
                 output = model(data)
-                test_loss += F.nll_loss(
+                test_loss += F.binary_cross_entropy(
                     output, target, reduction="sum"
                 ).item()  # sum up batch loss
-                pred = output.argmax(
-                    dim=1, keepdim=True
-                )  # get the index of the max log-probability
+                pred = output.round()
                 correct += [pred.eq(target.view_as(pred)).squeeze(-1).float()]
 
         test_loss /= len(test_loader.dataset)
