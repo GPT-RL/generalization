@@ -316,7 +316,7 @@ def train(args: Args, logger: HasuraLogger):
                 pprint(log)
                 if logger.run_id is not None:
                     logger.log(log)
-                scheduler.step()
+        scheduler.step()
 
     if args.save_model:
         torch.save(model.state_dict(), str(save_path))
