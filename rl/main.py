@@ -543,7 +543,7 @@ class Trainer:
             charts=charts,
             sweep_id=getattr(args, "sweep_id", None),
             load_id=args.load_id,
-            use_logger=args.logger_args is not None,
+            create_run=args.logger_args is not None,
             params=args.as_dict(),
             metadata=metadata,
         )
