@@ -27,6 +27,7 @@ from torch.utils.data.dataset import T_co
 from transformers import GPT2Config, GPT2Model, GPT2Tokenizer
 
 GPTSize = Literal["gpt2", "gpt2-medium", "gpt2-large", "gpt2-xl"]
+Architecture = Literal["pretrained", "randomized", "baseline"]
 
 
 def build_gpt(gpt_size: GPTSize, randomize_parameters: bool):
@@ -69,12 +70,23 @@ class GPTEmbed(nn.Module):
 
 class Net(nn.Module):
     def __init__(
-        self, model_name: GPTSize, hidden_size: int, output_size: int, **kwargs
+        self,
+        architecture: Architecture,
+        hidden_size: int,
+        model_name: GPTSize,
+        output_size: int,
+        vocab_size: int,
+        **kwargs,
     ):
         super(Net, self).__init__()
         self.embedding_size = GPT2Config.from_pretrained(model_name).n_embd
+        encoder = (
+            nn.EmbeddingBag(vocab_size, self.embedding_size)
+            if architecture == "baseline"
+            else GPTEmbed(model_name=model_name, **kwargs)
+        )
         self.gpt = nn.Sequential(
-            GPTEmbed(model_name=model_name, **kwargs),
+            encoder,
             nn.Linear(self.embedding_size, hidden_size),
             nn.ReLU(),
             nn.Linear(hidden_size, output_size),
@@ -131,6 +143,7 @@ def configure_logger_args(args: Tap):
 
 
 class Args(Tap):
+    architecture: Architecture = "pretrained"
     batch_size: int = 32
     config: Optional[str] = None  # If given, yaml config from which to load params
     data_path: str = "mccrae.csv.zip"
@@ -214,6 +227,10 @@ def train(args: Args, logger: HasuraLogger):
         for text in feature_arrays.index
     ]
     inputs = pad_sequence(tokens, padding_value=tokenizer.eos_token_id).T.numpy()
+    if args.architecture == "baseline":
+        _, unique = np.unique(inputs, return_inverse=True)
+        inputs = unique.reshape(inputs.shape)
+
     idxs = np.arange(len(inputs))
 
     rng = np.random.default_rng(args.seed)
@@ -227,12 +244,14 @@ def train(args: Args, logger: HasuraLogger):
     test_loader = torch.utils.data.DataLoader(test_dataset, **test_kwargs)
 
     model = Net(
+        architecture=args.architecture,
         model_name=args.model_name,
         hidden_size=args.hidden_size,
         output_size=targets.shape[1],
         randomize_parameters=args.randomize_parameters,
         train_wpe=args.train_wpe,
         train_ln=args.train_ln,
+        vocab_size=inputs.max(),
     ).to(device)
 
     save_path = get_save_path(logger.run_id)
