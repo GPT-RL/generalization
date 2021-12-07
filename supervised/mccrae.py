@@ -10,6 +10,7 @@ from typing import Literal, Optional, cast, get_args
 
 import numpy as np
 import pandas as pd
+import sweep_logger
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -132,10 +133,8 @@ class Args(Tap):
     dry_run: bool = False
     model_name: GPTSize = "gpt2"
     epochs: int = 14
-    disjoint_only: bool = False
     gamma: float = 0.99
     graphql_endpoint: str = os.getenv("GRAPHQL_ENDPOINT")
-    hidden_size: int = 512
     host_machine: str = os.getenv("HOST_MACHINE")
     load_id: int = None  # path to load parameters from if at all
     log_interval: int = 10
@@ -143,7 +142,6 @@ class Args(Tap):
     lr: float = 1.0
     n_features: int = 4
     n_train: int = 300
-    n_test: int = 320
     no_cuda: bool = False
     randomize_parameters: bool = False
     save_model: bool = False
@@ -171,6 +169,7 @@ def get_save_path(run_id: Optional[int]):
 
 
 def train(args: Args, logger: HasuraLogger):
+    pprint(args.as_dict())
     # Training settings
     use_cuda = not args.no_cuda and torch.cuda.is_available()
 
@@ -362,18 +361,24 @@ def main(args: ArgsType):
                 )
                 for x in (HOURS, EPOCH)
             ]
-            sweep_id = getattr(args, "sweep_id", None)
-            parameters = logger.create_run(
-                metadata=metadata,
-                sweep_id=sweep_id,
+            metadata = dict(reproducibility_info=args.get_reproducibility_info())
+            if args.host_machine:
+                metadata.update(host_machine=args.host_machine)
+            if name := getattr(args, "name", None):
+                metadata.update(name=name)
+
+            params, logger = sweep_logger.initialize(
+                graphql_endpoint=args.graphql_endpoint,
+                config=args.config,
                 charts=charts,
+                sweep_id=getattr(args, "sweep_id", None),
+                load_id=args.load_id,
+                use_logger=args.logger_args is not None,
+                params=args.as_dict(),
+                metadata=metadata,
             )
 
-            if parameters is not None:
-                update_args(args, parameters)
-            logger.update_metadata(
-                dict(parameters=args.as_dict(), run_id=logger.run_id)
-            )
+            update_args(args, params)
 
         if args.load_id is not None:
             parameters = logger.execute(
