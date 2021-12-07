@@ -68,12 +68,16 @@ class GPTEmbed(nn.Module):
 
 
 class Net(nn.Module):
-    def __init__(self, model_name: GPTSize, output_size: int, **kwargs):
+    def __init__(
+        self, model_name: GPTSize, hidden_size: int, output_size: int, **kwargs
+    ):
         super(Net, self).__init__()
         self.embedding_size = GPT2Config.from_pretrained(model_name).n_embd
         self.gpt = nn.Sequential(
             GPTEmbed(model_name=model_name, **kwargs),
-            nn.Linear(self.embedding_size, output_size),
+            nn.Linear(self.embedding_size, hidden_size),
+            nn.ReLU(),
+            nn.Linear(hidden_size, output_size),
             nn.ReLU(),
             nn.Sigmoid(),
         )
@@ -135,6 +139,7 @@ class Args(Tap):
     epochs: int = 14
     gamma: float = 0.99
     graphql_endpoint: str = os.getenv("GRAPHQL_ENDPOINT")
+    hidden_size: int = 1024
     host_machine: str = os.getenv("HOST_MACHINE")
     load_id: int = None  # path to load parameters from if at all
     log_interval: int = 10
@@ -223,6 +228,7 @@ def train(args: Args, logger: HasuraLogger):
 
     model = Net(
         model_name=args.model_name,
+        hidden_size=args.hidden_size,
         output_size=targets.shape[1],
         randomize_parameters=args.randomize_parameters,
         train_wpe=args.train_wpe,
