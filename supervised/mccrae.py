@@ -28,7 +28,7 @@ from torch.utils.data.dataset import T_co
 from transformers import GPT2Config, GPT2Model, GPT2Tokenizer
 
 GPTSize = Literal["gpt2", "gpt2-medium", "gpt2-large", "gpt2-xl"]
-Architecture = Literal["pretrained", "randomized", "baseline"]
+Architecture = Literal["pretrained", "untrained", "baseline"]
 
 
 def build_gpt(gpt_size: GPTSize, randomize_parameters: bool):
@@ -172,7 +172,6 @@ class Args(Tap):
     n_features: int = 4
     n_train: int = 300
     no_cuda: bool = False
-    randomize_parameters: bool = False
     save_interval: int = None
     seed: int = 1
     test_batch_size: int = 1000
@@ -258,7 +257,7 @@ def train(args: Args, logger: HasuraLogger):
         if args.architecture == "baseline"
         else GPTEmbed(
             model_name=args.model_name,
-            randomize_parameters=args.randomize_parameters,
+            randomize_parameters=args.architecture == "untrained",
             train_ln=args.train_ln,
             train_wpe=args.train_wpe,
         ).to(device)
