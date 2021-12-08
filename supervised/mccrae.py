@@ -281,6 +281,32 @@ def train(args: Args, logger: HasuraLogger):
         output_std=std,
         output_mean=mean,
     ).to(device)
+    start_time = time.time()
+
+    def evaluate(_epoch):
+        test_loss = 0
+        _correct = []
+        with torch.no_grad():
+            for _data, _target in test_loader:
+                _data, _target = _data.to(device), _target.to(device)
+                _output = model(_data)
+                test_loss += F.binary_cross_entropy(
+                    _output, _target, reduction="sum"
+                ).item()  # sum up batch loss
+                _pred = _output.round()
+                _correct += [_pred.eq(_target.view_as(_pred)).squeeze(-1).float()]
+        test_loss /= len(test_loader.dataset)
+        test_accuracy = torch.cat(_correct).mean()
+        _log = {
+            EPOCH: _epoch,
+            TEST_LOSS: test_loss,
+            TEST_ACCURACY: test_accuracy.item(),
+            RUN_ID: logger.run_id,
+            HOURS: (time.time() - start_time) / 3600,
+        }
+        pprint(_log)
+        if logger.run_id is not None:
+            logger.log(_log)
 
     save_path = get_save_path(logger.run_id)
     if args.load_id is not None:
@@ -293,7 +319,6 @@ def train(args: Args, logger: HasuraLogger):
     optimizer = optim.Adadelta(model.parameters(), lr=args.lr)
 
     scheduler = StepLR(optimizer, step_size=1, gamma=args.gamma)
-    start_time = time.time()
     save_count = 0
     frames = 0
     loss = None
@@ -310,31 +335,7 @@ def train(args: Args, logger: HasuraLogger):
                 save_count += 1
 
             if batch_idx == 0 and epoch % args.log_interval == 0:
-                test_loss = 0
-                correct = []
-                with torch.no_grad():
-                    for data, target in test_loader:
-                        data, target = data.to(device), target.to(device)
-                        output = model(data)
-                        test_loss += F.binary_cross_entropy(
-                            output, target, reduction="sum"
-                        ).item()  # sum up batch loss
-                        pred = output.round()
-                        correct += [pred.eq(target.view_as(pred)).squeeze(-1).float()]
-
-                test_loss /= len(test_loader.dataset)
-                test_accuracy = torch.cat(correct).mean()
-
-                log = {
-                    EPOCH: epoch,
-                    TEST_LOSS: test_loss,
-                    TEST_ACCURACY: test_accuracy.item(),
-                    RUN_ID: logger.run_id,
-                    HOURS: (time.time() - start_time) / 3600,
-                }
-                pprint(log)
-                if logger.run_id is not None:
-                    logger.log(log)
+                evaluate(_epoch=epoch)
 
             frames += len(data)
             data, target = data.to(device), target.to(device)
