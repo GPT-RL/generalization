@@ -281,6 +281,7 @@ def train(args: Args, logger: HasuraLogger):
         if args.train_ln or args.train_wpe:
             encoder = nn.Sequential(
                 encoder,
+                Lambda(lambda x: (x - mean) / std),
                 nn.LayerNorm([embedding_size]),
                 nn.Sigmoid(),
             )
