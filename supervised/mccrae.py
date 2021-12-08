@@ -86,20 +86,14 @@ def f(x):
 class Net(nn.Module):
     def __init__(
         self,
-        backprop_through_gpt: bool,
         embedding_size: int,
         encoder: nn.Module,
         hidden_size: int,
         output_size: int,
-        output_mean: torch.Tensor,
-        output_std: torch.Tensor,
     ):
         super(Net, self).__init__()
         self.model = nn.Sequential(
             encoder,
-            Lambda(lambda x: (x - output_mean) / output_std),
-            nn.Sigmoid(),
-            *([] if backprop_through_gpt else [Lambda(lambda x: x.round())]),
             nn.Linear(embedding_size, hidden_size),
             nn.ReLU(),
             nn.Linear(hidden_size, output_size),
@@ -238,6 +232,7 @@ def train(args: Args, logger: HasuraLogger):
         for text in feature_arrays.index
     ]
     inputs = pad_sequence(tokens, padding_value=tokenizer.eos_token_id).T.numpy()
+    assert args.architecture in get_args(Architecture)
     if args.architecture == "baseline":
         _, unique = np.unique(inputs, return_inverse=True)
         inputs = unique.reshape(inputs.shape)
@@ -274,14 +269,19 @@ def train(args: Args, logger: HasuraLogger):
     train_loader = torch.utils.data.DataLoader(train_dataset, **train_kwargs)
     test_loader = torch.utils.data.DataLoader(test_dataset, **test_kwargs)
 
+    if args.architecture != "baseline":
+        encoder = nn.Sequential(
+            encoder,
+            Lambda(lambda x: (x - mean) / std),
+            nn.Sigmoid(),
+            *([] if args.train_ln or args.train_wpe else [Lambda(lambda x: x.round())]),
+        )
+
     model = Net(
-        backprop_through_gpt=args.train_ln or args.train_wpe,
         embedding_size=embedding_size,
         encoder=encoder,
         hidden_size=args.hidden_size,
         output_size=targets.shape[1],
-        output_std=std,
-        output_mean=mean,
     ).to(device)
     start_time = time.time()
 
