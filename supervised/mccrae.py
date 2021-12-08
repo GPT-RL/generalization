@@ -304,7 +304,8 @@ def train(args: Args, logger: HasuraLogger):
 
     def evaluate(_epoch):
         test_loss = 0
-        _correct = []
+        _accurate = []
+        _recalled = []
         with torch.no_grad():
             for _data, _target in test_loader:
                 _data, _target = _data.to(device), _target.to(device)
@@ -313,13 +314,17 @@ def train(args: Args, logger: HasuraLogger):
                     _output, _target, reduction="sum"
                 ).item()  # sum up batch loss
                 _pred = _output.round()
-                _correct += [_pred.eq(_target.view_as(_pred)).squeeze(-1).float()]
+                _correct = _pred.eq(_target.view_as(_pred)).squeeze(-1).float()
+                _accurate += [_correct]
+                _recalled += [_correct[_target.bool()]]
         test_loss /= len(test_loader.dataset)
-        test_accuracy = torch.cat(_correct).mean()
+        test_accuracy = torch.cat(_accurate).mean()
+        test_recall = torch.cat(_recalled).mean()
         _log = {
             EPOCH: _epoch,
             TEST_LOSS: test_loss,
             TEST_ACCURACY: test_accuracy.item(),
+            TEST_RECALL: test_recall.item(),
             RUN_ID: logger.run_id,
             HOURS: (time.time() - start_time) / 3600,
         }
@@ -408,7 +413,9 @@ SAVE_COUNT = "save count"
 LOSS = "loss"
 TEST_LOSS = "test loss"
 ACCURACY = "accuracy"
+RECALL = "recall"
 TEST_ACCURACY = "test accuracy"
+TEST_RECALL = "test recall"
 RUN_ID = "run ID"
 
 
@@ -450,6 +457,7 @@ def main(args: ArgsType):
                     ACCURACY,
                     TEST_LOSS,
                     TEST_ACCURACY,
+                    TEST_RECALL,
                 )
             ]
             metadata = dict(reproducibility_info=args.get_reproducibility_info())
