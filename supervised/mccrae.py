@@ -28,7 +28,15 @@ from torch.utils.data.dataset import T_co
 from transformers import GPT2Config, GPT2Model, GPT2Tokenizer
 
 GPTSize = Literal["gpt2", "gpt2-medium", "gpt2-large", "gpt2-xl"]
-Architecture = Literal["pretrained", "untrained", "baseline"]
+BINARY_PRETRAINED = "binary-pretrained"
+BINARY_UNTRAINED = "binary-untrained"
+PRETRAINED = "pretrained"
+UNTRAINED = "untrained"
+BASELINE = "baseline"
+# noinspection PyTypeHints
+Architecture = Literal[
+    BINARY_PRETRAINED, BINARY_UNTRAINED, PRETRAINED, UNTRAINED, BASELINE
+]
 
 
 def build_gpt(gpt_size: GPTSize, randomize_parameters: bool):
@@ -149,7 +157,7 @@ def configure_logger_args(args: Tap):
 
 
 class Args(Tap):
-    architecture: Architecture = "pretrained"
+    architecture: Architecture = BINARY_PRETRAINED
     batch_size: int = 32
     config: Optional[str] = None  # If given, yaml config from which to load params
     data_path: str = "mccrae.csv.zip"
@@ -233,7 +241,7 @@ def train(args: Args, logger: HasuraLogger):
     ]
     inputs = pad_sequence(tokens, padding_value=tokenizer.eos_token_id).T.numpy()
     assert args.architecture in get_args(Architecture)
-    if args.architecture == "baseline":
+    if args.architecture == BASELINE:
         _, unique = np.unique(inputs, return_inverse=True)
         inputs = unique.reshape(inputs.shape)
 
@@ -250,10 +258,10 @@ def train(args: Args, logger: HasuraLogger):
     embedding_size = GPT2Config.from_pretrained(args.model_name).n_embd
     encoder = (
         nn.EmbeddingBag(int(inputs.max()), embedding_size)
-        if args.architecture == "baseline"
+        if args.architecture == BASELINE
         else GPTEmbed(
             model_name=args.model_name,
-            randomize_parameters=args.architecture == "untrained",
+            randomize_parameters=args.architecture == UNTRAINED,
             train_ln=args.train_ln,
             train_wpe=args.train_wpe,
         )
@@ -269,7 +277,7 @@ def train(args: Args, logger: HasuraLogger):
     train_loader = torch.utils.data.DataLoader(train_dataset, **train_kwargs)
     test_loader = torch.utils.data.DataLoader(test_dataset, **test_kwargs)
 
-    if args.architecture != "baseline":
+    if args.architecture in [BINARY_PRETRAINED, BINARY_UNTRAINED]:
         encoder = nn.Sequential(
             encoder,
             Lambda(lambda x: (x - mean) / std),
