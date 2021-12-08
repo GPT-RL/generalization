@@ -86,7 +86,8 @@ def f(x):
 class Net(nn.Module):
     def __init__(
         self,
-        embedding_size,
+        backprop_through_gpt: bool,
+        embedding_size: int,
         encoder: nn.Module,
         hidden_size: int,
         output_size: int,
@@ -98,7 +99,7 @@ class Net(nn.Module):
             encoder,
             Lambda(lambda x: (x - output_mean) / output_std),
             nn.Sigmoid(),
-            Lambda(lambda x: x.round()),
+            *([] if backprop_through_gpt else [Lambda(lambda x: x.round())]),
             nn.Linear(embedding_size, hidden_size),
             nn.ReLU(),
             nn.Linear(hidden_size, output_size),
@@ -274,6 +275,7 @@ def train(args: Args, logger: HasuraLogger):
     test_loader = torch.utils.data.DataLoader(test_dataset, **test_kwargs)
 
     model = Net(
+        backprop_through_gpt=args.train_ln or args.train_wpe,
         embedding_size=embedding_size,
         encoder=encoder,
         hidden_size=args.hidden_size,
@@ -321,7 +323,6 @@ def train(args: Args, logger: HasuraLogger):
     scheduler = StepLR(optimizer, step_size=1, gamma=args.gamma)
     save_count = 0
     frames = 0
-    loss = None
     for epoch in range(1, args.epochs + 1):
 
         correct = []
