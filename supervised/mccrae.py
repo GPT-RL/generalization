@@ -260,8 +260,8 @@ def train(args: Args, logger: HasuraLogger):
             randomize_parameters=args.architecture == "untrained",
             train_ln=args.train_ln,
             train_wpe=args.train_wpe,
-        ).to(device)
-    )
+        )
+    ).to(device)
     with torch.no_grad():
         outputs = encoder(torch.tensor(train_inputs).to(device))
     mean = outputs.mean(dim=0, keepdims=True)
