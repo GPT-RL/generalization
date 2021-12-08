@@ -278,22 +278,12 @@ def train(args: Args, logger: HasuraLogger):
     test_loader = torch.utils.data.DataLoader(test_dataset, **test_kwargs)
 
     if args.architecture in [BINARY_PRETRAINED, BINARY_UNTRAINED]:
-        if args.train_ln or args.train_wpe:
-            encoder = nn.Sequential(
-                encoder,
-                Lambda(lambda x: (x - mean) / std),
-                nn.LayerNorm([embedding_size]),
-                nn.Sigmoid(),
-            )
-        else:
-            encoder = nn.Sequential(
-                encoder,
-                Lambda(lambda x: (x - mean) / std),
-                nn.Sigmoid(),
-                Lambda(lambda x: x.round()),
-            )
-    else:
-        encoder = nn.Sequential(encoder, nn.LayerNorm([embedding_size]))
+        encoder = nn.Sequential(
+            encoder,
+            Lambda(lambda x: (x - mean) / std),
+            nn.Sigmoid(),
+            *([] if args.train_ln or args.train_wpe else [Lambda(lambda x: x.round())]),
+        )
 
     model = Net(
         embedding_size=embedding_size,
