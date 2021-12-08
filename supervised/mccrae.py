@@ -336,7 +336,7 @@ def train(args: Args, logger: HasuraLogger):
     scheduler = StepLR(optimizer, step_size=1, gamma=args.gamma)
     save_count = 0
     frames = 0
-    for epoch in range(1, args.epochs + 1):
+    for epoch in range(args.epochs):
 
         correct = []
         for batch_idx, (data, target) in enumerate(train_loader):
