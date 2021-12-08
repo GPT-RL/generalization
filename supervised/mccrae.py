@@ -240,7 +240,7 @@ def train(args: Args, logger: HasuraLogger):
         for text in feature_arrays.index
     ]
     inputs = pad_sequence(tokens, padding_value=tokenizer.eos_token_id).T.numpy()
-    assert args.architecture in get_args(Architecture)
+    assert args.architecture in get_args(Architecture), args.architecture
     if args.architecture == BASELINE:
         _, unique = np.unique(inputs, return_inverse=True)
         inputs = unique.reshape(inputs.shape)
