@@ -19,14 +19,13 @@ import torch.optim as optim
 import yaml
 from gql import gql
 from run_logger import HasuraLogger
+from spec import spec
 from tap import Tap
 from torch.nn.utils.rnn import pad_sequence
 from torch.optim.lr_scheduler import StepLR
 from torch.utils.data import Dataset
 from torch.utils.data.dataset import T_co
 from transformers import GPT2Config, GPT2Model, GPT2Tokenizer
-
-from spec import spec
 
 GPTSize = Literal["gpt2", "gpt2-medium", "gpt2-large", "gpt2-xl"]
 Architecture = Literal["pretrained", "randomized", "baseline"]
@@ -298,20 +297,11 @@ def train(args: Args, logger: HasuraLogger):
     start_time = time.time()
     save_count = 0
     frames = 0
+    loss = None
     for epoch in range(1, args.epochs + 1):
 
         correct = []
         for batch_idx, (data, target) in enumerate(train_loader):
-            frames += len(data)
-            data, target = data.to(device), target.to(device)
-            optimizer.zero_grad()
-            output = model(data)
-            weight = target / prior + (1 - target) / (1 - prior)
-            loss = F.binary_cross_entropy(output, target, weight=weight / 2)
-            pred = output.round()
-            correct += [pred.eq(target.view_as(pred)).squeeze(-1).float()]
-            loss.backward()
-            optimizer.step()
             if (
                 batch_idx == 0
                 and args.save_interval is not None
@@ -319,25 +309,8 @@ def train(args: Args, logger: HasuraLogger):
             ):
                 torch.save(model.state_dict(), str(save_path))
                 save_count += 1
+
             if batch_idx == 0 and epoch % args.log_interval == 0:
-                accuracy = torch.cat(correct).mean()
-                seconds = time.time() - start_time
-                log = {
-                    EPOCH: epoch,
-                    LOSS: loss.item(),
-                    ACCURACY: accuracy.item(),
-                    RUN_ID: logger.run_id,
-                    HOURS: seconds / 3600,
-                    SAVE_COUNT: save_count,
-                    FPS: frames / seconds,
-                }
-                pprint(log)
-                if logger.run_id is not None:
-                    logger.log(log)
-
-                if args.dry_run:
-                    break
-
                 test_loss = 0
                 correct = []
                 with torch.no_grad():
@@ -363,6 +336,36 @@ def train(args: Args, logger: HasuraLogger):
                 pprint(log)
                 if logger.run_id is not None:
                     logger.log(log)
+
+            frames += len(data)
+            data, target = data.to(device), target.to(device)
+            optimizer.zero_grad()
+            output = model(data)
+            weight = target / prior + (1 - target) / (1 - prior)
+            loss = F.binary_cross_entropy(output, target, weight=weight / 2)
+            pred = output.round()
+            correct += [pred.eq(target.view_as(pred)).squeeze(-1).float()]
+            if batch_idx == 0 and epoch % args.log_interval == 0:
+                accuracy = torch.cat(correct).mean()
+                seconds = time.time() - start_time
+                log = {
+                    EPOCH: epoch,
+                    ACCURACY: accuracy.item(),
+                    RUN_ID: logger.run_id,
+                    HOURS: seconds / 3600,
+                    SAVE_COUNT: save_count,
+                    FPS: frames / seconds,
+                    LOSS: loss.item(),
+                }
+                pprint(log)
+                if logger.run_id is not None:
+                    logger.log(log)
+
+                if args.dry_run:
+                    break
+            loss.backward()
+            optimizer.step()
+
         scheduler.step()
 
 
