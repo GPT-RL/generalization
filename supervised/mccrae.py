@@ -19,13 +19,14 @@ import torch.optim as optim
 import yaml
 from gql import gql
 from run_logger import HasuraLogger
-from spec import spec
 from tap import Tap
 from torch.nn.utils.rnn import pad_sequence
 from torch.optim.lr_scheduler import StepLR
 from torch.utils.data import Dataset
 from torch.utils.data.dataset import T_co
 from transformers import GPT2Config, GPT2Model, GPT2Tokenizer
+
+from spec import spec
 
 GPTSize = Literal["gpt2", "gpt2-medium", "gpt2-large", "gpt2-xl"]
 Architecture = Literal["pretrained", "randomized", "baseline"]
@@ -69,26 +70,37 @@ class GPTEmbed(nn.Module):
         return self.gpt.forward(x).last_hidden_state[:, -1]
 
 
+class Lambda(nn.Module):
+    def __init__(self, f):
+        super().__init__()
+        self.f = f
+
+    def forward(self, x):
+        return self.f(x)
+
+
+def f(x):
+    breakpoint()
+    return x
+
+
 class Net(nn.Module):
     def __init__(
         self,
-        architecture: Architecture,
+        embedding_size,
+        encoder: nn.Module,
         hidden_size: int,
-        model_name: GPTSize,
         output_size: int,
-        vocab_size: int,
-        **kwargs,
+        output_mean: torch.Tensor,
+        output_std: torch.Tensor,
     ):
         super(Net, self).__init__()
-        self.embedding_size = GPT2Config.from_pretrained(model_name).n_embd
-        encoder = (
-            nn.EmbeddingBag(vocab_size, self.embedding_size)
-            if architecture == "baseline"
-            else GPTEmbed(model_name=model_name, **kwargs)
-        )
         self.model = nn.Sequential(
             encoder,
-            nn.Linear(self.embedding_size, hidden_size),
+            Lambda(lambda x: (x - output_mean) / output_std),
+            nn.Sigmoid(),
+            Lambda(lambda x: x.round()),
+            nn.Linear(embedding_size, hidden_size),
             nn.ReLU(),
             nn.Linear(hidden_size, output_size),
             nn.Sigmoid(),
@@ -240,6 +252,23 @@ def train(args: Args, logger: HasuraLogger):
 
     train_inputs = inputs[train_idxs]
     train_targets = targets[train_idxs]
+
+    embedding_size = GPT2Config.from_pretrained(args.model_name).n_embd
+    encoder = (
+        nn.EmbeddingBag(int(inputs.max()), embedding_size)
+        if args.architecture == "baseline"
+        else GPTEmbed(
+            model_name=args.model_name,
+            randomize_parameters=args.randomize_parameters,
+            train_ln=args.train_ln,
+            train_wpe=args.train_wpe,
+        ).to(device)
+    )
+    with torch.no_grad():
+        outputs = encoder(torch.tensor(train_inputs).to(device))
+    mean = outputs.mean(dim=0, keepdims=True)
+    std = outputs.mean(dim=0, keepdims=True)
+
     prior = torch.tensor(train_targets.mean(axis=0, keepdims=True)).to(device)
     train_dataset = _Dataset(inputs=train_inputs, targets=train_targets)
     test_dataset = _Dataset(inputs=inputs[test_idxs], targets=targets[test_idxs])
@@ -247,14 +276,12 @@ def train(args: Args, logger: HasuraLogger):
     test_loader = torch.utils.data.DataLoader(test_dataset, **test_kwargs)
 
     model = Net(
-        architecture=args.architecture,
-        model_name=args.model_name,
+        embedding_size=embedding_size,
+        encoder=encoder,
         hidden_size=args.hidden_size,
         output_size=targets.shape[1],
-        randomize_parameters=args.randomize_parameters,
-        train_wpe=args.train_wpe,
-        train_ln=args.train_ln,
-        vocab_size=inputs.max(),
+        output_std=std,
+        output_mean=mean,
     ).to(device)
 
     save_path = get_save_path(logger.run_id)
