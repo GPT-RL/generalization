@@ -284,6 +284,8 @@ def train(args: Args, logger: HasuraLogger):
             nn.Sigmoid(),
             *([] if args.train_ln or args.train_wpe else [Lambda(lambda x: x.round())]),
         )
+    else:
+        encoder = nn.Sequential(encoder, nn.LayerNorm([embedding_size]))
 
     model = Net(
         embedding_size=embedding_size,
