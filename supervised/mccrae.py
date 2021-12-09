@@ -173,6 +173,7 @@ class Args(Tap):
     no_cuda: bool = False
     save_interval: int = None
     seed: int = 1
+    sigmoid: bool = False
     test_batch_size: int = 1000
     train_ln: bool = False
     train_wpe: bool = False
@@ -277,7 +278,7 @@ def train(args: Args, logger: HasuraLogger):
         encoder = nn.Sequential(
             encoder,
             Lambda(lambda x: (x - mean) / std),
-            nn.Sigmoid(),
+            *([nn.Sigmoid()] if args.sigmoid else []),
             *([] if args.train_ln or args.train_wpe else [Lambda(lambda x: x.round())]),
         )
 
