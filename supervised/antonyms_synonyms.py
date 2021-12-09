@@ -2,11 +2,13 @@ from __future__ import print_function
 
 import logging
 import os
+import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 from pprint import pprint
 from typing import List, Literal, Optional, cast, get_args
 
+import kaggle
 import numpy as np
 import pandas as pd
 import torch
@@ -184,7 +186,7 @@ Architecture = Literal[
 
 
 class Args(Tap):
-    antonyms_path: str = "/root/.cache/data/antonyms.csv"
+    antonyms_dir: str = "/root/.cache/data/antonyms.csv"
     architecture: Architecture = BINARY_PRETRAINED
     batch_size: int = 32
     config: Optional[str] = None  # If given, yaml config from which to load params
@@ -206,7 +208,7 @@ class Args(Tap):
     no_cuda: bool = False
     save_model: bool = False
     seed: int = 1
-    synonyms_path: str = "/root/.cache/data/synonyms.csv"
+    synonyms_dir: str = "/root/.cache/data/synonyms.csv"
     test_batch_size: int = 1000
     train_ln: bool = False
     train_wpe: bool = False
@@ -259,9 +261,30 @@ def train(args: Args, logger: HasuraLogger):
         test_kwargs.update(cuda_kwargs)
 
     tokenizer = GPT2Tokenizer.from_pretrained(args.model_name)
-    antonyms: pd.DataFrame = pd.read_csv(args.antonyms_path)[:10]
+    kaggle.api.authenticate()
 
-    synonyms: pd.DataFrame = pd.read_csv(args.synonyms_path)[:20]
+    antonyms_path = Path(args.antonyms_dir, "antonyms-wordnet.zip")
+    if not antonyms_path.exists():
+        kaggle.api.dataset_download_files(
+            "duketemon/antonyms-wordnet",
+            path=args.antonyms_dir,
+            unzip=False,
+        )
+    with zipfile.ZipFile(str(antonyms_path), "r") as zip_ref:
+        with zip_ref.open("antonyms.csv") as f:
+            antonyms = pd.read_csv(f)
+
+    synonyms_path = Path(args.synonyms_dir, "wordnet-synonyms.zip")
+    if not synonyms_path.exists():
+        kaggle.api.dataset_download_files(
+            "duketemon/wordnet-synonyms",
+            path=args.synonyms_dir,
+            unzip=False,
+        )
+    with zipfile.ZipFile(str(synonyms_path), "r") as zip_ref:
+        with zip_ref.open("synonyms.csv") as f:
+            synonyms = pd.read_csv(f)
+
     antonyms: List[torch.Tensor] = list(get_tensors(antonyms, ANTONYMS, tokenizer))
     synonyms: List[torch.Tensor] = list(get_tensors(synonyms, SYNONYMS, tokenizer))
     ns = len(synonyms) // 2
