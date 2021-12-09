@@ -196,6 +196,7 @@ class Args(Tap):
     graphql_endpoint: str = os.getenv("GRAPHQL_ENDPOINT")
     hidden_size: int = 512
     host_machine: str = os.getenv("HOST_MACHINE")
+    initial_encoding_on_cpu: bool = False
     load_id: int = None  # path to load parameters from if at all
     log_interval: int = 10
     log_level: str = "INFO"
@@ -335,7 +336,6 @@ def train(args: Args, logger: HasuraLogger):
     embedding_size = GPT2Config.from_pretrained(args.model_name).n_embd
 
     train_inputs = cast(torch.Tensor, train_dataset.inputs)
-    train_inputs = train_inputs.to(device)
     d = train_inputs.size(-1)
 
     encoder = nn.Sequential(
@@ -349,10 +349,16 @@ def train(args: Args, logger: HasuraLogger):
             train_wpe=args.train_wpe,
         ),
         Lambda(lambda x: x.reshape(-1, 2, embedding_size)),
-    ).to(device)
+    )
+
+    encoder = encoder.to(device)
 
     with torch.no_grad():
-        outputs = encoder(train_inputs)
+        outputs = []
+        for (data, _) in tqdm(train_loader):
+            outputs.append(encoder(data.to(device)))
+
+    outputs = torch.cat(outputs, dim=0)
 
     mean = outputs.mean(dim=0, keepdims=True)
     std = outputs.mean(dim=0, keepdims=True)
