@@ -97,6 +97,7 @@ class Net(nn.Module):
             nn.ReLU(),
             nn.Linear((1 if multiplicative_interaction else 2) * hidden_size, 1),
             Lambda(lambda x: x.squeeze(-1)),
+            nn.Sigmoid(),
         )
 
     def forward(self, x):
@@ -382,7 +383,7 @@ def train(args: Args, logger: HasuraLogger):
             for _data, _target in test_loader:
                 _data, _target = _data.to(device), _target.to(device)
                 _output = model(_data)
-                test_loss += F.binary_cross_entropy_with_logits(
+                test_loss += F.binary_cross_entropy(
                     _output, _target, reduction="sum"
                 ).item()  # sum up batch loss
                 _pred = _output.round()  # get the index of the max log-probability
@@ -424,7 +425,7 @@ def train(args: Args, logger: HasuraLogger):
             data, target = data.to(device), target.to(device)
             optimizer.zero_grad()
             output = model(data)
-            loss = F.binary_cross_entropy_with_logits(output, target)
+            loss = F.binary_cross_entropy(output, target)
             pred = output.round()
             correct += [pred.eq(target.view_as(pred)).float()]
             if batch_idx == 0 and batch_idx % args.log_interval == 0:
