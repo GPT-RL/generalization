@@ -331,7 +331,12 @@ def train(args: Args, logger: HasuraLogger):
     test_loader = torch.utils.data.DataLoader(test_dataset, **test_kwargs)
     embedding_size = GPT2Config.from_pretrained(args.model_name).n_embd
 
-    encoder = (
+    train_inputs = cast(torch.Tensor, train_dataset.inputs)
+    train_inputs = train_inputs.to(device)
+    d = train_inputs.size(-1)
+
+    encoder = nn.Sequential(
+        Lambda(lambda x: x.reshape(-1, d)),
         nn.EmbeddingBag(int(inputs.max()), embedding_size)
         if args.architecture == BASELINE
         else GPTEmbed(
@@ -339,12 +344,12 @@ def train(args: Args, logger: HasuraLogger):
             randomize_parameters=args.architecture == UNTRAINED,
             train_ln=args.train_ln,
             train_wpe=args.train_wpe,
-        )
+        ),
+        Lambda(lambda x: x.reshape(-1, 2, embedding_size)),
     ).to(device)
-    with torch.no_grad():
-        outputs = encoder(cast(torch.Tensor, train_dataset.inputs).to(device))
 
-    outputs = outputs.reshape(-1, outputs.size(-1))
+    with torch.no_grad():
+        outputs = encoder(train_inputs)
 
     mean = outputs.mean(dim=0, keepdims=True)
     std = outputs.mean(dim=0, keepdims=True)
