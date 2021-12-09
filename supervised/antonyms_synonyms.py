@@ -2,16 +2,13 @@ from __future__ import print_function
 
 import logging
 import os
-import time
-import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 from pprint import pprint
-from typing import Literal, Optional, cast, get_args
+from typing import List, Literal, Optional, cast, get_args
 
 import numpy as np
 import pandas as pd
-import sweep_logger
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -25,21 +22,13 @@ from torch.nn.utils.rnn import pad_sequence
 from torch.optim.lr_scheduler import StepLR
 from torch.utils.data import Dataset
 from torch.utils.data.dataset import T_co
+from tqdm import tqdm
 from transformers import GPT2Config, GPT2Model, GPT2Tokenizer
 
-GPTSize = Literal["gpt2", "gpt2-medium", "gpt2-large", "gpt2-xl"]
-BINARY_PRETRAINED = "binary-pretrained"
-BINARY_UNTRAINED = "binary-untrained"
-PRETRAINED = "pretrained"
-UNTRAINED = "untrained"
-BASELINE = "baseline"
-# noinspection PyTypeHints
-Architecture = Literal[
-    BINARY_PRETRAINED, BINARY_UNTRAINED, PRETRAINED, UNTRAINED, BASELINE
-]
+ModelName = Literal["gpt-2", "gpt3-medium", "gpt2-large", "gpt2-xl"]
 
 
-def build_gpt(gpt_size: GPTSize, randomize_parameters: bool):
+def build_gpt(gpt_size: ModelName, randomize_parameters: bool):
     return (
         GPT2Model(
             GPT2Config.from_pretrained(
@@ -62,7 +51,7 @@ def build_gpt(gpt_size: GPTSize, randomize_parameters: bool):
 class GPTEmbed(nn.Module):
     def __init__(
         self,
-        model_name: GPTSize,
+        model_name: ModelName,
         randomize_parameters: bool,
         train_wpe: bool,
         train_ln: bool,
@@ -74,7 +63,7 @@ class GPTEmbed(nn.Module):
             p.requires_grad_(requires_grad)
 
     def forward(self, x, **_):
-        return self.gpt.forward(x).last_hidden_state[:, -1]
+        return self.gpt.forward(x).last_hidden_state[:, :, -1]
 
 
 class Lambda(nn.Module):
@@ -92,29 +81,60 @@ class Net(nn.Module):
         embedding_size: int,
         encoder: nn.Module,
         hidden_size: int,
-        output_size: int,
+        multiplicative_interaction: bool,
     ):
         super(Net, self).__init__()
         self.model = nn.Sequential(
             encoder,
             nn.Linear(embedding_size, hidden_size),
+            Lambda(lambda x: x.prod(1))
+            if multiplicative_interaction
+            else nn.Sequential(Lambda(lambda x: x.reshape(x.size(0), -1))),
             nn.ReLU(),
-            nn.Linear(hidden_size, output_size),
-            nn.Sigmoid(),
+            nn.Linear((1 if multiplicative_interaction else 2) * hidden_size, 1),
+            Lambda(lambda x: x.squeeze(-1)),
         )
 
     def forward(self, x):
         return self.model(x)
 
 
-def shuffle(df: pd.DataFrame, **kwargs):
-    return df.sample(frac=1, **kwargs).reset_index(drop=True)
-
-
-NON_ANTONYM = "non-antonyms"
-ANTONYM = "antonyms"
 LEMMA = "lemma"
+ANTONYMS = "antonyms"
+SYNONYMS = "synonyms"
+COUNTERPART = "counterpart"
 TARGET = "target"
+
+
+def explode(data: pd.DataFrame, column):
+    data: pd.DataFrame = data.dropna(subset=[column])
+    split = data[column].str.split(pat="[;|]")
+    data = data.assign(**{column: split})
+    data = data.explode(column)
+    return data
+
+
+def get_tensors(
+    data: pd.DataFrame, column: str, tokenizer: GPT2Tokenizer
+) -> torch.Tensor:
+    data: pd.DataFrame = data.dropna(subset=[column])
+    split = data[column].str.split(pat="[;|]")
+    data = data.assign(**{column: split})
+    data = data.explode(column)
+    data = data[[LEMMA, column]]
+
+    for col in [LEMMA, column]:
+        with tqdm(desc=f"Encoding {col}", total=len(data)) as pbar:
+
+            def encode(s: str):
+                pbar.update(1)
+                tensor = tokenizer.encode(s, return_tensors="pt")
+                tensor = cast(torch.Tensor, tensor)
+                return tensor.T
+
+            encoded = data[col].apply(encode)
+
+        yield from encoded.values.tolist()
 
 
 @dataclass
@@ -151,28 +171,42 @@ def configure_logger_args(args: Tap):
     args.add_subparser("sweep", Sweep)
 
 
+ModelName = Literal["gpt2", "gpt2-medium", "gpt2-large", "gpt2-xl"]
+BINARY_PRETRAINED = "binary-pretrained"
+BINARY_UNTRAINED = "binary-untrained"
+PRETRAINED = "pretrained"
+UNTRAINED = "untrained"
+BASELINE = "baseline"
+# noinspection PyTypeHints
+Architecture = Literal[
+    BINARY_PRETRAINED, BINARY_UNTRAINED, PRETRAINED, UNTRAINED, BASELINE
+]
+
+
 class Args(Tap):
+    antonyms_path: str = "/root/.cache/data/antonyms.csv"
     architecture: Architecture = BINARY_PRETRAINED
     batch_size: int = 32
     config: Optional[str] = None  # If given, yaml config from which to load params
-    data_path: str = "mccrae.csv.zip"
     dry_run: bool = False
-    model_name: GPTSize = "gpt2"
+    model_name: ModelName = "gpt2-large"
     epochs: int = 14
     gamma: float = 0.99
     graphql_endpoint: str = os.getenv("GRAPHQL_ENDPOINT")
-    hidden_size: int = 1024
+    hidden_size: int = 512
     host_machine: str = os.getenv("HOST_MACHINE")
     load_id: int = None  # path to load parameters from if at all
     log_interval: int = 10
     log_level: str = "INFO"
     lr: float = 1.0
     multiplicative_interaction: bool = False
-    n_features: int = 4
-    n_train: int = 300
+    n_classes: int = 3
+    n_train: int = 9000
+    n_test: int = 320
     no_cuda: bool = False
-    save_interval: int = None
+    save_model: bool = False
     seed: int = 1
+    synonyms_path: str = "/root/.cache/data/synonyms.csv"
     test_batch_size: int = 1000
     train_ln: bool = False
     train_wpe: bool = False
@@ -195,8 +229,21 @@ def get_save_path(run_id: Optional[int]):
     )
 
 
+def shuffle(tensor: torch.Tensor):
+    idxs = torch.randperm(len(tensor))
+    return tensor[idxs]
+
+
+def create_dataset(inputs, targets, in_dataset):
+    inputs = inputs[in_dataset]
+    targets = targets[in_dataset]
+    idxs = torch.randperm(in_dataset.sum())
+    inputs = inputs[idxs]
+    targets = targets[idxs]
+    return _Dataset(inputs, targets)
+
+
 def train(args: Args, logger: HasuraLogger):
-    pprint(args.as_dict())
     # Training settings
     use_cuda = not args.no_cuda and torch.cuda.is_available()
 
@@ -204,54 +251,63 @@ def train(args: Args, logger: HasuraLogger):
 
     device = torch.device("cuda" if use_cuda else "cpu")
 
-    train_kwargs = dict(batch_size=args.batch_size)
-    test_kwargs = dict(batch_size=args.test_batch_size)
+    train_kwargs = {"batch_size": args.batch_size}
+    test_kwargs = {"batch_size": args.test_batch_size}
     if use_cuda:
-        cuda_kwargs = dict(num_workers=1, shuffle=True, pin_memory=True)
+        cuda_kwargs = {"num_workers": 1, "pin_memory": True, "shuffle": True}
         train_kwargs.update(cuda_kwargs)
         test_kwargs.update(cuda_kwargs)
 
-    with zipfile.ZipFile(args.data_path) as zip_file:
-        with zip_file.open("mccrae.csv") as file:
-            df: pd.DataFrame = pd.read_csv(file, sep="\t")
-
-    common_features = df.Feature.value_counts().index[: args.n_features]
-    df = df[df.Feature.isin(common_features)]
-    feature_arrays = df.groupby("Concept").apply(
-        lambda group: (
-            cast(
-                np.ndarray,
-                np.expand_dims(group.Feature.values, 0)
-                == np.expand_dims(common_features.values, 1),
-            )
-        ).any(1)
-    )
-    feature_arrays = feature_arrays[feature_arrays.apply(np.any)]
-    targets = np.stack(feature_arrays.values.tolist(), axis=0).astype(np.float32)
-
     tokenizer = GPT2Tokenizer.from_pretrained(args.model_name)
+    antonyms: pd.DataFrame = pd.read_csv(args.antonyms_path)[:10]
 
-    tokens = [
-        tokenizer.encode(text, return_tensors="pt").squeeze(0)
-        for text in feature_arrays.index
-    ]
-    inputs = pad_sequence(tokens, padding_value=tokenizer.eos_token_id).T.numpy()
-    assert args.architecture in get_args(Architecture), args.architecture
-    if args.architecture == BASELINE:
-        _, unique = np.unique(inputs, return_inverse=True)
-        inputs = unique.reshape(inputs.shape)
+    synonyms: pd.DataFrame = pd.read_csv(args.synonyms_path)[:20]
+    antonyms: List[torch.Tensor] = list(get_tensors(antonyms, ANTONYMS, tokenizer))
+    synonyms: List[torch.Tensor] = list(get_tensors(synonyms, SYNONYMS, tokenizer))
+    ns = len(synonyms) // 2
+    na = len(antonyms) // 2
+    assert ns > na
+    inputs: torch.Tensor = (
+        pad_sequence(
+            [*antonyms, *synonyms],
+            padding_value=tokenizer.eos_token_id,
+        )
+        .squeeze(-1)
+        .T
+    )
+    d = inputs.shape[-1]
+    antonyms = inputs[: 2 * na].reshape(2, na, d).swapaxes(0, 1)
+    synonyms = inputs[2 * na :].reshape(2, ns, d).swapaxes(0, 1)
+    antonyms: torch.Tensor = shuffle(cast(torch.Tensor, antonyms))
+    synonyms: torch.Tensor = shuffle(cast(torch.Tensor, synonyms))
+    synonyms = synonyms[:na]  # chop synonyms to length of antonyms
+    inputs: torch.Tensor = torch.stack([antonyms, synonyms], dim=0)
 
-    idxs = np.arange(len(inputs))
+    train_words = inputs[:, : args.n_train]  # equal count of antonyms and synonyms
 
-    rng = np.random.default_rng(args.seed)
-    rng.shuffle(idxs)
-    train_idxs = idxs[: args.n_train]
-    test_idxs = idxs[args.n_train :]
+    # now exclude all words from test that appear in train
+    train_words = train_words.reshape(4 * args.n_train, d)
+    # inputs = inputs.reshape(-1, d)
+    inputs = inputs.reshape(-1, 2, d)
+    equal = cast(
+        torch.Tensor,
+        inputs.unsqueeze(-2) == train_words.reshape(1, 1, len(train_words), d),
+    )
+    equal: torch.Tensor = equal.all(-1)
+    is_train = equal.any(-1)  # equals any train_word
+    is_train = is_train.any(-1)  # either lemma or counterpart equals some train_word
+    is_test = ~is_train
 
-    train_inputs = inputs[train_idxs]
-    train_targets = targets[train_idxs]
+    targets = torch.cat([torch.ones(na), torch.zeros(na)])
 
+    # split according to is_train, is_test
+    train_dataset = create_dataset(inputs, targets, is_train)
+    test_dataset = create_dataset(inputs, targets, is_test)
+
+    train_loader = torch.utils.data.DataLoader(train_dataset, **train_kwargs)
+    test_loader = torch.utils.data.DataLoader(test_dataset, **test_kwargs)
     embedding_size = GPT2Config.from_pretrained(args.model_name).n_embd
+
     encoder = (
         nn.EmbeddingBag(int(inputs.max()), embedding_size)
         if args.architecture == BASELINE
@@ -263,15 +319,12 @@ def train(args: Args, logger: HasuraLogger):
         )
     ).to(device)
     with torch.no_grad():
-        outputs = encoder(torch.tensor(train_inputs).to(device))
+        outputs = encoder(cast(torch.Tensor, train_dataset.inputs).to(device))
+
+    outputs = outputs.reshape(-1, outputs.size(-1))
+
     mean = outputs.mean(dim=0, keepdims=True)
     std = outputs.mean(dim=0, keepdims=True)
-
-    prior = torch.tensor(train_targets.mean(axis=0, keepdims=True)).to(device)
-    train_dataset = _Dataset(inputs=train_inputs, targets=train_targets)
-    test_dataset = _Dataset(inputs=inputs[test_idxs], targets=targets[test_idxs])
-    train_loader = torch.utils.data.DataLoader(train_dataset, **train_kwargs)
-    test_loader = torch.utils.data.DataLoader(test_dataset, **test_kwargs)
 
     if args.architecture in [BINARY_PRETRAINED, BINARY_UNTRAINED]:
         encoder = nn.Sequential(
@@ -282,90 +335,43 @@ def train(args: Args, logger: HasuraLogger):
         )
 
     model = Net(
-        embedding_size=embedding_size,
         encoder=encoder,
+        embedding_size=embedding_size,
         hidden_size=args.hidden_size,
-        output_size=targets.shape[1],
+        multiplicative_interaction=args.multiplicative_interaction,
     ).to(device)
-    start_time = time.time()
-
-    def evaluate(_epoch):
-        test_loss = 0
-        _accurate = []
-        _recalled = []
-        with torch.no_grad():
-            for _data, _target in test_loader:
-                _data, _target = _data.to(device), _target.to(device)
-                _output = model(_data)
-                test_loss += F.binary_cross_entropy(
-                    _output, _target, reduction="sum"
-                ).item()  # sum up batch loss
-                _pred = _output.round()
-                _correct = _pred.eq(_target.view_as(_pred)).squeeze(-1).float()
-                _accurate += [_correct]
-                _recalled += [_correct[_target.bool()]]
-        test_loss /= len(test_loader.dataset)
-        test_accuracy = torch.cat(_accurate).mean()
-        test_recall = torch.cat(_recalled).mean()
-        _log = {
-            EPOCH: _epoch,
-            TEST_LOSS: test_loss,
-            TEST_ACCURACY: test_accuracy.item(),
-            TEST_RECALL: test_recall.item(),
-            RUN_ID: logger.run_id,
-            HOURS: (time.time() - start_time) / 3600,
-        }
-        pprint(_log)
-        if logger.run_id is not None:
-            logger.log(_log)
 
     save_path = get_save_path(logger.run_id)
     if args.load_id is not None:
         load_path = get_save_path(args.load_id)
         logging.info(f"Loading checkpoint from {load_path}...")
         model.load_state_dict(torch.load(load_path))
-    if args.save_interval:
+    if args.save_model:
         save_path.parent.mkdir(parents=True, exist_ok=True)
 
     optimizer = optim.Adadelta(model.parameters(), lr=args.lr)
 
     scheduler = StepLR(optimizer, step_size=1, gamma=args.gamma)
-    save_count = 0
-    frames = 0
-    for epoch in range(args.epochs):
+    for epoch in range(1, args.epochs + 1):
 
+        model.train()
         correct = []
         for batch_idx, (data, target) in enumerate(train_loader):
-            if (
-                batch_idx == 0
-                and args.save_interval is not None
-                and epoch % args.save_interval == 0
-            ):
-                torch.save(model.state_dict(), str(save_path))
-                save_count += 1
-
-            if batch_idx == 0 and epoch % args.log_interval == 0:
-                evaluate(_epoch=epoch)
-
-            frames += len(data)
             data, target = data.to(device), target.to(device)
             optimizer.zero_grad()
             output = model(data)
-            weight = target / prior + (1 - target) / (1 - prior)
-            loss = F.binary_cross_entropy(output, target, weight=weight / 2)
+            loss = F.binary_cross_entropy_with_logits(output, target)
             pred = output.round()
-            correct += [pred.eq(target.view_as(pred)).squeeze(-1).float()]
-            if batch_idx == 0 and epoch % args.log_interval == 0:
+            correct += [pred.eq(target.view_as(pred)).float()]
+            loss.backward()
+            optimizer.step()
+            if batch_idx % args.log_interval == 0:
                 accuracy = torch.cat(correct).mean()
-                seconds = time.time() - start_time
                 log = {
                     EPOCH: epoch,
+                    LOSS: loss.item(),
                     ACCURACY: accuracy.item(),
                     RUN_ID: logger.run_id,
-                    HOURS: seconds / 3600,
-                    SAVE_COUNT: save_count,
-                    FPS: frames / seconds,
-                    LOSS: loss.item(),
                 }
                 pprint(log)
                 if logger.run_id is not None:
@@ -373,10 +379,36 @@ def train(args: Args, logger: HasuraLogger):
 
                 if args.dry_run:
                     break
-            loss.backward()
-            optimizer.step()
 
+        model.eval()
+        test_loss = 0
+        correct = []
+        with torch.no_grad():
+            for data, target in test_loader:
+                data, target = data.to(device), target.to(device)
+                output = model(data)
+                test_loss += F.binary_cross_entropy_with_logits(
+                    output, target, reduction="sum"
+                ).item()  # sum up batch loss
+                pred = output.round()  # get the index of the max log-probability
+                correct += [pred.eq(target.view_as(pred)).float()]
+
+        test_loss /= len(test_loader.dataset)
+        test_accuracy = torch.cat(correct).mean()
+
+        log = {
+            EPOCH: epoch,
+            TEST_LOSS: test_loss,
+            TEST_ACCURACY: test_accuracy.item(),
+            RUN_ID: logger.run_id,
+        }
+        pprint(log)
+        if logger.run_id is not None:
+            logger.log(log)
         scheduler.step()
+
+    if args.save_model:
+        torch.save(model.state_dict(), str(save_path))
 
 
 EXCLUDED = {
@@ -400,9 +432,7 @@ SAVE_COUNT = "save count"
 LOSS = "loss"
 TEST_LOSS = "test loss"
 ACCURACY = "accuracy"
-RECALL = "recall"
 TEST_ACCURACY = "test accuracy"
-TEST_RECALL = "test recall"
 RUN_ID = "run ID"
 
 
@@ -435,36 +465,28 @@ def main(args: ArgsType):
         assert args.logger_args in valid, f"{args.logger_args} is not in {valid}."
 
         if args.logger_args is not None:
-            charts = [spec(x=HOURS, y=y) for y in (ACCURACY, TEST_ACCURACY,)] + [
-                spec(x=EPOCH, y=y)
+            charts = [
+                spec(x=x, y=y)
                 for y in (
-                    SAVE_COUNT,
-                    FPS,
                     LOSS,
                     ACCURACY,
                     TEST_LOSS,
                     TEST_ACCURACY,
-                    TEST_RECALL,
                 )
+                for x in (HOURS, EPOCH)
             ]
-            metadata = dict(reproducibility_info=args.get_reproducibility_info())
-            if args.host_machine:
-                metadata.update(host_machine=args.host_machine)
-            if name := getattr(args, "name", None):
-                metadata.update(name=name)
-
-            params, logger = sweep_logger.initialize(
-                graphql_endpoint=args.graphql_endpoint,
-                config=args.config,
-                charts=charts,
-                sweep_id=getattr(args, "sweep_id", None),
-                load_id=args.load_id,
-                create_run=args.logger_args is not None,
-                params=args.as_dict(),
+            sweep_id = getattr(args, "sweep_id", None)
+            parameters = logger.create_run(
                 metadata=metadata,
+                sweep_id=sweep_id,
+                charts=charts,
             )
 
-            update_args(args, params)
+            if parameters is not None:
+                update_args(args, parameters)
+            logger.update_metadata(
+                dict(parameters=args.as_dict(), run_id=logger.run_id)
+            )
 
         if args.load_id is not None:
             parameters = logger.execute(
