@@ -67,7 +67,7 @@ class GPTEmbed(nn.Module):
             p.requires_grad_(requires_grad)
 
     def forward(self, x, **_):
-        return self.gpt.forward(x).last_hidden_state[:, :, -1]
+        return self.gpt.forward(x).last_hidden_state[:, -1]
 
 
 class Lambda(nn.Module):
