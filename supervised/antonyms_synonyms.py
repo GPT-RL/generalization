@@ -111,7 +111,7 @@ COUNTERPART = "counterpart"
 TARGET = "target"
 
 
-def explode(data: pd.DataFrame, column):
+def explode(data: pd.DataFrame, column) -> pd.DataFrame:
     data: pd.DataFrame = data.dropna(subset=[LEMMA, column])
     split = data[column].str.split(pat="[;|]")
     data = data.assign(**{column: split})
@@ -122,10 +122,6 @@ def explode(data: pd.DataFrame, column):
 def get_tensors(
     data: pd.DataFrame, column: str, tokenizer: GPT2Tokenizer
 ) -> torch.Tensor:
-    data: pd.DataFrame = data.dropna(subset=[LEMMA, column])
-    split = data[column].str.split(pat="[;|]")
-    data = data.assign(**{column: split})
-    data = data.explode(column)
     data = data[[LEMMA, column]]
 
     for col in [LEMMA, column]:
@@ -288,11 +284,15 @@ def train(args: Args, logger: HasuraLogger):
         with zip_ref.open("synonyms.csv") as f:
             synonyms = pd.read_csv(f)
 
+    antonyms: pd.DataFrame = explode(antonyms, ANTONYMS)
+    synonyms: pd.DataFrame = explode(synonyms, SYNONYMS)
+    synonyms = synonyms.sample(frac=1)
+    synonyms = synonyms[: len(antonyms)]
+    na = len(antonyms)
+    ns = len(synonyms)
+    assert na == ns
     antonyms: List[torch.Tensor] = list(get_tensors(antonyms, ANTONYMS, tokenizer))
     synonyms: List[torch.Tensor] = list(get_tensors(synonyms, SYNONYMS, tokenizer))
-    ns = len(synonyms) // 2
-    na = len(antonyms) // 2
-    assert ns > na
     inputs: torch.Tensor = (
         pad_sequence(
             [*antonyms, *synonyms],
