@@ -109,7 +109,7 @@ TARGET = "target"
 
 
 def explode(data: pd.DataFrame, column):
-    data: pd.DataFrame = data.dropna(subset=[column])
+    data: pd.DataFrame = data.dropna(subset=[LEMMA, column])
     split = data[column].str.split(pat="[;|]")
     data = data.assign(**{column: split})
     data = data.explode(column)
@@ -119,7 +119,7 @@ def explode(data: pd.DataFrame, column):
 def get_tensors(
     data: pd.DataFrame, column: str, tokenizer: GPT2Tokenizer
 ) -> torch.Tensor:
-    data: pd.DataFrame = data.dropna(subset=[column])
+    data: pd.DataFrame = data.dropna(subset=[LEMMA, column])
     split = data[column].str.split(pat="[;|]")
     data = data.assign(**{column: split})
     data = data.explode(column)
