@@ -206,7 +206,7 @@ class Args(Tap):
     n_train: int = 9000
     n_test: int = 320
     no_cuda: bool = False
-    save_model: bool = False
+    save_interval: int = None
     seed: int = 1
     synonyms_dir: str = "/root/.cache/data/synonyms.csv"
     test_batch_size: int = 1000
@@ -369,30 +369,54 @@ def train(args: Args, logger: HasuraLogger):
         multiplicative_interaction=args.multiplicative_interaction,
     ).to(device)
 
+    def evaluate(_epoch):
+        test_loss = 0
+        _correct = []
+        with torch.no_grad():
+            for _data, _target in test_loader:
+                _data, _target = _data.to(device), _target.to(device)
+                _output = model(_data)
+                test_loss += F.binary_cross_entropy_with_logits(
+                    _output, _target, reduction="sum"
+                ).item()  # sum up batch loss
+                _pred = _output.round()  # get the index of the max log-probability
+                _correct += [_pred.eq(_target.view_as(_pred)).float()]
+        test_loss /= len(test_loader.dataset)
+        test_accuracy = torch.cat(_correct).mean()
+        _log = {
+            EPOCH: _epoch,
+            TEST_LOSS: test_loss,
+            TEST_ACCURACY: test_accuracy.item(),
+            RUN_ID: logger.run_id,
+        }
+        pprint(_log)
+        if logger.run_id is not None:
+            logger.log(_log)
+
     save_path = get_save_path(logger.run_id)
     if args.load_id is not None:
         load_path = get_save_path(args.load_id)
         logging.info(f"Loading checkpoint from {load_path}...")
         model.load_state_dict(torch.load(load_path))
-    if args.save_model:
+    if args.save_interval is not None:
         save_path.parent.mkdir(parents=True, exist_ok=True)
 
     optimizer = optim.Adadelta(model.parameters(), lr=args.lr)
 
     scheduler = StepLR(optimizer, step_size=1, gamma=args.gamma)
-    for epoch in range(1, args.epochs + 1):
+    for epoch in range(args.epochs):
+        if epoch % args.save_interval == 0:
+            torch.save(model.state_dict(), str(save_path))
 
-        model.train()
         correct = []
         for batch_idx, (data, target) in enumerate(train_loader):
+            evaluate(epoch)
             data, target = data.to(device), target.to(device)
             optimizer.zero_grad()
             output = model(data)
             loss = F.binary_cross_entropy_with_logits(output, target)
             pred = output.round()
             correct += [pred.eq(target.view_as(pred)).float()]
-            loss.backward()
-            optimizer.step()
             if batch_idx % args.log_interval == 0:
                 accuracy = torch.cat(correct).mean()
                 log = {
@@ -407,36 +431,10 @@ def train(args: Args, logger: HasuraLogger):
 
                 if args.dry_run:
                     break
+            loss.backward()
+            optimizer.step()
 
-        model.eval()
-        test_loss = 0
-        correct = []
-        with torch.no_grad():
-            for data, target in test_loader:
-                data, target = data.to(device), target.to(device)
-                output = model(data)
-                test_loss += F.binary_cross_entropy_with_logits(
-                    output, target, reduction="sum"
-                ).item()  # sum up batch loss
-                pred = output.round()  # get the index of the max log-probability
-                correct += [pred.eq(target.view_as(pred)).float()]
-
-        test_loss /= len(test_loader.dataset)
-        test_accuracy = torch.cat(correct).mean()
-
-        log = {
-            EPOCH: epoch,
-            TEST_LOSS: test_loss,
-            TEST_ACCURACY: test_accuracy.item(),
-            RUN_ID: logger.run_id,
-        }
-        pprint(log)
-        if logger.run_id is not None:
-            logger.log(log)
         scheduler.step()
-
-    if args.save_model:
-        torch.save(model.state_dict(), str(save_path))
 
 
 EXCLUDED = {
