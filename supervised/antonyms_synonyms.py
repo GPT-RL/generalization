@@ -91,7 +91,6 @@ class Net(nn.Module):
         self.model = nn.Sequential(
             encoder,
             nn.Linear(embedding_size, hidden_size),
-            nn.Linear(hidden_size, hidden_size),
             Lambda(lambda x: x.prod(1))
             if multiplicative_interaction
             else nn.Sequential(Lambda(lambda x: x.reshape(x.size(0), -1))),
@@ -314,18 +313,19 @@ def train(args: Args, logger: HasuraLogger):
     embedding_size = GPT2Config.from_pretrained(args.model_name).n_embd
 
     if baseline:
-        _, inputs = inputs.unique(return_inverse=True)
-        num_inputs = int(inputs.max())
-        embedding = nn.Embedding.from_pretrained(torch.eye(num_inputs + 1)).to(device)
-        weight = torch.normal(0, 1, size=(num_inputs, embedding_size))
-        weights = F.pad(weight, (0, 0, 0, 1))
-        linear = nn.Linear(*weights.shape, bias=False)
-        linear.weight = nn.Parameter(weights.T)
+        flattened = inputs.reshape(-1, d)
+        unique, flattened = flattened.unique(dim=0, return_inverse=True)
+        inputs = flattened.reshape(2, -1, 2)
 
-        def f(x):
-            return x.mean(1)
+        encoder = nn.Embedding(len(unique), embedding_size)
+        d = 1
+        # num_inputs = int(inputs.max())
+        # embedding = nn.Embedding.from_pretrained(torch.eye(num_inputs + 1)).to(device)
+        # weight = torch.normal(0, 1, size=(num_inputs, embedding_size))
+        # weights = F.pad(weight, (0, 0, 0, 1))
+        # linear = nn.Linear(*weights.shape, bias=False)
+        # linear.weight = nn.Parameter(weights.T)
 
-        encoder = nn.Sequential(embedding, linear, Lambda(f))
     else:
         encoder = GPTEmbed(
             model_name=args.model_name,
@@ -361,25 +361,27 @@ def train(args: Args, logger: HasuraLogger):
     train_inputs = cast(torch.Tensor, train_dataset.inputs)
     d = train_inputs.size(-1)
 
+    encoder = encoder.to(device)
+
     encoder = nn.Sequential(
         Lambda(lambda x: x.reshape(-1, d)),
         encoder,
         Lambda(lambda x: x.reshape(-1, 2, embedding_size)),
     )
 
-    encoder = encoder.to(device)
-
-    with torch.no_grad():
-        outputs = []
-        for (data, _) in tqdm(train_loader):
-            outputs.append(encoder(data.to(device)))
-
-    outputs = torch.cat(outputs, dim=0)
-
-    mean = outputs.mean(dim=0, keepdims=True)
-    std = outputs.mean(dim=0, keepdims=True)
-
     if args.architecture in [BINARY_PRETRAINED, BINARY_UNTRAINED]:
+        with torch.no_grad():
+            outputs = []
+            for (data, _) in tqdm(train_loader):
+                output = encoder(data.to(device))
+                breakpoint()
+                outputs.append(output)
+
+        outputs = torch.cat(outputs, dim=0)
+        breakpoint()
+
+        mean = outputs.mean(dim=0, keepdims=True)
+        std = outputs.mean(dim=0, keepdims=True)
         encoder = nn.Sequential(
             encoder,
             Lambda(lambda x: (x - mean) / std),
