@@ -322,11 +322,9 @@ def train(args: Args, logger: HasuraLogger):
         linear.weight = nn.Parameter(weights.T)
 
         def f(x):
-            embedded = embedding(x)
-            z1 = linear(embedded)
-            return z1.mean(1)
+            return x.mean(1)
 
-        encoder = Lambda(f)
+        encoder = nn.Sequential(embedding, linear, Lambda(f))
     else:
         encoder = GPTEmbed(
             model_name=args.model_name,
