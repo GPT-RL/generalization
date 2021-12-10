@@ -309,6 +309,10 @@ def train(args: Args, logger: HasuraLogger):
     synonyms: torch.Tensor = shuffle(cast(torch.Tensor, synonyms))
     synonyms = synonyms[:na]  # chop synonyms to length of antonyms
     inputs: torch.Tensor = torch.stack([antonyms, synonyms], dim=0)
+    baseline = args.architecture == BASELINE
+
+    if baseline:
+        inputs = inputs - inputs.min()
 
     train_words = inputs[:, : args.n_train]  # equal count of antonyms and synonyms
 
@@ -341,7 +345,7 @@ def train(args: Args, logger: HasuraLogger):
     encoder = nn.Sequential(
         Lambda(lambda x: x.reshape(-1, d)),
         nn.EmbeddingBag(int(inputs.max()), embedding_size)
-        if args.architecture == BASELINE
+        if baseline
         else GPTEmbed(
             model_name=args.model_name,
             randomize_parameters=args.architecture == UNTRAINED,
