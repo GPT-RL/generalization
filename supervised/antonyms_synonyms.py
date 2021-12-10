@@ -424,6 +424,7 @@ def train(args: Args, logger: HasuraLogger):
             save_count += 1
 
         correct = []
+        total_loss = 0
         for batch_idx, (data, target) in enumerate(train_loader):
             frames += len(data)
             if batch_idx == 0:
@@ -432,28 +433,29 @@ def train(args: Args, logger: HasuraLogger):
             optimizer.zero_grad()
             output = model(data)
             loss = F.binary_cross_entropy(output, target)
+            total_loss += loss.item()
             pred = output.round()
             correct += [pred.eq(target.view_as(pred)).float()]
-            if batch_idx == 0 and batch_idx % args.log_interval == 0:
-                accuracy = torch.cat(correct).mean()
-                seconds = time.time() - start_time
-                log = {
-                    EPOCH: epoch,
-                    HOURS: seconds / 3600,
-                    FPS: frames / seconds,
-                    LOSS: loss.item(),
-                    ACCURACY: accuracy.item(),
-                    RUN_ID: logger.run_id,
-                    SAVE_COUNT: save_count,
-                }
-                pprint(log)
-                if logger.run_id is not None:
-                    logger.log(log)
-
-                if args.dry_run:
-                    break
             loss.backward()
             optimizer.step()
+        if epoch % args.log_interval == 0:
+            accuracy = torch.cat(correct).mean()
+            seconds = time.time() - start_time
+            log = {
+                EPOCH: epoch,
+                HOURS: seconds / 3600,
+                FPS: frames / seconds,
+                LOSS: total_loss,
+                ACCURACY: accuracy.item(),
+                RUN_ID: logger.run_id,
+                SAVE_COUNT: save_count,
+            }
+            pprint(log)
+            if logger.run_id is not None:
+                logger.log(log)
+
+            if args.dry_run:
+                break
 
         scheduler.step()
 
