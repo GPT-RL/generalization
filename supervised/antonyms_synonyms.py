@@ -316,8 +316,9 @@ def train(args: Args, logger: HasuraLogger):
         _, inputs = inputs.unique(return_inverse=True)
         num_inputs = int(inputs.max())
         embedding = nn.Embedding.from_pretrained(torch.eye(num_inputs + 1)).to(device)
-        bag = nn.EmbeddingBag(num_inputs, embedding_size).to(device)
-        weights = F.pad(bag.weight, (0, 0, 0, 1))
+        weight = torch.zeros(num_inputs, embedding_size)
+        torch.nn.init.normal_(weight)
+        weights = F.pad(weight, (0, 0, 0, 1))
         linear = nn.Linear(*weights.shape, bias=False)
         linear.weight = nn.Parameter(weights.T)
 
