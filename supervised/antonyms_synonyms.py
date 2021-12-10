@@ -419,7 +419,7 @@ def train(args: Args, logger: HasuraLogger):
 
     scheduler = StepLR(optimizer, step_size=1, gamma=args.gamma)
     for epoch in range(args.epochs):
-        if epoch % args.save_interval == 0:
+        if args.save_interval is not None and epoch % args.save_interval == 0:
             torch.save(model.state_dict(), str(save_path))
             save_count += 1
 
