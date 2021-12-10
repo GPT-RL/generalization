@@ -315,11 +315,7 @@ def train(args: Args, logger: HasuraLogger):
     if baseline:
         _, inputs = inputs.unique(return_inverse=True)
         num_inputs = int(inputs.max())
-        eye = torch.eye(num_inputs + 1)
-        pretrained = torch.rand_like(eye).round()
-        pretrained = pretrained / pretrained.sum(dim=1, keepdims=True)
-
-        embedding = nn.Embedding.from_pretrained(pretrained).to(device)
+        embedding = nn.Embedding.from_pretrained(torch.eye(num_inputs + 1)).to(device)
         weight = torch.normal(0, 1, size=(num_inputs, embedding_size))
         weights = F.pad(weight, (0, 0, 0, 1))
         linear = nn.Linear(*weights.shape, bias=False)
