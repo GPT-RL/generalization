@@ -56,18 +56,22 @@ class GPTEmbed(nn.Module):
     def __init__(
         self,
         model_name: ModelName,
+        pad_token: int,
         randomize_parameters: bool,
         train_wpe: bool,
         train_ln: bool,
     ):
         super().__init__()
+        self.pad_token = pad_token
         self.gpt = build_gpt(model_name, randomize_parameters)
         for name, p in self.gpt.named_parameters():
             requires_grad = (train_wpe and "wpe" in name) or (train_ln and "ln" in name)
             p.requires_grad_(requires_grad)
 
     def forward(self, x, **_):
-        return self.gpt.forward(x).last_hidden_state[:, -1]
+        return self.gpt.forward(
+            x, attention_mask=x != self.pad_token
+        ).last_hidden_state[:, -1]
 
 
 class Lambda(nn.Module):
@@ -331,6 +335,7 @@ def train(args: Args, logger: HasuraLogger):
     else:
         encoder = GPTEmbed(
             model_name=args.model_name,
+            pad_token=tokenizer.eos_token_id,
             randomize_parameters=args.architecture == UNTRAINED,
             train_ln=args.train_ln,
             train_wpe=args.train_wpe,
@@ -376,11 +381,9 @@ def train(args: Args, logger: HasuraLogger):
             outputs = []
             for (data, _) in tqdm(train_loader):
                 output = encoder(data.to(device))
-                breakpoint()
-                outputs.append(output)
+                outputs.append(output.reshape(-1, output.size(-1)))
 
         outputs = torch.cat(outputs, dim=0)
-        breakpoint()
 
         mean = outputs.mean(dim=0, keepdims=True)
         std = outputs.mean(dim=0, keepdims=True)
