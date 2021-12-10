@@ -312,7 +312,7 @@ def train(args: Args, logger: HasuraLogger):
     baseline = args.architecture == BASELINE
 
     if baseline:
-        inputs = inputs - inputs.min()
+        _, inputs = inputs.unique(return_inverse=True)
 
     train_words = inputs[:, : args.n_train]  # equal count of antonyms and synonyms
 
