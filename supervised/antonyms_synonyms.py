@@ -315,9 +315,10 @@ def train(args: Args, logger: HasuraLogger):
     if baseline:
         _, inputs = inputs.unique(return_inverse=True)
         bag = nn.EmbeddingBag(int(inputs.max()), embedding_size).to(device)
+        weights = F.pad(bag.weight, (0, 0, 0, 1))
 
         def f(x):
-            return bag(x)
+            return weights[x].mean(1)
 
         encoder = Lambda(f)
     else:
