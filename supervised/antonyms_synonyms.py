@@ -91,6 +91,7 @@ class Net(nn.Module):
         self.model = nn.Sequential(
             encoder,
             nn.Linear(embedding_size, hidden_size),
+            nn.Linear(hidden_size, hidden_size),
             Lambda(lambda x: x.prod(1))
             if multiplicative_interaction
             else nn.Sequential(Lambda(lambda x: x.reshape(x.size(0), -1))),
