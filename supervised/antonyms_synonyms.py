@@ -321,16 +321,7 @@ def train(args: Args, logger: HasuraLogger):
         unique, flattened = flattened.unique(dim=0, return_inverse=True)
         inputs = flattened.reshape(2, -1, 2)
 
-        encoder = nn.Embedding.from_pretrained(
-            torch.rand((len(unique), embedding_size)).round()
-        )
-        d = 1
-        # num_inputs = int(inputs.max())
-        # embedding = nn.Embedding.from_pretrained(torch.eye(num_inputs + 1)).to(device)
-        # weight = torch.normal(0, 1, size=(num_inputs, embedding_size))
-        # weights = F.pad(weight, (0, 0, 0, 1))
-        # linear = nn.Linear(*weights.shape, bias=False)
-        # linear.weight = nn.Parameter(weights.T)
+        encoder = nn.EmbeddingBag(int(inputs.max()) + 1, embedding_size)
 
     else:
         encoder = GPTEmbed(
