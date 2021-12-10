@@ -317,7 +317,9 @@ def train(args: Args, logger: HasuraLogger):
         unique, flattened = flattened.unique(dim=0, return_inverse=True)
         inputs = flattened.reshape(2, -1, 2)
 
-        encoder = nn.Embedding(len(unique), embedding_size)
+        encoder = nn.Embedding.from_pretrained(
+            torch.rand((len(unique), embedding_size)).round()
+        )
         d = 1
         # num_inputs = int(inputs.max())
         # embedding = nn.Embedding.from_pretrained(torch.eye(num_inputs + 1)).to(device)
