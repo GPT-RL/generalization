@@ -310,9 +310,19 @@ def train(args: Args, logger: HasuraLogger):
     synonyms = synonyms[:na]  # chop synonyms to length of antonyms
     inputs: torch.Tensor = torch.stack([antonyms, synonyms], dim=0)
     baseline = args.architecture == BASELINE
+    embedding_size = GPT2Config.from_pretrained(args.model_name).n_embd
 
     if baseline:
         _, inputs = inputs.unique(return_inverse=True)
+        encoder = nn.EmbeddingBag(int(inputs.max()), embedding_size)
+
+    else:
+        encoder = GPTEmbed(
+            model_name=args.model_name,
+            randomize_parameters=args.architecture == UNTRAINED,
+            train_ln=args.train_ln,
+            train_wpe=args.train_wpe,
+        )
 
     train_words = inputs[:, : args.n_train]  # equal count of antonyms and synonyms
 
@@ -337,21 +347,13 @@ def train(args: Args, logger: HasuraLogger):
 
     train_loader = torch.utils.data.DataLoader(train_dataset, **train_kwargs)
     test_loader = torch.utils.data.DataLoader(test_dataset, **test_kwargs)
-    embedding_size = GPT2Config.from_pretrained(args.model_name).n_embd
 
     train_inputs = cast(torch.Tensor, train_dataset.inputs)
     d = train_inputs.size(-1)
 
     encoder = nn.Sequential(
         Lambda(lambda x: x.reshape(-1, d)),
-        nn.EmbeddingBag(int(inputs.max()), embedding_size)
-        if baseline
-        else GPTEmbed(
-            model_name=args.model_name,
-            randomize_parameters=args.architecture == UNTRAINED,
-            train_ln=args.train_ln,
-            train_wpe=args.train_wpe,
-        ),
+        encoder,
         Lambda(lambda x: x.reshape(-1, 2, embedding_size)),
     )
 
