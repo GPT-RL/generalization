@@ -318,10 +318,13 @@ def train(args: Args, logger: HasuraLogger):
         embedding = nn.Embedding.from_pretrained(torch.eye(num_inputs + 1)).to(device)
         bag = nn.EmbeddingBag(num_inputs, embedding_size).to(device)
         weights = F.pad(bag.weight, (0, 0, 0, 1))
+        linear = nn.Linear(*weights.shape, bias=False)
+        linear.weight = nn.Parameter(weights.T)
 
         def f(x):
-            z2 = embedding(x) @ weights
-            return z2.mean(1)
+            embedded = embedding(x)
+            z1 = linear(embedded)
+            return z1.mean(1)
 
         encoder = Lambda(f)
     else:
