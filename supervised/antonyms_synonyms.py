@@ -314,12 +314,7 @@ def train(args: Args, logger: HasuraLogger):
 
     if baseline:
         _, inputs = inputs.unique(return_inverse=True)
-        bag = nn.EmbeddingBag(int(inputs.max() + 1), embedding_size).to(device)
-
-        def f(x):
-            return bag(x)
-
-        encoder = Lambda(f)
+        encoder = nn.EmbeddingBag(int(inputs.max() + 1), embedding_size).to(device)
 
     else:
         encoder = GPTEmbed(
