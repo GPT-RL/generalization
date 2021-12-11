@@ -63,18 +63,22 @@ class GPTEmbed(nn.Module):
     def __init__(
         self,
         model_name: GPTSize,
+        pad_token_id: int,
         randomize_parameters: bool,
         train_wpe: bool,
         train_ln: bool,
     ):
         super().__init__()
+        self.pad_token_id = pad_token_id
         self.gpt = build_gpt(model_name, randomize_parameters)
         for name, p in self.gpt.named_parameters():
             requires_grad = (train_wpe and "wpe" in name) or (train_ln and "ln" in name)
             p.requires_grad_(requires_grad)
 
     def forward(self, x, **_):
-        return self.gpt.forward(x).last_hidden_state[:, -1]
+        return self.gpt.forward(
+            x, attention_mask=x != self.pad_token_id
+        ).last_hidden_state[:, -1]
 
 
 class Lambda(nn.Module):
@@ -259,6 +263,7 @@ def train(args: Args, logger: HasuraLogger):
         if args.architecture == BASELINE
         else GPTEmbed(
             model_name=args.model_name,
+            pad_token_id=tokenizer.eos_token_id,
             randomize_parameters=args.architecture == UNTRAINED,
             train_ln=args.train_ln,
             train_wpe=args.train_wpe,
