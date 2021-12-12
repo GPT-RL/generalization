@@ -619,6 +619,7 @@ if __name__ == "__main__":
     import babyai_main
 
     env = Level_GoToRedBallGrey()
+    env.__str__()
     breakpoint()
     env.render()
 
