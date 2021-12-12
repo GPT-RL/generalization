@@ -9,6 +9,7 @@ from typing import Generator, Optional, TypeVar
 import gym
 import gym_minigrid
 import numpy as np
+from babyai.levels.iclr19_levels import Level_GoToRedBallGrey
 from babyai.levels.levelgen import RoomGridLevel
 from babyai.levels.verifier import ObjDesc, PickupInstr
 from colors import color as ansi_color
@@ -141,7 +142,7 @@ class RenderColorEnv(RenderEnv, ABC):
         return color.ljust(len(string))
 
 
-class PickupEnv(RenderEnv, ReproducibleEnv):
+class PickupEnv(ReproducibleEnv):
     def __init__(
         self,
         objects: typing.Iterable[typing.Tuple[str, str]],
@@ -603,6 +604,7 @@ def main(args: "Args"):
         objects=room_objects,
         strict=True,
     )
+    breakpoint()
     if args.agent_view:
         env = RGBImgObsWithDirectionWrapper(env)
         env = ImgObsWrapper(env)
@@ -615,6 +617,10 @@ def main(args: "Args"):
 
 if __name__ == "__main__":
     import babyai_main
+
+    env = Level_GoToRedBallGrey()
+    breakpoint()
+    env.render()
 
     class Args(babyai_main.Args):
         tile_size: int = 32
