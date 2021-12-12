@@ -38,6 +38,7 @@ services:
       - HOST_MACHINE
       - KAGGLE_USERNAME
       - KAGGLE_KEY
+      - VISUALIZER_URL
     entrypoint:
       - execute-sweep
       - --graphql-endpoint=${GRAPHQL_ENDPOINT}

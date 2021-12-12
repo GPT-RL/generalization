@@ -1,4 +1,4 @@
-def spec(x, y, color="run ID", scale_type="linear"):
+def spec(x, y, visualizer_url=None, color="run ID", scale_type="linear"):
     def subfigure(parameters, x_kwargs=None, y_kwargs=None):
         if y_kwargs is None:
             y_kwargs = {}
@@ -11,6 +11,7 @@ def spec(x, y, color="run ID", scale_type="linear"):
                 "x": {"type": "quantitative", "field": x, **x_kwargs},
                 "y": {"type": "quantitative", "field": y, **y_kwargs},
                 "color": {"type": "nominal", "field": color},
+                "href": {"field": "url", "type": "nominal"},
                 "opacity": {
                     "value": 0.1,
                     "condition": {
@@ -28,6 +29,18 @@ def spec(x, y, color="run ID", scale_type="linear"):
                 {
                     "mark": "line",
                     "params": parameters,
+                    **(
+                        {}
+                        if visualizer_url is None
+                        else {
+                            "transform": [
+                                {
+                                    "calculate": f"'{visualizer_url}' + datum['run ID']",
+                                    "as": "url",
+                                }
+                            ],
+                        }
+                    ),
                 }
             ],
         }

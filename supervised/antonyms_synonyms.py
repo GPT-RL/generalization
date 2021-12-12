@@ -56,18 +56,22 @@ class GPTEmbed(nn.Module):
     def __init__(
         self,
         model_name: ModelName,
+        pad_token: int,
         randomize_parameters: bool,
         train_wpe: bool,
         train_ln: bool,
     ):
         super().__init__()
+        self.pad_token = pad_token
         self.gpt = build_gpt(model_name, randomize_parameters)
         for name, p in self.gpt.named_parameters():
             requires_grad = (train_wpe and "wpe" in name) or (train_ln and "ln" in name)
             p.requires_grad_(requires_grad)
 
     def forward(self, x, **_):
-        return self.gpt.forward(x).last_hidden_state[:, -1]
+        return self.gpt.forward(
+            x, attention_mask=x != self.pad_token
+        ).last_hidden_state[:, -1]
 
 
 class Lambda(nn.Module):
@@ -212,6 +216,7 @@ class Args(Tap):
     test_batch_size: int = 1000
     train_ln: bool = False
     train_wpe: bool = False
+    visualizer_url: str = os.getenv("VISUALIZER_URL")
 
     def configure(self) -> None:
         self.add_subparsers(dest="logger_args")
@@ -309,6 +314,24 @@ def train(args: Args, logger: HasuraLogger):
     synonyms: torch.Tensor = shuffle(cast(torch.Tensor, synonyms))
     synonyms = synonyms[:na]  # chop synonyms to length of antonyms
     inputs: torch.Tensor = torch.stack([antonyms, synonyms], dim=0)
+    baseline = args.architecture == BASELINE
+    embedding_size = GPT2Config.from_pretrained(args.model_name).n_embd
+
+    if baseline:
+        flattened = inputs.reshape(-1, d)
+        unique, flattened = flattened.unique(dim=0, return_inverse=True)
+        inputs = flattened.reshape(2, -1, 2)
+
+        encoder = nn.EmbeddingBag(int(inputs.max()) + 1, embedding_size)
+
+    else:
+        encoder = GPTEmbed(
+            model_name=args.model_name,
+            pad_token=tokenizer.eos_token_id,
+            randomize_parameters=args.architecture == UNTRAINED,
+            train_ln=args.train_ln,
+            train_wpe=args.train_wpe,
+        )
 
     train_words = inputs[:, : args.n_train]  # equal count of antonyms and synonyms
 
@@ -333,37 +356,29 @@ def train(args: Args, logger: HasuraLogger):
 
     train_loader = torch.utils.data.DataLoader(train_dataset, **train_kwargs)
     test_loader = torch.utils.data.DataLoader(test_dataset, **test_kwargs)
-    embedding_size = GPT2Config.from_pretrained(args.model_name).n_embd
 
     train_inputs = cast(torch.Tensor, train_dataset.inputs)
     d = train_inputs.size(-1)
 
+    encoder = encoder.to(device)
+
     encoder = nn.Sequential(
         Lambda(lambda x: x.reshape(-1, d)),
-        nn.EmbeddingBag(int(inputs.max()), embedding_size)
-        if args.architecture == BASELINE
-        else GPTEmbed(
-            model_name=args.model_name,
-            randomize_parameters=args.architecture == UNTRAINED,
-            train_ln=args.train_ln,
-            train_wpe=args.train_wpe,
-        ),
+        encoder,
         Lambda(lambda x: x.reshape(-1, 2, embedding_size)),
     )
 
-    encoder = encoder.to(device)
-
-    with torch.no_grad():
-        outputs = []
-        for (data, _) in tqdm(train_loader):
-            outputs.append(encoder(data.to(device)))
-
-    outputs = torch.cat(outputs, dim=0)
-
-    mean = outputs.mean(dim=0, keepdims=True)
-    std = outputs.mean(dim=0, keepdims=True)
-
     if args.architecture in [BINARY_PRETRAINED, BINARY_UNTRAINED]:
+        with torch.no_grad():
+            outputs = []
+            for (data, _) in tqdm(train_loader):
+                output = encoder(data.to(device))
+                outputs.append(output.reshape(-1, output.size(-1)))
+
+        outputs = torch.cat(outputs, dim=0)
+
+        mean = outputs.mean(dim=0, keepdims=True)
+        std = outputs.mean(dim=0, keepdims=True)
         encoder = nn.Sequential(
             encoder,
             Lambda(lambda x: (x - mean) / std),
@@ -514,8 +529,15 @@ def main(args: ArgsType):
         assert args.logger_args in valid, f"{args.logger_args} is not in {valid}."
 
         if args.logger_args is not None:
-            charts = [spec(x=HOURS, y=y) for y in (ACCURACY, TEST_ACCURACY,)] + [
-                spec(x=EPOCH, y=y)
+            kwargs = dict(visualizer_url=args.visualizer_url)
+            charts = [
+                spec(x=HOURS, y=y, **kwargs)
+                for y in (
+                    ACCURACY,
+                    TEST_ACCURACY,
+                )
+            ] + [
+                spec(x=EPOCH, y=y, **kwargs)
                 for y in (
                     SAVE_COUNT,
                     FPS,
