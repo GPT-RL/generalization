@@ -180,6 +180,7 @@ class Args(Tap):
     test_batch_size: int = 1000
     train_ln: bool = False
     train_wpe: bool = False
+    visualizer_url: str = os.getenv("VISUALIZER_URL")
 
     def configure(self) -> None:
         self.add_subparsers(dest="logger_args")
@@ -439,8 +440,15 @@ def main(args: ArgsType):
         assert args.logger_args in valid, f"{args.logger_args} is not in {valid}."
 
         if args.logger_args is not None:
-            charts = [spec(x=HOURS, y=y) for y in (ACCURACY, TEST_ACCURACY,)] + [
-                spec(x=EPOCH, y=y)
+            kwargs = dict(visualizer_url=args.visualizer_url)
+            charts = [
+                spec(x=HOURS, y=y, **kwargs)
+                for y in (
+                    ACCURACY,
+                    TEST_ACCURACY,
+                )
+            ] + [
+                spec(x=EPOCH, y=y, **kwargs)
                 for y in (
                     SAVE_COUNT,
                     FPS,

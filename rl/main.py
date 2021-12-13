@@ -513,7 +513,7 @@ class Trainer:
 
         charts = [
             *[
-                spec(x=HOURS, y=y)
+                spec(x=HOURS, y=y, visualizer_url=args.visualizer_url)
                 for y in (
                     (TEST_EPISODE_SUCCESS, EPISODE_SUCCESS)
                     if args.env == "go-to-loc"
@@ -521,7 +521,7 @@ class Trainer:
                 )
             ],
             *[
-                spec(x=STEP, y=y)
+                spec(x=STEP, y=y, visualizer_url=args.visualizer_url)
                 for y in (
                     TEST_EPISODE_RETURN,
                     EPISODE_RETURN,

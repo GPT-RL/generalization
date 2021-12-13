@@ -1,5 +1,5 @@
-def spec(x, y, color="run ID", scale_type="linear"):
-    def subfigure(parameters, x_kwargs=None, y_kwargs=None):
+def spec(x, y, visualizer_url=None, color="run ID", scale_type="linear"):
+    def subfigure(subfigure_params, x_kwargs=None, y_kwargs=None):
         if y_kwargs is None:
             y_kwargs = {}
         if x_kwargs is None:
@@ -11,6 +11,7 @@ def spec(x, y, color="run ID", scale_type="linear"):
                 "x": {"type": "quantitative", "field": x, **x_kwargs},
                 "y": {"type": "quantitative", "field": y, **y_kwargs},
                 "color": {"type": "nominal", "field": color},
+                "href": {"field": "url", "type": "nominal"},
                 "opacity": {
                     "value": 0.1,
                     "condition": {
@@ -27,7 +28,19 @@ def spec(x, y, color="run ID", scale_type="linear"):
             "layer": [
                 {
                     "mark": "line",
-                    "params": parameters,
+                    "params": subfigure_params,
+                    **(
+                        {}
+                        if visualizer_url is None
+                        else {
+                            "transform": [
+                                {
+                                    "calculate": f"'{visualizer_url}' + datum['run ID']",
+                                    "as": "url",
+                                }
+                            ],
+                        }
+                    ),
                 }
             ],
         }
@@ -58,12 +71,12 @@ def spec(x, y, color="run ID", scale_type="linear"):
         "transform": [{"filter": {"field": y, "valid": True}}],
         "hconcat": [
             subfigure(
-                parameters=[*params, {"name": "selection", "select": "interval"}],
+                subfigure_params=[*params, {"name": "selection", "select": "interval"}],
                 x_kwargs={},
                 y_kwargs={"scale": {"type": scale_type}},
             ),
             subfigure(
-                parameters=params,
+                subfigure_params=params,
                 x_kwargs={"scale": {"domain": {"param": "selection", "encoding": "x"}}},
                 y_kwargs={
                     "scale": {
