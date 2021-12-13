@@ -7,6 +7,7 @@ import main
 import numpy as np
 import pandas as pd
 from envs import RenderWrapper, VecPyTorch
+from gym.wrappers import TimeLimit
 from mccrae.agent import Agent, ModelName
 from mccrae.env import Env, RolloutsWrapper
 from stable_baselines3.common.monitor import Monitor
@@ -81,6 +82,7 @@ class Trainer(main.Trainer):
                 room_size=room_size,
                 seed=seed,
             )
+            _env = TimeLimit(_env, max_episode_steps=2 * room_size)
             _env = RolloutsWrapper(_env)
 
             _env = Monitor(_env, allow_early_resets=allow_early_resets)
