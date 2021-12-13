@@ -116,6 +116,7 @@ class Args(Tap):
     test_interval: Optional[int] = None  # how many updates to evaluate between
     use_proper_time_limits: bool = False  # compute returns with time limits
     value_coef: float = 1  # value loss coefficient
+    visualizer_url: str = os.getenv("VISUALIZER_URL")
 
     def configure(self) -> None:
         self.add_subparsers(dest="logger_args")
@@ -153,9 +154,11 @@ class Trainer:
             torch.backends.cudnn.deterministic = True
 
         torch.set_num_threads(1)
-        device = torch.device("cuda:0" if args.cuda else "cpu")
+        device = torch.device(
+            "cuda:0" if args.cuda and torch.cuda.is_available() else "cpu"
+        )
 
-        envs = cls.make_vec_envs(device=device, test=False, **args.as_dict())
+        envs = cls.make_vec_envs(device=device, test=False, args=args)
 
         agent = cls.make_agent(envs=envs, args=args)
         if args.load_id is not None:
@@ -199,7 +202,7 @@ class Trainer:
             if args.test_interval is not None and j % args.test_interval == 0:
                 cls.evaluate(
                     agent=agent,
-                    envs=cls.make_vec_envs(device=device, test=True, **args.as_dict()),
+                    envs=cls.make_vec_envs(device=device, test=True, args=args),
                     num_processes=args.num_processes,
                     device=device,
                     start=start,
@@ -312,11 +315,11 @@ class Trainer:
                     episode_successes = []
 
                     logging.info(pformat(log))
-                    if logger is not None:
+                    if logger.run_id is not None:
                         log.update({"run ID": logger.run_id})
 
                     logging.info(pformat(log))
-                    if logger is not None:
+                    if logger.run_id is not None:
                         logger.log(log)
 
     @staticmethod
@@ -403,7 +406,7 @@ class Trainer:
         logging.info(f"Sending blob took {time.time() - tick} seconds.")
 
     @staticmethod
-    def make_env(env, seed, allow_early_resets, render: bool = False, **kwargs):
+    def make_env(env, seed, allow_early_resets, render: bool = False, **_):
         def _thunk(env_id):
             if env_id.startswith("dm"):
                 _, domain, task = env_id.split(".")
@@ -452,26 +455,27 @@ class Trainer:
     @classmethod
     def make_vec_envs(
         cls,
+        args: Args,
         device,
-        num_processes,
-        render,
-        render_test,
-        seed,
-        sync_envs,
-        test,
+        test: bool,
         num_frame_stack=None,
         **kwargs,
     ):
+        render = args.render
         if test:
-            render = render_test
+            render = args.render_test
         envs = [
             cls.make_env(
-                seed=seed + i, render=render, test=test, device=device, **kwargs
+                seed=args.seed + i,
+                render=render,
+                test=test,
+                device=device,
+                **kwargs,
             )
-            for i in range(num_processes)
+            for i in range(args.num_processes)
         ]
 
-        if len(envs) > 1 and not sync_envs:
+        if len(envs) > 1 and not args.sync_envs:
             envs = SubprocVecEnv(envs)
         else:
             envs = DummyVecEnv(envs)

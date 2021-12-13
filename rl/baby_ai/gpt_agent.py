@@ -1,10 +1,10 @@
-import babyai_agent
+import baby_ai.agent
 from babyai_main import make_tokenizer
 from torch import nn
 from utils import build_gpt
 
 
-class Agent(babyai_agent.Agent):
+class Agent(baby_ai.agent.Agent):
     def build_base(self, obs_shape, **kwargs):
         return Base(**kwargs)
 
@@ -31,7 +31,7 @@ class GPTEmbed(nn.Module):
         ).last_hidden_state[:, -1]
 
 
-class Base(babyai_agent.Base):
+class Base(baby_ai.agent.Base):
     def __init__(
         self,
         *args,

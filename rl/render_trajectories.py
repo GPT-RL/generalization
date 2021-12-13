@@ -5,8 +5,6 @@ from dataclasses import dataclass, replace
 from typing import List, Literal, NamedTuple
 
 import numpy as np
-from babyai_agent import get_size
-from babyai_env import Spaces
 from babyai_main import Trainer
 from gql import Client, gql
 from gql.transport.requests import RequestsHTTPTransport
@@ -27,6 +25,9 @@ from gym_minigrid.minigrid import (
 from gym_minigrid.window import Window
 from tap import Tap
 from transformers import GPT2Tokenizer
+
+from rl.baby_ai.agent import get_size
+from rl.baby_ai.env import Spaces
 
 INDEX = 0
 IDX_TO_STATE = {v: k for k, v in STATE_TO_IDX.items()}
