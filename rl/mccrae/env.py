@@ -62,7 +62,6 @@ class Env(gym.Env):
         agent_pos = np.array(positions[agent])
         goal_pos = positions[goal]
         distractor_pos = positions[distractor]
-        room_array = np.zeros((self.room_size, self.room_size, self.d))
         invalid = True
         while invalid:
             goal, distractor = self.rng.choice(
@@ -73,6 +72,7 @@ class Env(gym.Env):
             invalid = np.array_equal(goal_features, distractor_features)
         mission = self.concepts[goal]
         goal_pos_x, goal_pos_y = goal_pos
+        room_array = np.zeros((self.room_size, self.room_size, self.d))
         room_array[goal_pos_x, goal_pos_y, :-1] = goal_features
         distractor_pos_x, distractor_pos_y = distractor_pos
         room_array[distractor_pos_x, distractor_pos_y, :-1] = distractor_features
@@ -86,8 +86,9 @@ class Env(gym.Env):
         done = False
         reward = 0
         while True:
+            room_with_agent = np.copy(room_array)
             agent_pos_x, agent_pos_y = agent_pos
-            room_array[agent_pos_x, agent_pos_y, -1] = 1
+            room_with_agent[agent_pos_x, agent_pos_y, -1] = 1
 
             def row_string(row: int):
                 yield "|"
@@ -113,7 +114,7 @@ class Env(gym.Env):
                 return "\n".join(strings())
 
             def render():
-                print(room_array.transpose(2, 0, 1))
+                print(room_with_agent.transpose(2, 0, 1))
                 print(string())
                 print("action:", None if action is None else deltas.get(action, "done"))
                 print("reward:", reward)
@@ -121,7 +122,7 @@ class Env(gym.Env):
             self._render = render
 
             action = yield Step(
-                Obs(image=room_array, mission=mission), reward, done, {}
+                Obs(image=room_with_agent, mission=mission), reward, done, {}
             )
             if action in deltas:
                 delta = np.array(deltas[action])
