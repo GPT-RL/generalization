@@ -63,10 +63,15 @@ class Env(gym.Env):
         goal_pos = positions[goal]
         distractor_pos = positions[distractor]
         room_array = np.zeros((self.room_size, self.room_size, self.d))
-        goal, distractor = self.rng.choice(len(self.concepts), size=2, replace=False)
+        invalid = True
+        while invalid:
+            goal, distractor = self.rng.choice(
+                len(self.concepts), size=2, replace=False
+            )
+            goal_features = self.features[goal]
+            distractor_features = self.features[distractor]
+            invalid = np.array_equal(goal_features, distractor_features)
         mission = self.concepts[goal]
-        goal_features = self.features[goal]
-        distractor_features = self.features[goal]
         goal_pos_x, goal_pos_y = goal_pos
         room_array[goal_pos_x, goal_pos_y, :-1] = goal_features
         distractor_pos_x, distractor_pos_y = distractor_pos
