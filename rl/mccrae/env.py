@@ -50,6 +50,7 @@ class Env(gym.Env):
             )
         )
         self.action_space = Discrete(5)
+        self._render = None
 
     def generator(
         self,
@@ -76,11 +77,44 @@ class Env(gym.Env):
             2: (0, -1),
             3: (0, 1),
         }
+        action = None
         done = False
         reward = 0
         while True:
             agent_pos_x, agent_pos_y = agent_pos
             room_array[agent_pos_x, agent_pos_y, -1] = 1
+
+            def row_string(row: int):
+                yield "|"
+                for col in range(self.room_size):
+                    if (row, col) == tuple(agent_pos):
+                        yield "a"
+                    elif (row, col) == goal_pos:
+                        yield "g"
+                    elif (row, col) == distractor_pos:
+                        yield "d"
+                    else:
+                        yield " "
+                yield "|"
+
+            def strings():
+                horizontal_wall = f"+{'-' * self.room_size}+"
+                yield horizontal_wall
+                for row in range(self.room_size):
+                    yield "".join(row_string(row))
+                yield horizontal_wall
+
+            def string():
+                return "\n".join(strings())
+
+            def render():
+                print(room_array.transpose(2, 0, 1))
+                print(string())
+                print("action:", None if action is None else deltas.get(action, "done"))
+                print("reward:", reward)
+
+            self._render = render
+
             action = yield Step(
                 Obs(image=room_array, mission=mission), reward, done, {}
             )
@@ -100,8 +134,10 @@ class Env(gym.Env):
         self.iterator = self.generator()
         return next(self.iterator).obs
 
-    def render(self, mode="human"):
-        pass
+    def render(self, mode="human", pause=True):
+        self._render()
+        if pause:
+            input("Press enter to continue.")
 
 
 def make_tokenizer(pretrained_model):
