@@ -1,28 +1,18 @@
 import functools
 import os
 import zipfile
-from typing import Literal, cast, get_args
+from typing import cast, get_args
 
 import main
 import numpy as np
 import pandas as pd
 from envs import RenderWrapper, VecPyTorch
 from gym.wrappers import TimeLimit
-from mccrae.agent import Agent, ModelName
+from mccrae.agent import BASELINE, BINARY_PRETRAINED, Agent, Architecture, ModelName
 from mccrae.env import Env, RolloutsWrapper
 from stable_baselines3.common.monitor import Monitor
 from torch.nn.utils.rnn import pad_sequence
 from transformers import GPT2Tokenizer
-
-BINARY_PRETRAINED = "binary-pretrained"
-BINARY_UNTRAINED = "binary-untrained"
-PRETRAINED = "pretrained"
-UNTRAINED = "untrained"
-BASELINE = "baseline"
-# noinspection PyTypeHints
-Architecture = Literal[
-    BINARY_PRETRAINED, BINARY_UNTRAINED, PRETRAINED, UNTRAINED, BASELINE
-]
 
 
 class Args(main.Args):
@@ -53,10 +43,13 @@ class Trainer(main.Trainer):
         observation_space, *_ = envs.get_attr("original_observation_space")
         return Agent(
             action_space=envs.action_space,
-            model_name=args.model_name,
+            architecture=args.architecture,
             hidden_size=args.hidden_size,
+            model_name=args.model_name,
             observation_space=observation_space,
             recurrent=cls.recurrent(args),
+            train_wpe=args.train_wpe,
+            train_ln=args.train_ln,
         )
 
     @staticmethod

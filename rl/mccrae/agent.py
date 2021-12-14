@@ -17,6 +17,16 @@ from transformers import (
 )
 from utils import init
 
+BINARY_PRETRAINED = "binary-pretrained"
+BINARY_UNTRAINED = "binary-untrained"
+PRETRAINED = "pretrained"
+UNTRAINED = "untrained"
+BASELINE = "baseline"
+# noinspection PyTypeHints
+Architecture = Literal[
+    BINARY_PRETRAINED, BINARY_UNTRAINED, PRETRAINED, UNTRAINED, BASELINE
+]
+
 
 def make_tokenizer(pretrained_model):
     if "gpt" in pretrained_model:
@@ -84,15 +94,15 @@ def get_embedding_size(model_name: ModelName):
 class GPTEmbed(nn.Module):
     def __init__(
         self,
-        pretrained_model: str,
+        model_name: str,
         randomize_parameters: bool,
         train_wpe: bool,
         train_ln: bool,
     ):
         super().__init__()
-        tokenizer = make_tokenizer(pretrained_model)
+        tokenizer = make_tokenizer(model_name)
         self.pad_token_id = tokenizer.eos_token_id
-        self.gpt = build_gpt(pretrained_model, randomize_parameters)
+        self.gpt = build_gpt(model_name, randomize_parameters)
         for name, p in self.gpt.named_parameters():
             requires_grad = (train_wpe and "wpe" in name) or (train_ln and "ln" in name)
             p.requires_grad_(requires_grad)
@@ -106,10 +116,12 @@ class GPTEmbed(nn.Module):
 class Base(NNBase):
     def __init__(
         self,
+        architecture: Architecture,
         model_name: ModelName,
         hidden_size: int,
         observation_space: gym.spaces.Tuple,
         recurrent: bool,
+        **kwargs,
     ):
         super().__init__(
             recurrent=recurrent,
@@ -118,7 +130,17 @@ class Base(NNBase):
         )
         self.observation_spaces = Obs(*observation_space.spaces)
         embedding_size = get_embedding_size(model_name)
-        self.encode_mission = self.build_mission_encoder(embedding_size)
+        self.encode_mission = (
+            nn.EmbeddingBag(
+                int(self.observation_spaces.mission.nvec.max()) + 1, embedding_size
+            )
+            if architecture == BASELINE
+            else GPTEmbed(
+                model_name=model_name,
+                randomize_parameters=architecture == UNTRAINED,
+                **kwargs,
+            )
+        )
 
         init_ = lambda m: init(
             m,
@@ -171,11 +193,6 @@ class Base(NNBase):
         )
 
         self.critic_linear = init_(nn.Linear(hidden_size, 1))
-
-    def build_mission_encoder(self, embedding_size: int):
-        return nn.EmbeddingBag(
-            int(self.observation_spaces.mission.nvec.max()) + 1, embedding_size
-        )
 
     def forward(self, inputs: torch.Tensor, rnn_hxs: torch.Tensor, masks: torch.Tensor):
         inputs = Obs(
