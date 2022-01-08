@@ -9,7 +9,7 @@ from agent import NNBase
 from babyai_env import Spaces
 from gym import Space
 from gym.spaces import Box, Dict, Discrete, MultiDiscrete
-from transformers import BertConfig, GPT2Config, GPTNeoConfig
+from transformers import BertConfig, GPT2Config, GPT2Tokenizer, GPTNeoConfig
 from utils import init
 
 
@@ -64,6 +64,8 @@ class Base(NNBase):
         self.observation_spaces = Spaces(*observation_space.spaces)
         self.num_directions = self.observation_spaces.direction.n
         self.num_actions = self.observation_spaces.action.n
+
+        self.pad_token_id = GPT2Tokenizer.from_pretrained(pretrained_model).eos_token_id
 
         if "neo" in pretrained_model:
             config = GPTNeoConfig.from_pretrained(
@@ -156,9 +158,8 @@ class Base(NNBase):
 
     def build_embeddings(self):
         num_embeddings = int(self.observation_spaces.mission.nvec[0])
-        return nn.Sequential(
-            nn.Embedding(num_embeddings, self.embedding_size),
-            nn.GRU(self.embedding_size, self.embedding_size, batch_first=True),
+        return nn.EmbeddingBag(
+            num_embeddings, self.embedding_size, padding_idx=self.pad_token_id
         )
 
     def forward(self, inputs, rnn_hxs, masks):
