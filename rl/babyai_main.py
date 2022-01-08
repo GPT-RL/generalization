@@ -41,6 +41,7 @@ class Args(main.Args):
     test_organisms: str = None
     test_colors: str = None
     train_colors: str = None
+    prefix_length: int = 4
 
     def configure(self) -> None:
         self.add_subparsers(dest="logger_args")
@@ -105,6 +106,7 @@ class Trainer(main.Trainer):
         def _thunk(
             env_id: str,
             num_dists: int,
+            prefix_length: int,
             room_size: int,
             seed: int,
             strict: bool,
@@ -130,7 +132,7 @@ class Trainer(main.Trainer):
                 objects = [(t, c) for (c, t) in objects]
                 kwargs.update(room_objects=objects)
                 _env = PickupEnv(objects=objects, **_kwargs)
-                _env = PlantAnimalWrapper(_env)
+                _env = PlantAnimalWrapper(_env, prefix_length)
                 longest_mission = "pick up the grasshopper"
 
                 def missions():
