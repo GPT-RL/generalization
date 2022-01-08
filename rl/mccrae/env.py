@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import itertools
-from dataclasses import dataclass
+from dataclasses import astuple, dataclass, replace
 from typing import Generator, Generic, NamedTuple, TypeVar
 
 import gym
@@ -10,17 +10,17 @@ from gym import spaces
 from gym.spaces import Box, Discrete, MultiDiscrete
 from transformers import BertTokenizer, GPT2Tokenizer
 
-I = TypeVar("I")
-M = TypeVar("M")
+T = TypeVar("T")
 
 
-class Obs(NamedTuple, Generic[I, M]):
-    image: I
-    mission: M
+@dataclass
+class Obs(Generic[T]):
+    image: T
+    mission: T
 
 
 class Step(NamedTuple):
-    obs: Obs[np.ndarray, np.ndarray]
+    obs: Obs[np.ndarray]
     reward: float
     done: bool
     info: dict
@@ -40,13 +40,15 @@ class Env(gym.Env):
         self.d = self.features.shape[-1] + 1
         nvec = np.ones(self.concepts.shape[-1]) * self.max_token_id
         self.observation_space = spaces.Tuple(
-            Obs(
-                image=Box(
-                    low=0,
-                    high=1,
-                    shape=[self.room_size, self.room_size, self.d],
-                ),
-                mission=MultiDiscrete(nvec),
+            astuple(
+                Obs[gym.Space](
+                    image=Box(
+                        low=0,
+                        high=1,
+                        shape=[self.room_size, self.room_size, self.d],
+                    ),
+                    mission=MultiDiscrete(nvec),
+                )
             )
         )
         self.action_space = Discrete(5)
@@ -122,7 +124,10 @@ class Env(gym.Env):
             self._render = render
 
             action = yield Step(
-                Obs(image=room_with_agent, mission=mission), reward, done, {}
+                astuple(Obs[np.ndarray](image=room_with_agent, mission=mission)),
+                reward,
+                done,
+                {},
             )
             if action in deltas:
                 delta = np.array(deltas[action])
@@ -169,7 +174,7 @@ class RolloutsWrapper(gym.ObservationWrapper):
     def __init__(self, env):
         super().__init__(env)
         self.original_observation_space = spaces.Tuple(
-            Obs(*self.observation_space.spaces)
+            astuple(Obs[gym.Space](*self.observation_space.spaces))
         )
 
         self.observation_space = Box(
@@ -178,5 +183,6 @@ class RolloutsWrapper(gym.ObservationWrapper):
             high=np.inf,
         )
 
-    def observation(self, obs: Obs):
-        return np.concatenate(Obs(image=obs.image.flatten(), mission=obs.mission))
+    def observation(self, obs: tuple):
+        obs = Obs(*obs)
+        return np.concatenate(astuple(replace(obs, image=obs.image.flatten())))

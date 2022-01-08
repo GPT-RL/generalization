@@ -1,3 +1,4 @@
+from dataclasses import astuple
 from typing import Literal
 
 import agent
@@ -128,7 +129,7 @@ class Base(NNBase):
             recurrent_input_size=hidden_size,
             hidden_size=hidden_size,
         )
-        self.observation_spaces = Obs(*observation_space.spaces)
+        self.observation_spaces = Obs[gym.Space](*observation_space.spaces)
         embedding_size = get_embedding_size(model_name)
         self.encode_mission = (
             nn.EmbeddingBag(
@@ -198,7 +199,7 @@ class Base(NNBase):
         inputs = Obs(
             *torch.split(
                 inputs,
-                [get_size(space) for space in self.observation_spaces],
+                [get_size(space) for space in astuple(self.observation_spaces)],
                 dim=-1,
             )
         )
@@ -219,7 +220,7 @@ class Base(NNBase):
 class Agent(agent.Agent):
     def __init__(self, observation_space, **kwargs):
         super().__init__(
-            obs_shape=observation_space.spaces.image.shape,
+            obs_shape=Obs(*observation_space.spaces).image.shape,
             observation_space=observation_space,
             **kwargs,
         )
