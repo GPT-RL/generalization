@@ -132,8 +132,8 @@ class Base(NNBase):
         self.observation_spaces = Obs[gym.Space](*observation_space.spaces)
         embedding_size = get_embedding_size(model_name)
         self.encode_mission = (
-            nn.EmbeddingBag(
-                int(self.observation_spaces.mission.nvec.max()) + 1, embedding_size
+            nn.Linear(
+                int(self.observation_spaces.mission.nvec.shape[-1]), embedding_size
             )
             if architecture == BASELINE
             else GPTEmbed(
@@ -209,7 +209,7 @@ class Base(NNBase):
             image = image.permute(0, 3, 1, 2)
         image = self.image_net(image)
 
-        mission = self.encode_mission(inputs.mission.long())
+        mission = self.encode_mission(inputs.mission)
         x = torch.cat([image, mission], dim=-1)
         x = self.merge(x)
         if self.is_recurrent:

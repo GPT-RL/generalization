@@ -38,7 +38,7 @@ class Env(gym.Env):
         self.iterator = None
         self.rng = np.random.default_rng(seed=self.seed)
         self.d = self.features.shape[-1] + 1
-        nvec = np.ones(self.concepts.shape[-1]) * self.max_token_id
+        nvec = np.ones(self.features.shape[-1])
         self.observation_space = spaces.Tuple(
             astuple(
                 Obs[gym.Space](
@@ -72,7 +72,7 @@ class Env(gym.Env):
             goal_features = self.features[goal]
             distractor_features = self.features[distractor]
             invalid = np.array_equal(goal_features, distractor_features)
-        mission = self.concepts[goal]
+        mission = self.features[goal]
         goal_pos_x, goal_pos_y = goal_pos
         room_array = np.zeros((self.room_size, self.room_size, self.d))
         room_array[goal_pos_x, goal_pos_y, :-1] = goal_features

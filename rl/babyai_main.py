@@ -4,13 +4,8 @@ from typing import List, Literal, cast
 import gym
 import main
 import torch
-from envs import RenderWrapper, VecPyTorch
-from stable_baselines3.common.monitor import Monitor
-from torch.nn.utils.rnn import pad_sequence
-from transformers import BertTokenizer, GPT2Tokenizer
-
-from rl.baby_ai.agent import Agent
-from rl.baby_ai.env import (
+from baby_ai.agent import Agent
+from baby_ai.env import (
     ActionInObsWrapper,
     FullyObsWrapper,
     MissionEnumeratorWrapper,
@@ -24,6 +19,10 @@ from rl.baby_ai.env import (
     TokenizerWrapper,
     ZeroOneRewardWrapper,
 )
+from envs import RenderWrapper, VecPyTorch
+from stable_baselines3.common.monitor import Monitor
+from torch.nn.utils.rnn import pad_sequence
+from transformers import BertTokenizer, GPT2Tokenizer
 
 
 class Args(main.Args):

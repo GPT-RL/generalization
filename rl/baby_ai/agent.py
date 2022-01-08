@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from agent import NNBase
-from env import Spaces
+from baby_ai.env import Spaces
 from gym import Space
 from gym.spaces import Box, Dict, Discrete, MultiDiscrete
 from transformers import BertConfig, GPT2Config, GPTNeoConfig
