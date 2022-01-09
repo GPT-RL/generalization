@@ -335,10 +335,10 @@ class PlantAnimalWrapper(MissionWrapper):
         super().__init__(env)
 
     def change_mission(self, mission: str) -> str:
-        for k, v in self.replacements.items():
-            if k in mission:
-                replacement = self.np_random.choice(v)
-                mission = mission.replace(k, replacement)
+        # for k, v in self.replacements.items():
+        # if k in mission:
+        # replacement = self.np_random.choice(v)
+        # mission = mission.replace(k, replacement)
         mission = mission.replace("pick up the ", "")
         #
         # types = [
