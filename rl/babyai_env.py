@@ -26,6 +26,7 @@ class Spaces:
     image: T
     direction: T
     mission: T
+    encoding: T
     action: T
 
 
@@ -333,6 +334,14 @@ class PlantAnimalWrapper(MissionWrapper):
     def __init__(self, env, prefix_length: int):
         self.prefix_length = prefix_length
         super().__init__(env)
+        self.observation_space = Tuple(
+            astuple(
+                Spaces(
+                    **self.observation_space.spaces,
+                    encoding=self.observation_space.spaces["mission"],
+                )
+            )
+        )
 
     def change_mission(self, mission: str) -> str:
         for k, v in self.replacements.items():
@@ -413,6 +422,7 @@ class RolloutsWrapper(gym.ObservationWrapper):
                     direction=np.array([observation["direction"]]),
                     action=np.array([int(observation["action"])]),
                     mission=observation["mission"],
+                    encoding=observation["encoding"],
                 )
             )
         )

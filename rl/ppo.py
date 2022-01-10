@@ -62,6 +62,17 @@ class PPO:
                     old_action_log_probs_batch,
                     adv_targ,
                 ) = sample
+                # inputs = Spaces(
+                #     *torch.split(
+                #         obs_batch,
+                #         [
+                #             get_size(space)
+                #             for space in astuple(self.agent.base.observation_spaces)
+                #         ],
+                #         dim=-1,
+                #     )
+                # )
+                breakpoint()
 
                 # Reshape to do in a single forward pass for all steps
                 (
