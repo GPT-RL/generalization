@@ -26,6 +26,8 @@ class Agent(nn.Module):
             self.dist = Bernoulli(self.base.output_size, num_outputs)
         else:
             raise NotImplementedError
+        self.encoding_nvec = self.base.observation_spaces.encoding.nvec
+        self.linear = nn.Linear(self.base.output_size, self.encoding_nvec.sum())
 
     def build_base(self, obs_shape, **kwargs):
         kwargs = dict(num_inputs=obs_shape[0], **kwargs)
@@ -49,6 +51,7 @@ class Agent(nn.Module):
 
     def forward(self, inputs, rnn_hxs, masks, deterministic=False):
         value, actor_features, rnn_hxs = self.base(inputs, rnn_hxs, masks)
+
         dist = self.dist(actor_features)
 
         if deterministic:
@@ -58,9 +61,9 @@ class Agent(nn.Module):
 
         action_log_probs = dist.log_probs(action)
         # try:
-        # action[:] = float(input("go:"))
+        #     action[:] = float(input("go:"))
         # except ValueError:
-        # pass
+        #     pass
 
         return value, action, action_log_probs, rnn_hxs
 
@@ -75,7 +78,9 @@ class Agent(nn.Module):
         action_log_probs = dist.log_probs(action)
         dist_entropy = dist.entropy().mean()
 
-        return value, action_log_probs, dist_entropy, rnn_hxs
+        logits = self.linear(actor_features)
+        logits = torch.split(logits, list(self.encoding_nvec), dim=-1)
+        return value, action_log_probs, dist_entropy, rnn_hxs, logits
 
 
 class NNBase(nn.Module):

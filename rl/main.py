@@ -4,7 +4,7 @@ import logging
 import os
 import pickle
 import time
-from dataclasses import dataclass
+from dataclasses import astuple, dataclass
 from pathlib import Path
 from pprint import pformat
 from typing import List, Literal, Optional, cast
@@ -13,8 +13,11 @@ import gym
 import numpy as np
 import sweep_logger
 import torch
+import torch.nn.functional as F
 import utils
 from agent import Agent
+from babyai_agent import get_size
+from babyai_env import Spaces
 from envs import TimeLimitMask, TransposeImage, VecPyTorch, VecPyTorchFrameStack
 from gql import gql
 from gym.wrappers.clip_action import ClipAction
@@ -48,11 +51,12 @@ class InvalidEnvId(RuntimeError):
 EPISODE_RETURN = "episode return"
 EPISODE_LENGTH = "episode length"
 EPISODE_SUCCESS = "episode success"
-TEST_EPISODE_RETURN = "test episode return"
+TEST_ACCURACY = "test accuracy"
 TEST_EPISODE_LENGTH = "test episode length"
 TEST_EPISODE_SUCCESS = "test episode success"
-ACTION_LOSS = "action loss"
-VALUE_LOSS = "value loss"
+LOSS = "loss"
+TEST_LOSS = "test loss"
+ACCURACY = "accuracy"
 FPS = "fps"
 ENTROPY = "entropy"
 GRADIENT_NORM = "gradient norm"
@@ -106,7 +110,7 @@ class Args(Tap):
     num_mini_batch: int = 4  # number of mini-batches per update
     num_processes: int = 8  # number of parallel environments
     num_steps: int = 128  # number of forward steps in A2C
-    ppo_epoch: int = 3  # number of PPO updates
+    ppo_epoch: int = 1  # number of PPO updates
     recurrent: bool = False  # use recurrence in the policy
     render: bool = False
     render_test: bool = False
@@ -283,9 +287,7 @@ class Trainer:
 
             total_num_steps = cls.total_num_steps(j + 1, args)
             if not render:
-                value_loss, action_loss, dist_entropy, gradient_norm = ppo.update(
-                    rollouts
-                )
+                accuracy, loss, gradient_norm = ppo.update(rollouts)
 
                 rollouts.after_update()
 
@@ -293,17 +295,13 @@ class Trainer:
                     now = time.time()
                     fps = int(total_num_steps / (now - start))
                     log = {
-                        EPISODE_RETURN: np.mean(episode_rewards),
-                        EPISODE_LENGTH: np.mean(episode_lengths),
-                        EPISODE_SUCCESS: np.mean(episode_successes),
-                        ACTION_LOSS: action_loss,
-                        VALUE_LOSS: value_loss,
+                        LOSS: loss.item(),
+                        ACCURACY: accuracy.item(),
                         FPS: fps,
                         TIME: now * 1000000,
                         HOURS: (now - start) / 3600,
                         GRADIENT_NORM: gradient_norm,
                         STEP: total_num_steps,
-                        ENTROPY: dist_entropy,
                         SAVE_COUNT: save_count,
                     }
 
@@ -342,11 +340,48 @@ class Trainer:
         )
         masks = torch.zeros(num_processes, 1, device=device)
 
+        total_loss = 0
+        accuracy = 0
+        n = 0
+
         while len(episode_rewards) < 100:
             with torch.no_grad():
-                _, action, _, recurrent_hidden_states = agent.forward(
-                    obs, recurrent_hidden_states, masks
+                (
+                    _,
+                    action,
+                    _,
+                    recurrent_hidden_states,
+                ) = agent.forward(obs, recurrent_hidden_states, masks)
+
+                (
+                    values,
+                    action_log_probs,
+                    dist_entropy,
+                    _,
+                    logits,
+                ) = agent.evaluate_actions(obs, recurrent_hidden_states, masks, action)
+
+                inputs = Spaces(  # noqa: F841
+                    *torch.split(
+                        obs,
+                        [
+                            get_size(space)
+                            for space in astuple(agent.base.observation_spaces)
+                        ],
+                        dim=-1,
+                    )
                 )
+                encoding = torch.split(inputs.encoding.long(), 1, dim=-1)
+                loss = sum(
+                    [
+                        F.nll_loss(inp, target.flatten())
+                        for inp, target in zip(logits, encoding)
+                    ]
+                )
+                total_loss += loss.item()
+                preds = torch.stack([inp.argmax(-1) for inp in logits], dim=-1)
+                accuracy += (preds == inputs.encoding).float().mean().item()
+                n += 1
 
             # Observe reward and next obs
             obs, rewards, done, infos = envs.step(action)
@@ -366,18 +401,12 @@ class Trainer:
         envs.close()
         now = time.time()
         log = {
+            TEST_ACCURACY: accuracy / n,
+            TEST_LOSS: total_loss / n,
             TIME: now * 1000000,
             HOURS: (now - start) / 3600,
             STEP: total_num_steps,
         }
-        if test:
-            log.update(
-                {
-                    TEST_EPISODE_RETURN: np.mean(episode_rewards),
-                    TEST_EPISODE_LENGTH: np.mean(episode_lengths),
-                    TEST_EPISODE_SUCCESS: np.mean(episode_success),
-                }
-            )
 
         logging.info(pformat(log))
         if logger is not None:
@@ -508,23 +537,15 @@ class Trainer:
         logging.getLogger().setLevel(args.log_level)
 
         charts = [
-            *[
-                spec(x=HOURS, y=y)
-                for y in (
-                    (TEST_EPISODE_SUCCESS, EPISODE_SUCCESS)
-                    if args.env == "go-to-loc"
-                    else (TEST_EPISODE_RETURN, EPISODE_RETURN)
-                )
-            ],
+            *[spec(x=HOURS, y=y) for y in [ACCURACY, TEST_ACCURACY]],
             *[
                 spec(x=STEP, y=y)
                 for y in (
-                    TEST_EPISODE_RETURN,
-                    EPISODE_RETURN,
-                    EPISODE_SUCCESS,
-                    TEST_EPISODE_SUCCESS,
                     FPS,
-                    ENTROPY,
+                    ACCURACY,
+                    TEST_ACCURACY,
+                    TEST_LOSS,
+                    LOSS,
                     GRADIENT_NORM,
                     SAVE_COUNT,
                 )

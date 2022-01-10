@@ -2,6 +2,7 @@ import abc
 import re
 import typing
 from abc import ABC
+from collections import OrderedDict
 from dataclasses import astuple, dataclass
 from itertools import chain, cycle, islice
 from typing import Generator, Optional, TypeVar
@@ -174,6 +175,10 @@ class PickupEnv(RenderEnv, ReproducibleEnv):
         self.check_objs_reachable()
         self.instrs = PickupInstr(ObjDesc(*goal_object), strict=self.strict)
 
+    def step(self, action):
+        s, r, _, i = super().step(action)
+        return s, r, True, i
+
 
 class RenderColorPickupEnv(RenderColorEnv, PickupEnv):
     pass
@@ -263,7 +268,7 @@ class PlantAnimalWrapper(MissionWrapper):
             "raven",
             "bat",
         ],
-        black_plant: ["black plant"],
+        black_plant: ["black food"],
         # pink_animal: ["flamingo", "pig"],
         # pink_plant: ["lychee", "dragonfruit"],
         purple_animal: ["purple animal"],
@@ -334,13 +339,13 @@ class PlantAnimalWrapper(MissionWrapper):
     def __init__(self, env, prefix_length: int):
         self.prefix_length = prefix_length
         super().__init__(env)
-        self.observation_space = Tuple(
-            astuple(
-                Spaces(
-                    **self.observation_space.spaces,
-                    encoding=self.observation_space.spaces["mission"],
-                )
-            )
+        colors, types = zip(*[x.split() for x in mapping.values()])
+        self.colors = OrderedDict([(c, None) for c in colors])
+        self.colors = list(self.colors)
+        self.types = OrderedDict([(t, None) for t in types])
+        self.types = list(self.types)
+        self.observation_space.spaces["encoding"] = MultiDiscrete(
+            np.array([len(self.colors), len(self.types)])
         )
 
     def change_mission(self, mission: str) -> str:
@@ -349,22 +354,42 @@ class PlantAnimalWrapper(MissionWrapper):
                 replacement = self.np_random.choice(v)
                 mission = mission.replace(k, replacement)
         mission = mission.replace("pick up the ", "")
-        mission = f"{mission}:"
+        # mission = f"{mission}:"
 
-        types = [
-            t
-            for t in self.replacements.keys()
-            if t not in mission and t not in [self.black_plant, self.purple_plant]
-        ]
-        idxs = self.np_random.choice(len(types), replace=False, size=self.prefix_length)
-        prefix_types = [types[i] for i in idxs]
-        for k in prefix_types:
-            v = self.replacements[k]
-            v = self.np_random.choice(v)
-            k = mapping[k]
-            mission = f"{v}: {k}, {mission}"
+        # types = [
+        #     t
+        #     for t in self.replacements.keys()
+        #     if t not in mission and t not in [self.black_plant, self.purple_plant]
+        # ]
+        # idxs = self.np_random.choice(len(types), replace=False, size=self.prefix_length)
+        # prefix_types = [types[i] for i in idxs]
+        # for k in prefix_types:
+        #     v = self.replacements[k]
+        #     v = self.np_random.choice(v)
+        #     k = mapping[k]
+        #     mission = f"{v}: {k}, {mission}"
 
         return mission
+
+    def make_encoding(self, encoding: str):
+        encoding = encoding.replace("pick up the ", "")
+        color, _type = mapping[encoding].split()
+        return np.array([self.colors.index(color), self.types.index(_type)])
+
+    def reset(self, **kwargs):
+        observation = self.env.reset(**kwargs)
+        encoding = self.make_encoding(observation["mission"])
+        self._mission = self.change_mission(observation["mission"])
+        observation["mission"] = self._mission
+        observation["encoding"] = encoding
+        return observation
+
+    def step(self, action):
+        observation, reward, done, info = self.env.step(action)
+        encoding = self.make_encoding(observation["mission"])
+        observation["mission"] = self._mission
+        observation["encoding"] = encoding
+        return observation, reward, done, info
 
 
 class ActionInObsWrapper(gym.Wrapper):
@@ -435,16 +460,22 @@ class TokenizerWrapper(gym.ObservationWrapper):
         super().__init__(env)
         spaces = {**self.observation_space.spaces}
         self.observation_space = Dict(
-            spaces=dict(**spaces, mission=MultiDiscrete([50257 for _ in encoded]))
+            spaces=dict(
+                **spaces,
+                mission=MultiDiscrete([50257 for _ in encoded]),
+            )
         )
 
     def observation(self, observation):
-        mission = self.tokenizer.encode(observation["mission"])
-        length = len(self.observation_space.spaces["mission"].nvec)
+        self.observation_component("mission", observation)
+        return observation
+
+    def observation_component(self, key, observation):
+        mission = self.tokenizer.encode(observation[key])
+        length = len(self.observation_space.spaces[key].nvec)
         eos = self.tokenizer.eos_token_id
         mission = [*islice(chain(mission, cycle([eos])), length)]
-        observation.update(mission=mission)
-        return observation
+        observation.update({key: mission})
 
 
 class MissionEnumeratorWrapper(gym.ObservationWrapper):
@@ -485,8 +516,10 @@ class FullyObsWrapper(gym_minigrid.wrappers.FullyObsWrapper):
 
     def observation(self, obs):
         direction = obs["direction"]
+        encoding = obs["encoding"]
         obs = super().observation(obs)
         obs["direction"] = direction
+        obs["encoding"] = encoding
         return obs
 
 
