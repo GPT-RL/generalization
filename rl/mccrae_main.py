@@ -24,6 +24,7 @@ class Args(main.Args):
     host_machine: str = os.getenv("HOST_MACHINE")
     n_features: int = 4
     n_train: int = 300
+    n_test: int = 400
     room_size: int = 5
     train_ln: bool = False
     train_wpe: bool = False
@@ -119,13 +120,16 @@ class Trainer(main.Trainer):
             _, unique = np.unique(concepts, return_inverse=True)
             concepts = unique.reshape(concepts.shape)
 
+        features, unique_idxs = np.unique(features, return_index=True, axis=0)
+        concepts = concepts[unique_idxs]
+
         idxs = np.arange(len(concepts))
 
         rng = np.random.default_rng(args.seed)
         rng.shuffle(idxs)
 
-        train_idxs = idxs[: args.n_train]
-        test_idxs = idxs[args.n_train :]
+        train_idxs = idxs[args.n_test : args.n_test + args.n_train]
+        test_idxs = idxs[: args.n_test]
         concepts = concepts[test_idxs if test else train_idxs]
         features = features[test_idxs if test else train_idxs]
 
