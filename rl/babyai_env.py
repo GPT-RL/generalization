@@ -203,26 +203,162 @@ class MissionWrapper(gym.Wrapper, abc.ABC):
         raise NotImplementedError
 
 
+mapping = {
+    "green box": "green animal",
+    "yellow box": "orange animal",
+    "green ball": "green food",
+    "yellow ball": "orange food",
+    "grey box": "white animal",
+    "grey ball": "white food",
+    # "purple box": "purple animal",
+    "purple ball": "purple food",
+    "blue box": "black animal",
+    # "blue ball": "black food",
+    "red box": "red animal",
+    "red ball": "red food",
+}
+reverse_mapping = {v: k for k, v in mapping.items()}
+green_animal = "green box"
+orange_animal = "yellow box"
+green_plant = "green ball"
+orange_plant = "yellow ball"
+white_animal = "grey box"
+white_plant = "grey ball"
+# purple_animal = "purple box"
+purple_plant = "purple ball"
+# pink_animal = "pink box"
+# pink_plant = "pink ball"
+black_animal = "blue box"
+# black_plant = "blue ball"
+red_animal = "red box"
+red_plant = "red ball"
+replacements = {
+    red_animal: [
+        "rooster",
+        "lobster",
+        "crab",
+        "ladybug",
+        "cardinal",
+    ],
+    red_plant: [
+        "cherry",
+        "tomato",
+        "chili",
+        "apple",
+        "raspberry",
+        "cranberry",
+        "strawberry",
+        "pomegranate",
+        "radish",
+        "beet",
+        "rose",
+    ],
+    black_animal: [
+        "gorilla",
+        "crow",
+        "panther",
+        "raven",
+        "bat",
+    ],
+    # black_plant: ["black plant"],
+    # pink_animal: ["flamingo", "pig"],
+    # pink_plant: ["lychee", "dragonfruit"],
+    # purple_animal: ["purple animal"],
+    purple_plant: [
+        "grape",
+        "eggplant",
+        "plum",
+        "shallot",
+        "lilac",
+    ],
+    white_animal: [
+        "polar bear",
+        "swan",
+        "ermine",
+        "sheep",
+        "seagull",
+    ],
+    white_plant: [
+        "coconut",
+        "cauliflower",
+        "onion",
+        "garlic",
+    ],
+    green_animal: [
+        "iguana",
+        "frog",
+        "grasshopper",
+        "turtle",
+        "mantis",
+        "lizard",
+        "caterpillar",
+    ],
+    green_plant: [
+        "lime",
+        "kiwi",
+        "broccoli",
+        "lettuce",
+        "kale",
+        "spinach",
+        "avocado",
+        "cucumber",
+        "basil",
+        "pea",
+        "arugula",
+        "celery",
+    ],
+    orange_animal: [
+        "tiger",
+        "lion",
+        "orangutan",
+        "goldfish",
+        "clownfish",
+        "fox",
+    ],
+    orange_plant: [
+        "peach",
+        "yam",
+        "tangerine",
+        "carrot",
+        "papaya",
+        "clementine",
+        "kumquat",
+        "pumpkin",
+        "marigold",
+    ],
+}
+
+
+class PlantAnimalWrapper(MissionWrapper):
+    def __init__(self, env, prefixes):
+        self.prefixes = prefixes
+        super().__init__(env)
+
+    def change_mission(self, mission: str) -> str:
+        category = mission.replace("pick up the ", "")
+        exemplar = self.np_random.choice(replacements[category])
+        mission = f"{self.prefixes[category]}. {exemplar}:"
+        return mission
+
+
 rng = np.random.default_rng(seed=0)
 
 
-def get_missions(prefix_length):
+def get_prefixes(prefix_length):
     for color in COLORS:
         for ty in ["ball", "box"]:
-            alt_colors = rng.choice(
-                [c for c in COLORS if c != color],
+            category = f"{color} {ty}"
+            alt_categories = rng.choice(
+                [k for k in replacements if k != category],
                 replace=False,
                 size=prefix_length,
             )
-            if ty == "ball":
-                alt_type = "box"
-            elif ty == "box":
-                alt_type = "ball"
-            else:
-                raise RuntimeError()
-            yield f"{color} {ty}", ", ".join(
-                [f"{c} {alt_type}: {c} {ty}" for c in alt_colors]
-                + [f"{color} {alt_type}"]
+            exemplars = [rng.choice(replacements[k]) for k in alt_categories]
+            yield f"{color} {ty}", ". ".join(
+                [
+                    f"{exemplar}: {mapping[alt_category]}"
+                    for exemplar, alt_category in zip(exemplars, alt_categories)
+                ]
             )
 
 
@@ -239,161 +375,6 @@ class PrefixWrapper(MissionWrapper):
     def change_mission(self, mission: str) -> str:
         self._mission = self.missions[mission.replace("pick up the ", "")]
         return self._mission
-
-
-mapping = {
-    "green box": "green animal",
-    "yellow box": "orange animal",
-    "green ball": "green food",
-    "yellow ball": "orange food",
-    "grey box": "white animal",
-    "grey ball": "white food",
-    "purple box": "purple animal",
-    "purple ball": "purple food",
-    "blue box": "black animal",
-    "blue ball": "black food",
-    "red box": "red animal",
-    "red ball": "red food",
-}
-
-
-class PlantAnimalWrapper(MissionWrapper):
-    green_animal = "green box"
-    orange_animal = "yellow box"
-    green_plant = "green ball"
-    orange_plant = "yellow ball"
-    white_animal = "grey box"
-    white_plant = "grey ball"
-    purple_animal = "purple box"
-    purple_plant = "purple ball"
-    # pink_animal = "pink box"
-    # pink_plant = "pink ball"
-    black_animal = "blue box"
-    black_plant = "blue ball"
-    red_animal = "red box"
-    red_plant = "red ball"
-    replacements = {
-        red_animal: [
-            "rooster",
-            "lobster",
-            "crab",
-            "ladybug",
-            "cardinal",
-        ],
-        red_plant: [
-            "cherry",
-            "tomato",
-            "chili",
-            "apple",
-            "raspberry",
-            "cranberry",
-            "strawberry",
-            "pomegranate",
-            "radish",
-            "beet",
-            "rose",
-        ],
-        black_animal: [
-            "gorilla",
-            "crow",
-            "panther",
-            "raven",
-            "bat",
-        ],
-        black_plant: ["black plant"],
-        # pink_animal: ["flamingo", "pig"],
-        # pink_plant: ["lychee", "dragonfruit"],
-        purple_animal: ["purple animal"],
-        purple_plant: [
-            "grape",
-            "eggplant",
-            "plum",
-            "shallot",
-            "lilac",
-        ],
-        white_animal: [
-            "polar bear",
-            "swan",
-            "ermine",
-            "sheep",
-            "seagull",
-        ],
-        white_plant: [
-            "coconut",
-            "cauliflower",
-            "onion",
-            "garlic",
-        ],
-        green_animal: [
-            "iguana",
-            "frog",
-            "grasshopper",
-            "turtle",
-            "mantis",
-            "lizard",
-            "caterpillar",
-        ],
-        green_plant: [
-            "lime",
-            "kiwi",
-            "broccoli",
-            "lettuce",
-            "kale",
-            "spinach",
-            "avocado",
-            "cucumber",
-            "basil",
-            "pea",
-            "arugula",
-            "celery",
-        ],
-        orange_animal: [
-            "tiger",
-            "lion",
-            "orangutan",
-            "goldfish",
-            "clownfish",
-            "fox",
-        ],
-        orange_plant: [
-            "peach",
-            "yam",
-            "tangerine",
-            "carrot",
-            "papaya",
-            "clementine",
-            "kumquat",
-            "pumpkin",
-            "marigold",
-        ],
-    }
-
-    def __init__(self, env, prefix_length: int):
-        self.prefix_length = prefix_length
-        super().__init__(env)
-
-    def change_mission(self, mission: str) -> str:
-        for k, v in self.replacements.items():
-            if k in mission:
-                replacement = self.np_random.choice(v)
-                mission = mission.replace(k, replacement)
-        mission = mission.replace("pick up the ", "")
-        mission = f"{mission}:"
-
-        types = [
-            t
-            for t in self.replacements.keys()
-            if t not in mission and t not in [self.black_plant, self.purple_plant]
-        ]
-        idxs = self.np_random.choice(len(types), replace=False, size=self.prefix_length)
-        prefix_types = [types[i] for i in idxs]
-        for k in prefix_types:
-            v = self.replacements[k]
-            v = self.np_random.choice(v)
-            k = mapping[k]
-            mission = f"{v}: {k}, {mission}"
-
-        return mission
 
 
 class ActionInObsWrapper(gym.Wrapper):

@@ -15,7 +15,7 @@ import sweep_logger
 import torch
 import utils
 from agent import Agent
-from babyai_env import get_missions
+from babyai_env import get_prefixes
 from envs import TimeLimitMask, TransposeImage, VecPyTorch, VecPyTorchFrameStack
 from gql import gql
 from gym.wrappers.clip_action import ClipAction
@@ -156,11 +156,11 @@ class Trainer:
         torch.set_num_threads(1)
         device = torch.device("cuda:0" if args.cuda else "cpu")
 
-        missions = dict(get_missions(args.prefix_length))
+        prefixes = dict(get_prefixes(args.prefix_length))
         envs = cls.make_vec_envs(
             device=device,
             test=False,
-            missions=missions,
+            prefixes=prefixes,
             **args.as_dict(),
         )
 
@@ -207,7 +207,7 @@ class Trainer:
                 cls.evaluate(
                     agent=agent,
                     envs=cls.make_vec_envs(
-                        device=device, test=True, missions=missions, **args.as_dict()
+                        device=device, test=True, prefixes=prefixes, **args.as_dict()
                     ),
                     num_processes=args.num_processes,
                     device=device,
