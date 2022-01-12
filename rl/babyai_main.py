@@ -10,6 +10,7 @@ from babyai_env import (
     NormalizeColorsWrapper,
     PickupEnv,
     PlantAnimalWrapper,
+    PrefixWrapper,
     RenderColorPickupEnv,
     RGBImgObsWithDirectionWrapper,
     RGBtoRYBWrapper,
@@ -132,16 +133,16 @@ class Trainer(main.Trainer):
                 objects = [(t, c) for (c, t) in objects]
                 kwargs.update(room_objects=objects)
                 _env = PickupEnv(objects=objects, **_kwargs)
-                _env = PlantAnimalWrapper(_env, prefix_length)
+                _env = PrefixWrapper(_env, prefix_length=prefix_length)
                 longest_mission = "pick up the grasshopper"
 
-                def missions():
-                    for _, vs in _env.replacements.items():
-                        for v in vs:
-                            yield f"pick up the {v}"
-                    for k in _env.replacements:
-                        yield f"pick up the {k}"
-
+                # def missions():
+                #     for _, vs in _env.replacements.items():
+                #         for v in vs:
+                #             yield f"pick up the {v}"
+                #     for k in _env.replacements:
+                #         yield f"pick up the {k}"
+                #
             elif env_id == "colors":
                 test_colors = test_colors.split(",")
                 train_colors = train_colors.split(",")
@@ -160,7 +161,6 @@ class Trainer(main.Trainer):
             else:
                 raise RuntimeError(f"{env_id} is not a valid env_id")
 
-            missions = list(missions())
             _env = FullyObsWrapper(_env)
             if env_id == "colors":
                 _env = RGBImgObsWithDirectionWrapper(_env)
