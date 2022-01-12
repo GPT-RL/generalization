@@ -321,11 +321,11 @@ class Trainer:
                     episode_successes = []
 
                     logging.info(pformat(log))
-                    if logger is not None:
+                    if logger.run_id is not None:
                         log.update({"run ID": logger.run_id})
 
                     logging.info(pformat(log))
-                    if logger is not None:
+                    if logger.run_id is not None:
                         logger.log(log)
 
     @staticmethod
@@ -389,10 +389,10 @@ class Trainer:
             )
 
         logging.info(pformat(log))
-        if logger is not None:
+        if logger.run_id is not None:
             log.update({"run ID": logger.run_id})
         logging.info(pformat(log))
-        if logger is not None:
+        if logger.run_id is not None:
             logger.log(log)
 
         logging.info(
@@ -552,7 +552,7 @@ class Trainer:
             charts=charts,
             sweep_id=getattr(args, "sweep_id", None),
             load_id=args.load_id,
-            use_logger=args.logger_args is not None,
+            create_run=args.logger_args is not None,
             params=args.as_dict(),
             metadata=metadata,
         )
