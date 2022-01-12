@@ -383,10 +383,10 @@ class Trainer:
             )
 
         logging.info(pformat(log))
-        if logger is not None:
+        if logger.run_id is not None:
             log.update({"run ID": logger.run_id})
         logging.info(pformat(log))
-        if logger is not None:
+        if logger.run_id is not None:
             logger.log(log)
 
         logging.info(
