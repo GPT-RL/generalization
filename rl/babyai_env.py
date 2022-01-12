@@ -268,10 +268,10 @@ class PlantAnimalWrapper(MissionWrapper):
             "raven",
             "bat",
         ],
-        black_plant: ["black food"],
+        # black_plant: ["black food"],
         # pink_animal: ["flamingo", "pig"],
         # pink_plant: ["lychee", "dragonfruit"],
-        purple_animal: ["purple animal"],
+        # purple_animal: ["purple animal"],
         purple_plant: [
             "grape",
             "eggplant",

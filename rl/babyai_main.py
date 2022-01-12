@@ -38,7 +38,7 @@ class Args(main.Args):
     room_size: int = 5
     second_layer: bool = False
     strict: bool = True
-    test_organisms: str = "black_plant,purple_animal"
+    test_organisms: str = "white_plant,black_animal"
     test_colors: str = None
     train_colors: str = None
     prefix_length: int = 4
