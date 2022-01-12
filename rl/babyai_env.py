@@ -203,31 +203,33 @@ class MissionWrapper(gym.Wrapper, abc.ABC):
         raise NotImplementedError
 
 
+rng = np.random.default_rng(seed=0)
+
+
+def get_missions(prefix_length):
+    for color in COLORS:
+        for ty in ["ball", "box"]:
+            alt_colors = rng.choice(
+                [c for c in COLORS if c != color],
+                replace=False,
+                size=prefix_length,
+            )
+            if ty == "ball":
+                alt_type = "box"
+            elif ty == "box":
+                alt_type = "ball"
+            else:
+                raise RuntimeError()
+            yield f"{color} {ty}", ", ".join(
+                [f"{c} {alt_type}: {c} {ty}" for c in alt_colors]
+                + [f"{color} {alt_type}"]
+            )
+
+
 class PrefixWrapper(MissionWrapper):
-    def __init__(self, env, prefix_length: int):
-        self.prefix_length = prefix_length
+    def __init__(self, env, missions):
+        self.missions = missions
         super().__init__(env)
-
-        def missions():
-            for color in COLORS:
-                for ty in ["ball", "box"]:
-                    alt_colors = self.np_random.choice(
-                        [c for c in COLORS if c != color],
-                        replace=False,
-                        size=self.prefix_length,
-                    )
-                    if ty == "ball":
-                        alt_type = "box"
-                    elif ty == "box":
-                        alt_type = "ball"
-                    else:
-                        raise RuntimeError()
-                    yield f"{color} {ty}", ", ".join(
-                        [f"{c} {alt_type}: {c} {ty}" for c in alt_colors]
-                        + [f"{color} {alt_type}"]
-                    )
-
-        self.missions = dict(missions())
 
     def change_mission(self, mission: str) -> str:
         return self.missions[mission.replace("pick up the ", "")]

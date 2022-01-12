@@ -106,8 +106,8 @@ class Trainer(main.Trainer):
     def make_env(cls, env, allow_early_resets, render: bool = False, *args, **kwargs):
         def _thunk(
             env_id: str,
+            missions,
             num_dists: int,
-            prefix_length: int,
             room_size: int,
             seed: int,
             strict: bool,
@@ -133,7 +133,7 @@ class Trainer(main.Trainer):
                 objects = [(t, c) for (c, t) in objects]
                 kwargs.update(room_objects=objects)
                 _env = PickupEnv(objects=objects, **_kwargs)
-                _env = PrefixWrapper(_env, prefix_length=prefix_length)
+                _env = PrefixWrapper(_env, missions=missions)
                 longest_mission = "pick up the grasshopper"
 
                 # def missions():
