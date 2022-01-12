@@ -229,10 +229,16 @@ def get_missions(prefix_length):
 class PrefixWrapper(MissionWrapper):
     def __init__(self, env, missions):
         self.missions = missions
+        self._mission = None
         super().__init__(env)
 
+    def render(self, mode="human", pause=True, **kwargs):
+        super().render(mode, pause, **kwargs)
+        print(self._mission)
+
     def change_mission(self, mission: str) -> str:
-        return self.missions[mission.replace("pick up the ", "")]
+        self._mission = self.missions[mission.replace("pick up the ", "")]
+        return self._mission
 
 
 mapping = {
