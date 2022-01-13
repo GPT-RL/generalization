@@ -65,14 +65,14 @@ def cleanup_log_dir(log_dir):
             os.remove(f)
 
 
-def build_gpt(gpt_size: str, randomize_parameters):
+def build_gpt(gpt_size: str, randomize_parameters: bool, output_hidden_state=False):
     return (
         GPT2Model(
             GPT2Config.from_pretrained(
                 gpt_size,
                 use_cache=False,
                 output_attentions=False,
-                output_hidden_states=False,
+                output_hidden_states=output_hidden_state,
             )
         )
         if randomize_parameters
@@ -80,6 +80,6 @@ def build_gpt(gpt_size: str, randomize_parameters):
             gpt_size,
             use_cache=False,
             output_attentions=False,
-            output_hidden_states=False,
+            output_hidden_states=output_hidden_state,
         )
     )

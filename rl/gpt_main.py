@@ -9,6 +9,7 @@ from gpt_agent import Agent
 
 class Args(babyai_main.Args):
     randomize_parameters: bool = False
+    remove_layers: int = 0
     train_ln: bool = False
     train_wpe: bool = False
     gpt: bool = False
@@ -41,6 +42,7 @@ class Trainer(babyai_main.Trainer):
             hidden_size=args.hidden_size,
             observation_space=observation_space,
             recurrent=cls.recurrent(args),
+            remove_layers=args.remove_layers,
             # encoded=encoded,
             **kwargs,
         )

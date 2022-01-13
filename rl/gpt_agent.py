@@ -15,8 +15,10 @@ class Base(babyai_agent.Base):
         randomize_parameters: bool,
         train_ln: bool,
         train_wpe: bool,
+        remove_layers: int,
         **kwargs,
     ):
+        self.remove_layers = remove_layers
         self._embedding_size = pretrained_model
         self.randomize_parameters = randomize_parameters
         self.train_wpe = train_wpe
@@ -24,7 +26,11 @@ class Base(babyai_agent.Base):
         super().__init__(*args, pretrained_model=pretrained_model, **kwargs)
 
     def build_embeddings(self):
-        gpt = build_gpt(self._embedding_size, self.randomize_parameters)
+        gpt = build_gpt(
+            self._embedding_size,
+            self.randomize_parameters,
+            output_hidden_state=self.remove_layers > 0,
+        )
         for name, p in gpt.named_parameters():
             requires_grad = (self.train_wpe and "wpe" in name) or (
                 self.train_ln and "ln" in name
@@ -33,6 +39,7 @@ class Base(babyai_agent.Base):
         return gpt
 
     def embed(self, inputs):
-        return self.embeddings.forward(
+        states = self.embeddings.forward(
             inputs, attention_mask=inputs != self.pad_token_id
-        ).last_hidden_state[:, -1]
+        ).hidden_states
+        return states[-self.remove_layers - 1][:, -1]
