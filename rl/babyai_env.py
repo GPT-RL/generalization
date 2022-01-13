@@ -347,18 +347,14 @@ rng = np.random.default_rng(seed=0)
 def get_prefixes(prefix_length):
     for color in COLORS:
         for ty in ["ball", "box"]:
-            category = f"{color} {ty}"
-            alt_categories = rng.choice(
-                [k for k in replacements if k != category],
+            alt_colors = rng.choice(
+                [c for c in COLORS if c != color],
                 replace=False,
                 size=prefix_length,
             )
-            exemplars = [rng.choice(replacements[k]) for k in alt_categories]
+            alt_type = "ball" if ty == "box" else "box"
             yield f"{color} {ty}", ". ".join(
-                [
-                    f"{exemplar}: {mapping[alt_category]}"
-                    for exemplar, alt_category in zip(exemplars, alt_categories)
-                ]
+                [f"{c} {alt_type}: {c} {ty}" for c in [*alt_colors, color]]
             )
 
 

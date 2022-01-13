@@ -9,7 +9,7 @@ from babyai_env import (
     FullyObsWrapper,
     NormalizeColorsWrapper,
     PickupEnv,
-    PlantAnimalWrapper,
+    PrefixWrapper,
     RenderColorPickupEnv,
     RGBImgObsWithDirectionWrapper,
     RGBtoRYBWrapper,
@@ -17,7 +17,6 @@ from babyai_env import (
     TokenizerWrapper,
     ZeroOneRewardWrapper,
     replacements,
-    reverse_mapping,
 )
 from envs import RenderWrapper, VecPyTorch
 from stable_baselines3.common.monitor import Monitor
@@ -121,14 +120,14 @@ class Trainer(main.Trainer):
         ):
             _kwargs = dict(room_size=room_size, strict=strict, seed=seed)
             if env_id == "plant-animal":
-                test_objects = {reverse_mapping[k] for k in test_organisms.split(",")}
+                test_objects = {k for k in test_organisms.split(",")}
                 objects = {k for k in replacements.keys() if k not in test_objects}
                 objects = test_objects if test else objects - test_objects
                 objects = [o.split() for o in objects]
                 objects = [(t, c) for (c, t) in objects]
                 kwargs.update(room_objects=objects)
                 _env = PickupEnv(objects=objects, **_kwargs)
-                _env = PlantAnimalWrapper(_env, prefixes=prefixes)
+                _env = PrefixWrapper(_env, missions=prefixes)
                 longest_mission = "pick up the grasshopper"
 
                 # def missions():
