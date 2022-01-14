@@ -25,7 +25,8 @@ T = TypeVar("T")  # Declare type variable
 class Spaces:
     image: T
     direction: T
-    mission: T
+    mission1: T
+    mission2: T
     action: T
 
 
@@ -353,9 +354,11 @@ def get_prefixes(prefix_length):
                 size=prefix_length,
             )
             alt_type = "ball" if ty == "box" else "box"
-            yield f"{color} {ty}", ". ".join(
-                [f"{c} {alt_type}: {c} {ty}" for c in [*alt_colors, color]]
+            input1 = ". ".join(
+                [f"{c} {alt_type}: {c} {ty}" for c in alt_colors]
+                + [f"{color} {alt_type}:"]
             )
+            yield f"{color} {ty}", (input1, color)
 
 
 class PrefixWrapper(MissionWrapper):
@@ -369,8 +372,10 @@ class PrefixWrapper(MissionWrapper):
         print(self._mission)
 
     def change_mission(self, mission: str) -> str:
-        self._mission = self.missions[mission.replace("pick up the ", "")]
-        return self._mission
+        input1, color = self.missions[mission.replace("pick up the ", "")]
+        input2 = f"{input1} {color}"
+        self._mission = input2
+        return (input1, input2)
 
 
 class ActionInObsWrapper(gym.Wrapper):
@@ -427,7 +432,8 @@ class RolloutsWrapper(gym.ObservationWrapper):
                     image=observation["image"].flatten(),
                     direction=np.array([observation["direction"]]),
                     action=np.array([int(observation["action"])]),
-                    mission=observation["mission"],
+                    mission1=observation["mission1"],
+                    mission2=observation["mission2"],
                 )
             )
         )
@@ -440,16 +446,26 @@ class TokenizerWrapper(gym.ObservationWrapper):
         super().__init__(env)
         spaces = {**self.observation_space.spaces}
         self.observation_space = Dict(
-            spaces=dict(**spaces, mission=MultiDiscrete([50257 for _ in encoded]))
+            spaces=dict(
+                **spaces,
+                mission1=MultiDiscrete([50257 for _ in encoded]),
+                mission2=MultiDiscrete([50257 for _ in encoded]),
+            )
         )
 
     def observation(self, observation):
-        mission = self.tokenizer.encode(observation["mission"])
-        length = len(self.observation_space.spaces["mission"].nvec)
+        mission1, mission2 = observation.pop("mission")
+        observation.update(mission1=mission1, mission2=mission2)
+        self.tokenize(observation, "mission1")
+        self.tokenize(observation, "mission2")
+        return observation
+
+    def tokenize(self, observation, key):
+        mission = self.tokenizer.encode(observation[key])
+        length = len(self.observation_space.spaces[key].nvec)
         eos = self.tokenizer.eos_token_id
         mission = [*islice(chain(mission, cycle([eos])), length)]
-        observation.update(mission=mission)
-        return observation
+        observation.update({key: mission})
 
 
 class MissionEnumeratorWrapper(gym.ObservationWrapper):
