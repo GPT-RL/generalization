@@ -140,7 +140,6 @@ class Base(NNBase):
                     + self.num_directions
                     + self.num_actions
                     + self.embedding_size,
-                    +self.embedding_size,
                     hidden_size,
                 )
             ),
@@ -183,7 +182,7 @@ class Base(NNBase):
 
         mission1 = self.embed(inputs.mission1.long())
         mission2 = self.embed(inputs.mission2.long())
-        x = torch.cat([image, directions, action, mission1, mission2], dim=-1)
+        x = torch.cat([image, directions, action, mission1 + mission2], dim=-1)
         x = self.merge(x)
         if self.is_recurrent:
             x, rnn_hxs = self._forward_gru(x, rnn_hxs, masks)
