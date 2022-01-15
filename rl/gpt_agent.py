@@ -33,6 +33,8 @@ class Base(babyai_agent.Base):
         return gpt
 
     def embed(self, inputs):
-        return self.embeddings.forward(
-            inputs, attention_mask=inputs != self.pad_token_id
-        ).last_hidden_state[:, -1]
+        return (
+            self.embeddings.forward(inputs, attention_mask=inputs != self.pad_token_id)
+            .last_hidden_state[:, -2:]
+            .sum(1)
+        )

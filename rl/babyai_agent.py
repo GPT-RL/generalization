@@ -180,9 +180,8 @@ class Base(NNBase):
         action = inputs.action.long()
         action = F.one_hot(action, num_classes=self.num_actions).squeeze(1)
 
-        mission1 = self.embed(inputs.mission1.long())
-        mission2 = self.embed(inputs.mission2.long())
-        x = torch.cat([image, directions, action, mission1 + mission2], dim=-1)
+        mission = self.embed(inputs.mission2.long())
+        x = torch.cat([image, directions, action, mission], dim=-1)
         x = self.merge(x)
         if self.is_recurrent:
             x, rnn_hxs = self._forward_gru(x, rnn_hxs, masks)
