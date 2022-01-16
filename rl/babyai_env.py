@@ -372,10 +372,8 @@ class PrefixWrapper(MissionWrapper):
         print(self._mission)
 
     def change_mission(self, mission: str) -> str:
-        input1, color = self.missions[mission.replace("pick up the ", "")]
-        input2 = f"{input1} {color}"
-        self._mission = input2
-        return (input1, input2)
+        color, category = mission.replace("pick up the ", "").split()
+        return (color, category)
 
 
 class ActionInObsWrapper(gym.Wrapper):
