@@ -16,7 +16,6 @@ import torch
 import utils
 from agent import Agent
 from envs import TimeLimitMask, TransposeImage, VecPyTorch, VecPyTorchFrameStack
-from gql import gql
 from gym.wrappers.clip_action import ClipAction
 from ppo import PPO
 from rollouts import Rollouts
@@ -210,7 +209,7 @@ class Trainer:
             # save for every interval-th episode or for the last epoch
             if (
                 args.save_interval is not None
-                and logger is not None
+                and logger.run_id is not None
                 and (j % args.save_interval == 0 or j == num_updates - 1)
                 and not render
             ):
@@ -237,7 +236,7 @@ class Trainer:
                         masks=rollouts.masks[step],
                     )
 
-                # Obser reward and next obs
+                # Observe reward and next obs
                 obs, reward, done, infos = envs.step(action)
 
                 for info in infos:
@@ -312,11 +311,11 @@ class Trainer:
                     episode_successes = []
 
                     logging.info(pformat(log))
-                    if logger is not None:
+                    if logger.run_id is not None:
                         log.update({"run ID": logger.run_id})
 
                     logging.info(pformat(log))
-                    if logger is not None:
+                    if logger.run_id is not None:
                         logger.log(log)
 
     @staticmethod
@@ -380,10 +379,10 @@ class Trainer:
             )
 
         logging.info(pformat(log))
-        if logger is not None:
+        if logger.run_id is not None:
             log.update({"run ID": logger.run_id})
         logging.info(pformat(log))
-        if logger is not None:
+        if logger.run_id is not None:
             logger.log(log)
 
         logging.info(
@@ -543,25 +542,11 @@ class Trainer:
             charts=charts,
             sweep_id=getattr(args, "sweep_id", None),
             load_id=args.load_id,
-            use_logger=args.logger_args is not None,
+            create_run=args.logger_args is not None,
             params=args.as_dict(),
             metadata=metadata,
         )
         cls.update_args(args, params)
-
-        if args.load_id is not None:
-            parameters = logger.execute(
-                gql(
-                    """
-query GetParameters($id: Int!) {
-  run_by_pk(id: $id) {
-    metadata(path: "parameters")
-  }
-}"""
-                ),
-                variable_values=dict(id=args.load_id),
-            )["run_by_pk"]["metadata"]
-            cls.update_args(args, parameters, check_hasattr=False)
         return cls.train(args=args, logger=logger)
 
     @classmethod
