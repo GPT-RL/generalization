@@ -203,124 +203,36 @@ class MissionWrapper(gym.Wrapper, abc.ABC):
         raise NotImplementedError
 
 
-class PlantAnimalWrapper(MissionWrapper):
-    green_animal = "green box"
-    orange_animal = "yellow box"
-    green_plant = "green ball"
-    orange_plant = "yellow ball"
-    white_animal = "grey box"
-    white_plant = "grey ball"
-    purple_animal = "purple box"
-    purple_plant = "purple ball"
-    # pink_animal = "pink box"
-    # pink_plant = "pink ball"
-    black_animal = "blue box"
-    black_plant = "blue ball"
-    red_animal = "red box"
-    red_plant = "red ball"
-    replacements = {
-        red_animal: [
-            "rooster",
-            "lobster",
-            "crab",
-            "ladybug",
-            "cardinal",
-        ],
-        red_plant: [
-            "cherry",
-            "tomato",
-            "chili",
-            "apple",
-            "raspberry",
-            "cranberry",
-            "strawberry",
-            "pomegranate",
-            "radish",
-            "beet",
-            "rose",
-        ],
-        black_animal: [
-            "gorilla",
-            "crow",
-            "panther",
-            "raven",
-            "bat",
-        ],
-        black_plant: ["black plant"],
-        # pink_animal: ["flamingo", "pig"],
-        # pink_plant: ["lychee", "dragonfruit"],
-        purple_animal: ["purple animal"],
-        purple_plant: [
-            "grape",
-            "eggplant",
-            "plum",
-            "shallot",
-            "lilac",
-        ],
-        white_animal: [
-            "polar bear",
-            "swan",
-            "ermine",
-            "sheep",
-            "seagull",
-        ],
-        white_plant: [
-            "coconut",
-            "cauliflower",
-            "onion",
-            "garlic",
-        ],
-        green_animal: [
-            "iguana",
-            "frog",
-            "grasshopper",
-            "turtle",
-            "mantis",
-            "lizard",
-            "caterpillar",
-        ],
-        green_plant: [
-            "lime",
-            "kiwi",
-            "broccoli",
-            "lettuce",
-            "kale",
-            "spinach",
-            "avocado",
-            "cucumber",
-            "basil",
-            "pea",
-            "arugula",
-            "celery",
-        ],
-        orange_animal: [
-            "tiger",
-            "lion",
-            "orangutan",
-            "goldfish",
-            "clownfish",
-            "fox",
-        ],
-        orange_plant: [
-            "peach",
-            "yam",
-            "tangerine",
-            "carrot",
-            "papaya",
-            "clementine",
-            "kumquat",
-            "pumpkin",
-            "marigold",
-        ],
-    }
-
-    def __init__(self, env, prefix_length: int):
-        self.prefix_length = prefix_length
-        super().__init__(env)
-
-    def change_mission(self, mission: str) -> str:
-        mission = mission.replace("pick up the ", "")
-        return mission
+green_animal = "green box"
+orange_animal = "yellow box"
+green_plant = "green ball"
+orange_plant = "yellow ball"
+white_animal = "grey box"
+white_plant = "grey ball"
+purple_animal = "purple box"
+purple_plant = "purple ball"
+# pink_animal = "pink box"
+# pink_plant = "pink ball"
+black_animal = "blue box"
+black_plant = "blue ball"
+red_animal = "red box"
+red_plant = "red ball"
+OBJECTS = {
+    green_animal,
+    orange_animal,
+    green_plant,
+    orange_plant,
+    white_animal,
+    white_plant,
+    purple_animal,
+    purple_plant,
+    # pink_animal ,
+    # pink_plant ,
+    black_animal,
+    black_plant,
+    red_animal,
+    red_plant,
+}
 
 
 class ActionInObsWrapper(gym.Wrapper):

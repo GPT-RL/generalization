@@ -5,10 +5,10 @@ import gym
 import main
 from babyai_agent import Agent
 from babyai_env import (
+    OBJECTS,
     ActionInObsWrapper,
     FullyObsWrapper,
     PickupEnv,
-    PlantAnimalWrapper,
     RolloutsWrapper,
     TokenizerWrapper,
     ZeroOneRewardWrapper,
@@ -34,7 +34,6 @@ class Args(main.Args):
     second_layer: bool = False
     strict: bool = True
     test_organisms: str = None
-    prefix_length: int = 4
 
     def configure(self) -> None:
         self.add_subparsers(dest="logger_args")
@@ -82,7 +81,6 @@ class Trainer(main.Trainer):
     def make_env(cls, env, allow_early_resets, render: bool = False, *args, **kwargs):
         def _thunk(
             env_id: str,
-            prefix_length: int,
             room_size: int,
             seed: int,
             strict: bool,
@@ -93,20 +91,12 @@ class Trainer(main.Trainer):
         ):
             _kwargs = dict(room_size=room_size, strict=strict, seed=seed)
             if env_id == "plant-animal":
-                test_objects = {
-                    getattr(PlantAnimalWrapper, a) for a in test_organisms.split(",")
-                }
-                objects = {
-                    k
-                    for k in PlantAnimalWrapper.replacements.keys()
-                    if k not in test_objects
-                }
-                objects = test_objects if test else objects - test_objects
+                test_objects = set(test_organisms.split(","))
+                objects = test_objects if test else OBJECTS - test_objects
                 objects = [o.split() for o in objects]
                 objects = [(t, c) for (c, t) in objects]
                 kwargs.update(room_objects=objects)
                 _env = PickupEnv(objects=objects, **_kwargs)
-                _env = PlantAnimalWrapper(_env, prefix_length)
                 longest_mission = "pick up the grasshopper"
 
             else:
