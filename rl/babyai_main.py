@@ -80,7 +80,6 @@ class Trainer(main.Trainer):
     @classmethod
     def make_env(cls, env, allow_early_resets, render: bool = False, *args, **kwargs):
         def _thunk(
-            env_id: str,
             room_size: int,
             seed: int,
             strict: bool,
@@ -89,22 +88,19 @@ class Trainer(main.Trainer):
             tokenizer: GPT2Tokenizer,
             **_,
         ):
-            _kwargs = dict(room_size=room_size, strict=strict, seed=seed)
-            if env_id == "plant-animal":
-                test_objects = set(test_organisms.split(","))
-                objects = test_objects if test else OBJECTS - test_objects
-                objects = [o.split() for o in objects]
-                objects = [(t, c) for (c, t) in objects]
-                kwargs.update(room_objects=objects)
-                _env = PickupEnv(objects=objects, **_kwargs)
-                longest_mission = "pick up the grasshopper"
+            test_objects = set(test_organisms.split(","))
+            objects = test_objects if test else OBJECTS - test_objects
+            objects = [o.split() for o in objects]
+            objects = [(t, c) for (c, t) in objects]
+            _env = PickupEnv(
+                objects=objects,
+                room_size=room_size,
+                strict=strict,
+                seed=seed,
+            )
+            longest_mission = "pick up the grasshopper"
 
-            else:
-                raise RuntimeError(f"{env_id} is not a valid env_id")
-
-            # missions = list(missions())
             _env = FullyObsWrapper(_env)
-
             _env = ActionInObsWrapper(_env)
             _env = ZeroOneRewardWrapper(_env)
             _env = TokenizerWrapper(
@@ -112,7 +108,6 @@ class Trainer(main.Trainer):
                 tokenizer=tokenizer,
                 longest_mission=longest_mission,
             )
-            # _env = MissionEnumeratorWrapper(_env, missions=missions)
             _env = RolloutsWrapper(_env)
 
             _env = Monitor(_env, allow_early_resets=allow_early_resets)
