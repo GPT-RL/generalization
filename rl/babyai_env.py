@@ -8,11 +8,17 @@ from typing import Generator, Optional, TypeVar
 import gym
 import gym_minigrid
 import numpy as np
-from babyai.levels.levelgen import RoomGridLevel
-from babyai.levels.verifier import ObjDesc, PickupInstr
+from babyai.levels.levelgen import LevelGen
+from babyai.levels.verifier import LOC_NAMES, OBJ_TYPES, ObjDesc
 from colors import color as ansi_color
 from gym.spaces import Box, Dict, Discrete, MultiDiscrete, Tuple
-from gym_minigrid.minigrid import COLORS, OBJECT_TO_IDX, MiniGridEnv, WorldObj
+from gym_minigrid.minigrid import (
+    COLORS,
+    COLOR_NAMES,
+    OBJECT_TO_IDX,
+    MiniGridEnv,
+    WorldObj,
+)
 from gym_minigrid.window import Window
 from gym_minigrid.wrappers import ImgObsWrapper
 from transformers import GPT2Tokenizer
@@ -39,12 +45,16 @@ class Agent(WorldObj):
         pass
 
 
-class ReproducibleEnv(RoomGridLevel, ABC):
+class ReproducibleEnv(LevelGen, ABC):
     def _rand_elem(self, iterable):
-        return super()._rand_elem(sorted(iterable))
+        try:
+            iterable = sorted(iterable)
+        except TypeError:
+            pass
+        return super()._rand_elem(iterable)
 
 
-class RenderEnv(RoomGridLevel, ABC):
+class RenderEnv(LevelGen, ABC):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.__reward = None
@@ -139,34 +149,40 @@ class RenderColorEnv(RenderEnv, ABC):
         return color.ljust(len(string))
 
 
-class PickupEnv(ReproducibleEnv, RenderEnv, RoomGridLevel):
+class PickupEnv(ReproducibleEnv, RenderEnv, LevelGen):
     """
-    Pick up an object
-    The object to pick up is given by its type only, or
-    by its color, or by its type and color.
-    (in the current room, with distractors)
+    Pick up an object which may be described using its location. This is a
+    single room environment.
+    Competencies: PickUp, Loc. No unblocking.
     """
 
-    def __init__(self, room_size: int, num_dists: int, strict=False, seed=None):
-        self.num_dists = num_dists
-        self.strict = strict
-        super().__init__(num_rows=1, num_cols=1, room_size=room_size, seed=seed)
-
-    def gen_mission(self):
-        # Add 5 random objects in the room
-        objs = self.add_distractors(num_distractors=self.num_dists)
-        self.place_agent(0, 0)
-        obj = self._rand_elem(objs)
-        type = obj.type
-        color = obj.color
-
-        select_by = self._rand_elem(["type", "color", "both"])
-        if select_by == "color":
-            type = None
-        elif select_by == "type":
-            color = None
-
-        self.instrs = PickupInstr(ObjDesc(type, color), strict=self.strict)
+    def __init__(
+        self,
+        action_kinds: str,
+        instr_kinds: str,
+        locations: bool,
+        locked_room_prob: float,
+        num_dists: int,
+        num_rows: int,
+        room_size: int,
+        seed: int,
+        unblocking: bool,
+        **_,
+    ):
+        # We add many distractors to increase the probability
+        # of ambiguous locations within the same room
+        super().__init__(
+            action_kinds=action_kinds.split(","),  # ["pickup"],
+            instr_kinds=instr_kinds.split(","),  # ["action"],
+            locations=locations,  # True,
+            locked_room_prob=locked_room_prob,  # 0,
+            num_cols=1,
+            num_dists=num_dists,  # 1,
+            num_rows=num_rows,
+            room_size=room_size,
+            seed=seed,
+            unblocking=unblocking,  # False,
+        )
 
 
 class RenderColorPickupEnv(RenderColorEnv, PickupEnv):
@@ -364,18 +380,11 @@ def main(args: "Args"):
         if event.key == "pagedown":
             step(env.actions.drop)
             return
-
         if event.key == "enter":
             step(env.actions.done)
             return
 
-    room_objects = [("ball", col) for col in ("black", "white")]
-    env = PickupEnv(
-        room_size=args.room_size,
-        seed=args.seed,
-        objects=room_objects,
-        strict=True,
-    )
+    env = PickupEnv(**args.as_dict())
     if args.agent_view:
         env = ImgObsWrapper(env)
     window = Window("gym_minigrid")
@@ -389,10 +398,7 @@ if __name__ == "__main__":
     import babyai_main
 
     class Args(babyai_main.Args):
-        tile_size: int = 32
         agent_view: bool = False
-        test: bool = False
-        not_strict: bool = False
-        num_dists: int = 1
+        tile_size: int = 32
 
     main(Args().parse_args())

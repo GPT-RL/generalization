@@ -18,6 +18,7 @@ from transformers import GPT2Tokenizer
 
 
 class Args(main.Args):
+    action_kinds: str = "pickup"
     pretrained_model: Literal[
         "gpt2",
         "gpt2-medium",
@@ -29,11 +30,16 @@ class Args(main.Args):
         "EleutherAI/gpt-neo-2.7B",
     ] = "gpt2-large"  # what size of pretrained GPT to use
     env: str = "plant-animal"  # env ID for gym
+    instr_kinds: str = "action"
+    locations: bool = False
+    locked_room_prob: float = 0
     num_dists: int = 1
+    num_rows: int = 1
     room_size: int = 5
     second_layer: bool = False
     strict: bool = True
     test_organisms: str = None
+    unblocking: bool = False
 
     def configure(self) -> None:
         self.add_subparsers(dest="logger_args")
@@ -80,20 +86,11 @@ class Trainer(main.Trainer):
     @classmethod
     def make_env(cls, env, allow_early_resets, render: bool = False, *args, **kwargs):
         def _thunk(
-            num_dists: int,
-            room_size: int,
-            seed: int,
-            strict: bool,
             test: bool,
             tokenizer: GPT2Tokenizer,
-            **_,
+            **kwargs,
         ):
-            _env = PickupEnv(
-                num_dists=num_dists,
-                room_size=room_size,
-                seed=seed,
-                strict=strict,
-            )
+            _env = PickupEnv(**kwargs)
             longest_mission = "pick up the grasshopper"
 
             _env = FullyObsWrapper(_env)
