@@ -115,6 +115,7 @@ class Args(Tap):
     test_interval: Optional[int] = None  # how many updates to evaluate between
     use_proper_time_limits: bool = False  # compute returns with time limits
     value_coef: float = 1  # value loss coefficient
+    visualizer_url: str = os.getenv("VISUALIZER_URL")
 
     def configure(self) -> None:
         self.add_subparsers(dest="logger_args")
@@ -505,23 +506,20 @@ class Trainer:
     @classmethod
     def main(cls, args: ArgsType):
         logging.getLogger().setLevel(args.log_level)
+        kwargs = dict(visualizer_url=args.visualizer_url)
 
         charts = [
             *[
-                spec(x=HOURS, y=y)
-                for y in (
-                    (TEST_EPISODE_SUCCESS, EPISODE_SUCCESS)
-                    if args.env == "go-to-loc"
-                    else (TEST_EPISODE_RETURN, EPISODE_RETURN)
-                )
+                spec(x=HOURS, y=y, **kwargs)
+                for y in (EPISODE_SUCCESS, TEST_EPISODE_SUCCESS)
             ],
             *[
-                spec(x=STEP, y=y)
+                spec(x=STEP, y=y, **kwargs)
                 for y in (
-                    TEST_EPISODE_RETURN,
-                    EPISODE_RETURN,
                     EPISODE_SUCCESS,
                     TEST_EPISODE_SUCCESS,
+                    EPISODE_RETURN,
+                    TEST_EPISODE_RETURN,
                     FPS,
                     ENTROPY,
                     GRADIENT_NORM,

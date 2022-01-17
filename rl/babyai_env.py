@@ -9,16 +9,9 @@ import gym
 import gym_minigrid
 import numpy as np
 from babyai.levels.levelgen import LevelGen
-from babyai.levels.verifier import LOC_NAMES, OBJ_TYPES, ObjDesc
 from colors import color as ansi_color
 from gym.spaces import Box, Dict, Discrete, MultiDiscrete, Tuple
-from gym_minigrid.minigrid import (
-    COLORS,
-    COLOR_NAMES,
-    OBJECT_TO_IDX,
-    MiniGridEnv,
-    WorldObj,
-)
+from gym_minigrid.minigrid import COLORS, OBJECT_TO_IDX, MiniGridEnv, WorldObj
 from gym_minigrid.window import Window
 from gym_minigrid.wrappers import ImgObsWrapper
 from transformers import GPT2Tokenizer
