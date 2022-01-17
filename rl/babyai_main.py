@@ -5,7 +5,6 @@ import gym
 import main
 from babyai_agent import Agent
 from babyai_env import (
-    OBJECTS,
     ActionInObsWrapper,
     FullyObsWrapper,
     PickupEnv,
@@ -30,6 +29,7 @@ class Args(main.Args):
         "EleutherAI/gpt-neo-2.7B",
     ] = "gpt2-large"  # what size of pretrained GPT to use
     env: str = "plant-animal"  # env ID for gym
+    num_dists: int = 1
     room_size: int = 5
     second_layer: bool = False
     strict: bool = True
@@ -80,23 +80,19 @@ class Trainer(main.Trainer):
     @classmethod
     def make_env(cls, env, allow_early_resets, render: bool = False, *args, **kwargs):
         def _thunk(
+            num_dists: int,
             room_size: int,
             seed: int,
             strict: bool,
             test: bool,
-            test_organisms: str,
             tokenizer: GPT2Tokenizer,
             **_,
         ):
-            test_objects = set(test_organisms.split(","))
-            objects = test_objects if test else OBJECTS - test_objects
-            objects = [o.split() for o in objects]
-            objects = [(t, c) for (c, t) in objects]
             _env = PickupEnv(
-                objects=objects,
+                num_dists=num_dists,
                 room_size=room_size,
-                strict=strict,
                 seed=seed,
+                strict=strict,
             )
             longest_mission = "pick up the grasshopper"
 

@@ -1,6 +1,5 @@
 import abc
 import re
-import typing
 from abc import ABC
 from dataclasses import astuple, dataclass
 from itertools import chain, cycle, islice
@@ -140,38 +139,34 @@ class RenderColorEnv(RenderEnv, ABC):
         return color.ljust(len(string))
 
 
-class PickupEnv(RenderEnv, ReproducibleEnv):
-    def __init__(
-        self,
-        objects: typing.Iterable[typing.Tuple[str, str]],
-        room_size: int,
-        seed: int,
-        strict: bool,
-        num_dists: int = 1,
-    ):
-        self.objects = sorted(objects)
-        self.strict = strict
+class PickupEnv(ReproducibleEnv, RenderEnv, RoomGridLevel):
+    """
+    Pick up an object
+    The object to pick up is given by its type only, or
+    by its color, or by its type and color.
+    (in the current room, with distractors)
+    """
+
+    def __init__(self, room_size: int, num_dists: int, strict=False, seed=None):
         self.num_dists = num_dists
-        super().__init__(
-            room_size=room_size,
-            num_rows=1,
-            num_cols=1,
-            seed=seed,
-        )
+        self.strict = strict
+        super().__init__(num_rows=1, num_cols=1, room_size=room_size, seed=seed)
 
     def gen_mission(self):
-        self.place_agent()
-        self.connect_all()
+        # Add 5 random objects in the room
+        objs = self.add_distractors(num_distractors=self.num_dists)
+        self.place_agent(0, 0)
+        obj = self._rand_elem(objs)
+        type = obj.type
+        color = obj.color
 
-        goal_object = self._rand_elem(self.objects)
-        self.add_object(0, 0, *goal_object)
-        objects = {*self.objects} - {goal_object}
-        for _ in range(self.num_dists):
-            obj = self._rand_elem(objects)
-            self.add_object(0, 0, *obj)
+        select_by = self._rand_elem(["type", "color", "both"])
+        if select_by == "color":
+            type = None
+        elif select_by == "type":
+            color = None
 
-        self.check_objs_reachable()
-        self.instrs = PickupInstr(ObjDesc(*goal_object), strict=self.strict)
+        self.instrs = PickupInstr(ObjDesc(type, color), strict=self.strict)
 
 
 class RenderColorPickupEnv(RenderColorEnv, PickupEnv):
@@ -201,38 +196,6 @@ class MissionWrapper(gym.Wrapper, abc.ABC):
 
     def change_mission(self, mission: str) -> str:
         raise NotImplementedError
-
-
-green_animal = "green box"
-orange_animal = "yellow box"
-green_plant = "green ball"
-orange_plant = "yellow ball"
-white_animal = "grey box"
-white_plant = "grey ball"
-purple_animal = "purple box"
-purple_plant = "purple ball"
-# pink_animal = "pink box"
-# pink_plant = "pink ball"
-black_animal = "blue box"
-black_plant = "blue ball"
-red_animal = "red box"
-red_plant = "red ball"
-OBJECTS = {
-    green_animal,
-    orange_animal,
-    green_plant,
-    orange_plant,
-    white_animal,
-    white_plant,
-    purple_animal,
-    purple_plant,
-    # pink_animal ,
-    # pink_plant ,
-    black_animal,
-    black_plant,
-    red_animal,
-    red_plant,
-}
 
 
 class ActionInObsWrapper(gym.Wrapper):
@@ -410,7 +373,6 @@ def main(args: "Args"):
     env = PickupEnv(
         room_size=args.room_size,
         seed=args.seed,
-        goal_objects=room_objects,
         objects=room_objects,
         strict=True,
     )
