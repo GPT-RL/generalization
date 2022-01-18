@@ -15,14 +15,15 @@ services:
       - rank-counter
       - ${REPLICAS}
   sweep:
-    image: ethanabrooks/create-sweep@sha256:34b00a718054882b022e75980c24ec5ac9a456769ec394b4ea7c0baa87c77bfc
+    build: .
     depends_on:
       - redis
     volumes:
       - .:/config
-    command:
-      - --config=/config/config.yml
+    entrypoint:
+      - create-sweep
       - --graphql-endpoint=${GRAPHQL_ENDPOINT}
+      - --config=/config/config.yml
       - --name=${NAME}
       - --project=gpt-rl
       - --method=${SWEEP_METHOD}
