@@ -148,12 +148,13 @@ class Trainer:
         torch.cuda.manual_seed_all(args.seed)
         np.random.seed(args.seed)
 
-        if args.cuda and torch.cuda.is_available():
+        cuda = args.cuda and torch.cuda.is_available()
+        if cuda:
             torch.backends.cudnn.benchmark = False
             torch.backends.cudnn.deterministic = True
 
         torch.set_num_threads(1)
-        device = torch.device("cuda:0" if args.cuda else "cpu")
+        device = torch.device("cuda:0" if cuda else "cpu")
 
         envs = cls.make_vec_envs(device=device, test=False, **args.as_dict())
 
