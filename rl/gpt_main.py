@@ -22,7 +22,6 @@ class Trainer(babyai_main.Trainer):
     @classmethod
     def _make_agent(
         cls,
-        # encoded: torch.Tensor,
         action_space: gym.spaces.Discrete,
         observation_space: gym.spaces.Dict,
         args: ArgsType,
@@ -33,15 +32,11 @@ class Trainer(babyai_main.Trainer):
             train_wpe=args.train_wpe,
             train_ln=args.train_ln,
         )
-        # if not (args.train_ln or args.train_wpe):
-        #     embedding = GPTEmbed(**kwargs)
-        #     encoded = embedding.forward(encoded)
         return Agent(
             action_space=action_space,
             hidden_size=args.hidden_size,
             observation_space=observation_space,
             recurrent=cls.recurrent(args),
-            # encoded=encoded,
             **kwargs,
         )
 
