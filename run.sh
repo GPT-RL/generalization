@@ -9,4 +9,5 @@ docker run --rm -it \
 	-v "$(pwd)/logs:/tmp/logs" \
 	-v "$HOME/.cache/GPT/:/root/.cache/GPT" \
 	-v "$HOME/.cache/huggingface/:/root/.cache/huggingface" \
+	-v "$HOME/.cache/data/:/root/.cache/data" \
 	"$name" "${@:2}"

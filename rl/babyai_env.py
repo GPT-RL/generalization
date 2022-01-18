@@ -1,14 +1,16 @@
 import abc
 import re
+import sys
 from abc import ABC
 from dataclasses import astuple, dataclass
 from itertools import chain, cycle, islice
-from typing import Generator, Optional, TypeVar
+from typing import Generator, Optional, Set, TypeVar
 
 import gym
 import gym_minigrid
 import numpy as np
-from babyai.levels.levelgen import LevelGen
+from babyai.levels.levelgen import LevelGen, RejectSampling
+from babyai.levels.verifier import ActionInstr
 from colors import color as ansi_color
 from gym.spaces import Box, Dict, Discrete, MultiDiscrete, Tuple
 from gym_minigrid.minigrid import COLORS, OBJECT_TO_IDX, MiniGridEnv, WorldObj
@@ -49,10 +51,10 @@ class ReproducibleEnv(LevelGen, ABC):
 
 class RenderEnv(LevelGen, ABC):
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
         self.__reward = None
         self.__done = None
         self.__action = None
+        super().__init__(*args, **kwargs)
 
     def row_objs(self, y: int) -> Generator[Optional[WorldObj], None, None]:
         for x in range(self.width):
@@ -142,7 +144,7 @@ class RenderColorEnv(RenderEnv, ABC):
         return color.ljust(len(string))
 
 
-class PickupEnv(ReproducibleEnv, RenderEnv, LevelGen):
+class BabyAIEnv(ReproducibleEnv, RenderEnv, LevelGen):
     """
     Pick up an object which may be described using its location. This is a
     single room environment.
@@ -160,8 +162,12 @@ class PickupEnv(ReproducibleEnv, RenderEnv, LevelGen):
         room_size: int,
         seed: int,
         unblocking: bool,
+        train_instructions: Set[ActionInstr],
+        test: bool,
         **_,
     ):
+        self.train = not test
+        self.train_instructions = train_instructions
         # We add many distractors to increase the probability
         # of ambiguous locations within the same room
         super().__init__(
@@ -177,8 +183,35 @@ class PickupEnv(ReproducibleEnv, RenderEnv, LevelGen):
             unblocking=unblocking,  # False,
         )
 
+    def instr_is_valid(self, instr: ActionInstr):
+        try:
+            self.validate_instrs(instr)
+            instr.surface(self)
+            return True
+        except (RejectSampling, AssertionError):
+            return False
 
-class RenderColorPickupEnv(RenderColorEnv, PickupEnv):
+    def rand_instr(self, *args, allow_invalid=False, **kwargs):
+        if allow_invalid:
+            return super().rand_instr(*args, **kwargs)
+
+        while True:
+            if self.train:
+                valid_train_instructions = list(
+                    filter(self.instr_is_valid, self.train_instructions)
+                )
+                if not valid_train_instructions:
+                    print(".", end="")
+                    sys.stdout.flush()
+                    raise RejectSampling("No valid train instructions.")
+                return self._rand_elem(valid_train_instructions)
+            else:
+                instr = super().rand_instr(*args, **kwargs)
+                if instr not in self.train_instructions:
+                    return instr
+
+
+class RenderColorPickupEnv(RenderColorEnv, BabyAIEnv):
     pass
 
 
@@ -377,7 +410,7 @@ def main(args: "Args"):
             step(env.actions.done)
             return
 
-    env = PickupEnv(**args.as_dict())
+    env = BabyAIEnv(**args.as_dict())
     if args.agent_view:
         env = ImgObsWrapper(env)
     window = Window("gym_minigrid")

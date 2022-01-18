@@ -43,7 +43,7 @@ gym-minigrid = "^1.0.2"
 type = "git"
 url = "https://github.com/GPT-RL/babyai.git"
 reference = "master"
-resolved_reference = "1d8cbffcc3a5a3f191bfcb2d8a6500f21c4e3788"
+resolved_reference = "802068f65cadd8abe042034d10a74ba31835751c"
 
 [[package]]
 name = "backcall"

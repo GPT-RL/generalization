@@ -46,6 +46,7 @@ services:
       - "${PWD}/logs:/tmp/logs"
       - "${HOME}/.cache/GPT/:/root/.cache/GPT"
       - "${HOME}/.cache/huggingface/:/root/.cache/huggingface"
+      - "${HOME}/.cache/data/:/root/.cache/data"
     deploy:
       replicas: ${REPLICAS}
       resources:
