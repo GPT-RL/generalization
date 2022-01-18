@@ -37,6 +37,7 @@ services:
     environment:
       - GRAPHQL_ENDPOINT
       - HOST_MACHINE
+      - VISUALIZER_URL
     entrypoint:
       - execute-sweep
       - --graphql-endpoint=${GRAPHQL_ENDPOINT}
