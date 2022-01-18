@@ -127,13 +127,20 @@ class Trainer(main.Trainer):
 
         return functools.partial(_thunk, env_id=env, **kwargs)
 
+    @staticmethod
+    @functools.lru_cache(maxsize=1)
+    def tokenizer(pretrained_model):
+        return GPT2Tokenizer.from_pretrained(pretrained_model)
+
     @classmethod
     def make_vec_envs(cls, *args, prefix_length: int, pretrained_model: str, **kwargs):
-        tokenizer = GPT2Tokenizer.from_pretrained(pretrained_model)
         if babyai_env.PREFIXES is None:
             babyai_env.PREFIXES = dict(get_prefixes(prefix_length))
         return super().make_vec_envs(
-            *args, **kwargs, prefixes=babyai_env.PREFIXES, tokenizer=tokenizer
+            *args,
+            **kwargs,
+            prefixes=babyai_env.PREFIXES,
+            tokenizer=cls.tokenizer(pretrained_model),
         )
 
 
