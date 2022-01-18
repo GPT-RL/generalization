@@ -1,7 +1,6 @@
 import functools
 from typing import List, Literal, cast
 
-import babyai_env
 import gym
 import main
 from babyai_agent import Agent
@@ -13,7 +12,6 @@ from babyai_env import (
     RolloutsWrapper,
     TokenizerWrapper,
     ZeroOneRewardWrapper,
-    get_prefixes,
     replacements,
 )
 from envs import RenderWrapper, VecPyTorch
@@ -85,7 +83,7 @@ class Trainer(main.Trainer):
     def make_env(cls, env, allow_early_resets, render: bool = False, *args, **kwargs):
         def _thunk(
             env_id: str,
-            prefixes,
+            prefix_length,
             room_size: int,
             seed: int,
             strict: bool,
@@ -103,7 +101,7 @@ class Trainer(main.Trainer):
                 objects = [(t, c) for (c, t) in objects]
                 kwargs.update(room_objects=objects)
                 _env = PickupEnv(objects=objects, **_kwargs)
-                _env = PrefixWrapper(_env, missions=prefixes)
+                _env = PrefixWrapper(_env, prefix_length=prefix_length)
                 longest_mission = "pick up the grasshopper"
 
             else:
@@ -134,12 +132,10 @@ class Trainer(main.Trainer):
 
     @classmethod
     def make_vec_envs(cls, *args, prefix_length: int, pretrained_model: str, **kwargs):
-        if babyai_env.PREFIXES is None:
-            babyai_env.PREFIXES = dict(get_prefixes(prefix_length))
         return super().make_vec_envs(
             *args,
             **kwargs,
-            prefixes=babyai_env.PREFIXES,
+            prefix_length=prefix_length,
             tokenizer=cls.tokenizer(pretrained_model),
         )
 

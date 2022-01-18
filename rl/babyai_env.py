@@ -365,8 +365,8 @@ PREFIXES = None
 
 
 class PrefixWrapper(MissionWrapper):
-    def __init__(self, env, missions):
-        self.missions = missions
+    def __init__(self, env, prefix_length: int):
+        self.prefix_length = prefix_length
         self._mission = None
         super().__init__(env)
 
@@ -374,10 +374,26 @@ class PrefixWrapper(MissionWrapper):
         super().render(mode, pause, **kwargs)
         print(self._mission)
 
+    def reset(self, **kwargs):
+        self._mission = None
+        return super().reset(**kwargs)
+
     def change_mission(self, mission: str) -> str:
-        mission = mission.replace("pick up the ", "")
-        self._mission = mission
-        return "", mission
+        if self._mission is None:
+            mission = mission.replace("pick up the ", "")
+            color, category = mission.split()
+            alt_colors = rng.choice(
+                [c for c in COLORS if c != color],
+                replace=False,
+                size=self.prefix_length,
+            )
+            alt_category = "ball" if category == "box" else "box"
+            mission = ". ".join(
+                [f"{c} {alt_category}: {c} {category}" for c in alt_colors]
+                + [f"{color} {alt_category}:"]
+            )
+            self._mission = mission
+        return "", self._mission
 
 
 class ActionInObsWrapper(gym.Wrapper):
