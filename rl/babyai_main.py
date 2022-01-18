@@ -111,10 +111,16 @@ class Trainer(main.Trainer):
 
         return functools.partial(_thunk, env_id=env, **kwargs)
 
+    @staticmethod
+    @functools.lru_cache(maxsize=1)
+    def tokenizer(pretrained_model):
+        return GPT2Tokenizer.from_pretrained(pretrained_model)
+
     @classmethod
     def make_vec_envs(cls, *args, pretrained_model: str, **kwargs):
-        tokenizer = GPT2Tokenizer.from_pretrained(pretrained_model)
-        return super().make_vec_envs(*args, **kwargs, tokenizer=tokenizer)
+        return super().make_vec_envs(
+            *args, **kwargs, tokenizer=cls.tokenizer(pretrained_model)
+        )
 
 
 if __name__ == "__main__":
