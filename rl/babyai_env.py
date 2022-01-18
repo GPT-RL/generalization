@@ -376,9 +376,12 @@ class ActionInObsWrapper(gym.Wrapper):
         return s, r, t, i
 
 
-class ZeroOneRewardWrapper(gym.RewardWrapper):
-    def reward(self, reward):
-        return int(bool(reward > 0))
+class SuccessWrapper(gym.Wrapper):
+    def step(self, action):
+        s, r, t, i = super().step(action)
+        if t:
+            i.update(success=r > 0)
+        return s, r, t, i
 
 
 class RolloutsWrapper(gym.ObservationWrapper):

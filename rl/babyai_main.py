@@ -10,8 +10,8 @@ from babyai_env import (
     PickupEnv,
     PlantAnimalWrapper,
     RolloutsWrapper,
+    SuccessWrapper,
     TokenizerWrapper,
-    ZeroOneRewardWrapper,
 )
 from envs import RenderWrapper, VecPyTorch
 from stable_baselines3.common.monitor import Monitor
@@ -116,7 +116,7 @@ class Trainer(main.Trainer):
 
             _env = FullyObsWrapper(_env)
             _env = ActionInObsWrapper(_env)
-            _env = ZeroOneRewardWrapper(_env)
+            _env = SuccessWrapper(_env)
             _env = TokenizerWrapper(
                 _env,
                 tokenizer=tokenizer,
