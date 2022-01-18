@@ -40,6 +40,7 @@ class Args(main.Args):
     strict: bool = True
     test_organisms: str = None
     unblocking: bool = False
+    use_gru: bool = False
 
     def configure(self) -> None:
         self.add_subparsers(dest="logger_args")
@@ -75,6 +76,7 @@ class Trainer(main.Trainer):
             hidden_size=args.hidden_size,
             observation_space=observation_space,
             recurrent=cls.recurrent(args),
+            use_gru=args.use_gru,
         )
 
     @staticmethod

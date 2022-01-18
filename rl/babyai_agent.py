@@ -54,13 +54,15 @@ class Base(NNBase):
         hidden_size: int,
         observation_space: Dict,
         recurrent: bool,
-        # encoded: torch.Tensor,
+        use_gru: bool,
     ):
         super().__init__(
             recurrent=recurrent,
             recurrent_input_size=hidden_size,
             hidden_size=hidden_size,
         )
+        self.use_gru = use_gru
+        self.hidden_size = hidden_size
         self.observation_spaces = Spaces(*observation_space.spaces)
         self.num_directions = self.observation_spaces.direction.n
         self.num_actions = self.observation_spaces.action.n
@@ -158,8 +160,12 @@ class Base(NNBase):
 
     def build_embeddings(self):
         num_embeddings = int(self.observation_spaces.mission.nvec[0])
-        return nn.EmbeddingBag(
-            num_embeddings, self.embedding_size, padding_idx=self.pad_token_id
+        return (
+            GRUEmbed(num_embeddings, 100, output_size=self.embedding_size)
+            if self.use_gru
+            else nn.EmbeddingBag(
+                num_embeddings, self.embedding_size, padding_idx=self.pad_token_id
+            )
         )
 
     def forward(self, inputs, rnn_hxs, masks):
