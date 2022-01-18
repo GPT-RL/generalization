@@ -361,6 +361,9 @@ def get_prefixes(prefix_length):
             yield f"{color} {ty}", (input1, color)
 
 
+PREFIXES = None
+
+
 class PrefixWrapper(MissionWrapper):
     def __init__(self, env, missions):
         self.missions = missions

@@ -1,6 +1,7 @@
 import functools
 from typing import List, Literal, cast
 
+import babyai_env
 import gym
 import main
 from babyai_agent import Agent
@@ -12,6 +13,7 @@ from babyai_env import (
     RolloutsWrapper,
     TokenizerWrapper,
     ZeroOneRewardWrapper,
+    get_prefixes,
     replacements,
 )
 from envs import RenderWrapper, VecPyTorch
@@ -126,9 +128,13 @@ class Trainer(main.Trainer):
         return functools.partial(_thunk, env_id=env, **kwargs)
 
     @classmethod
-    def make_vec_envs(cls, *args, pretrained_model: str, **kwargs):
+    def make_vec_envs(cls, *args, prefix_length: int, pretrained_model: str, **kwargs):
         tokenizer = GPT2Tokenizer.from_pretrained(pretrained_model)
-        return super().make_vec_envs(*args, **kwargs, tokenizer=tokenizer)
+        if babyai_env.PREFIXES is None:
+            babyai_env.PREFIXES = dict(get_prefixes(prefix_length))
+        return super().make_vec_envs(
+            *args, **kwargs, prefixes=babyai_env.PREFIXES, tokenizer=tokenizer
+        )
 
 
 if __name__ == "__main__":
