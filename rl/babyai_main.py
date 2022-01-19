@@ -132,7 +132,7 @@ class Trainer(main.Trainer):
                 objects = [(t, c) for (c, t) in objects]
                 kwargs.update(room_objects=objects)
                 _env = PickupEnv(objects=objects, **_kwargs)
-                # _env = PlantAnimalWrapper(_env, prefix_length)
+                _env = PlantAnimalWrapper(_env, prefix_length)
                 longest_mission = "pick up the grasshopper"
 
                 # def missions():

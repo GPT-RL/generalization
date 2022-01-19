@@ -335,25 +335,24 @@ class PlantAnimalWrapper(MissionWrapper):
         super().__init__(env)
 
     def change_mission(self, mission: str) -> str:
-        for k, v in self.replacements.items():
-            if k in mission:
-                replacement = self.np_random.choice(v)
-                mission = mission.replace(k, replacement)
+        # for k, v in self.replacements.items():
+        # if k in mission:
+        # replacement = self.np_random.choice(v)
+        # mission = mission.replace(k, replacement)
         mission = mission.replace("pick up the ", "")
-        mission = f"{mission}:"
-
-        types = [
-            t
-            for t in self.replacements.keys()
-            if t not in mission and t not in [self.black_plant, self.purple_plant]
-        ]
-        idxs = self.np_random.choice(len(types), replace=False, size=self.prefix_length)
-        prefix_types = [types[i] for i in idxs]
-        for k in prefix_types:
-            v = self.replacements[k]
-            v = self.np_random.choice(v)
-            k = mapping[k]
-            mission = f"{v}: {k}, {mission}"
+        #
+        # types = [
+        #     t
+        #     for t in self.replacements.keys()
+        #     if t not in mission and t not in [self.black_plant, self.purple_plant]
+        # ]
+        # idxs = self.np_random.choice(len(types), replace=False, size=self.prefix_length)
+        # prefix_types = [types[i] for i in idxs]
+        # for k in prefix_types:
+        #     v = self.replacements[k]
+        #     v = self.np_random.choice(v)
+        #     k = mapping[k]
+        #     mission = f"{v}: {k}, {mission}"
 
         return mission
 
