@@ -54,7 +54,6 @@ class Base(NNBase):
         hidden_size: int,
         observation_space: Dict,
         recurrent: bool,
-        # encoded: torch.Tensor,
     ):
         super().__init__(
             recurrent=recurrent,
@@ -151,10 +150,6 @@ class Base(NNBase):
         )
 
         self.critic_linear = init_(nn.Linear(hidden_size, 1))
-
-    def build_encodings(self, encoded):
-        _, encoded = torch.sort(encoded)
-        return nn.Embedding.from_pretrained(encoded.float())
 
     def build_embeddings(self):
         num_embeddings = int(self.observation_spaces.mission.nvec[0])

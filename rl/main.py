@@ -16,7 +16,6 @@ import torch
 import utils
 from agent import Agent
 from envs import TimeLimitMask, TransposeImage, VecPyTorch, VecPyTorchFrameStack
-from gql import gql
 from gym.wrappers.clip_action import ClipAction
 from ppo import PPO
 from rollouts import Rollouts
@@ -116,6 +115,7 @@ class Args(Tap):
     test_interval: Optional[int] = None  # how many updates to evaluate between
     use_proper_time_limits: bool = False  # compute returns with time limits
     value_coef: float = 1  # value loss coefficient
+    visualizer_url: str = os.getenv("VISUALIZER_URL")
 
     def configure(self) -> None:
         self.add_subparsers(dest="logger_args")
@@ -210,7 +210,7 @@ class Trainer:
             # save for every interval-th episode or for the last epoch
             if (
                 args.save_interval is not None
-                and logger is not None
+                and logger.run_id is not None
                 and (j % args.save_interval == 0 or j == num_updates - 1)
                 and not render
             ):
@@ -237,7 +237,7 @@ class Trainer:
                         masks=rollouts.masks[step],
                     )
 
-                # Obser reward and next obs
+                # Observe reward and next obs
                 obs, reward, done, infos = envs.step(action)
 
                 for info in infos:
@@ -506,23 +506,20 @@ class Trainer:
     @classmethod
     def main(cls, args: ArgsType):
         logging.getLogger().setLevel(args.log_level)
+        kwargs = dict(visualizer_url=args.visualizer_url)
 
         charts = [
             *[
-                spec(x=HOURS, y=y)
-                for y in (
-                    (TEST_EPISODE_SUCCESS, EPISODE_SUCCESS)
-                    if args.env == "go-to-loc"
-                    else (TEST_EPISODE_RETURN, EPISODE_RETURN)
-                )
+                spec(x=HOURS, y=y, **kwargs)
+                for y in (EPISODE_SUCCESS, TEST_EPISODE_SUCCESS)
             ],
             *[
-                spec(x=STEP, y=y)
+                spec(x=STEP, y=y, **kwargs)
                 for y in (
-                    TEST_EPISODE_RETURN,
-                    EPISODE_RETURN,
                     EPISODE_SUCCESS,
                     TEST_EPISODE_SUCCESS,
+                    EPISODE_RETURN,
+                    TEST_EPISODE_RETURN,
                     FPS,
                     ENTROPY,
                     GRADIENT_NORM,
@@ -548,20 +545,6 @@ class Trainer:
             metadata=metadata,
         )
         cls.update_args(args, params)
-
-        if args.load_id is not None:
-            parameters = logger.execute(
-                gql(
-                    """
-query GetParameters($id: Int!) {
-  run_by_pk(id: $id) {
-    metadata(path: "parameters")
-  }
-}"""
-                ),
-                variable_values=dict(id=args.load_id),
-            )["run_by_pk"]["metadata"]
-            cls.update_args(args, parameters, check_hasattr=False)
         return cls.train(args=args, logger=logger)
 
     @classmethod
