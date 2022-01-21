@@ -1,4 +1,5 @@
 import babyai_agent
+from torch import nn
 from utils import build_gpt
 
 
@@ -11,6 +12,7 @@ class Base(babyai_agent.Base):
     def __init__(
         self,
         *args,
+        num_embeddings: int,
         pretrained_model: str,
         randomize_parameters: bool,
         train_ln: bool,
@@ -22,6 +24,8 @@ class Base(babyai_agent.Base):
         self.train_wpe = train_wpe
         self.train_ln = train_ln
         super().__init__(*args, pretrained_model=pretrained_model, **kwargs)
+        self.learned_embeddings = nn.Embedding(num_embeddings, self.embedding_size)
+        self.multihead_attn = nn.MultiheadAttention(self.embedding_size, num_heads=1)
 
     def build_embeddings(self):
         gpt = build_gpt(self._embedding_size, self.randomize_parameters)
@@ -33,8 +37,9 @@ class Base(babyai_agent.Base):
         return gpt
 
     def embed(self, inputs):
-        return (
-            self.embeddings.forward(inputs, attention_mask=inputs != self.pad_token_id)
-            .last_hidden_state[:, -2:]
-            .sum(1)
-        )
+        states = self.embeddings.forward(
+            inputs, attention_mask=inputs != self.pad_token_id
+        ).last_hidden_state[:, -2:]
+        weight = self.learned_embeddings.weight.unsqueeze(1)
+        attn_output, _ = self.multihead_attn(states, weight, weight)
+        return attn_output.mean(1)

@@ -8,6 +8,7 @@ from gpt_agent import Agent
 
 
 class Args(babyai_main.Args):
+    num_embeddings: int = 64
     randomize_parameters: bool = False
     train_ln: bool = False
     train_wpe: bool = False
@@ -35,6 +36,7 @@ class Trainer(babyai_main.Trainer):
         return Agent(
             action_space=action_space,
             hidden_size=args.hidden_size,
+            num_embeddings=args.num_embeddings,
             observation_space=observation_space,
             recurrent=cls.recurrent(args),
             **kwargs,
