@@ -219,6 +219,16 @@ mapping = {
 }
 
 
+# noinspection PyShadowingBuiltins
+def alt_type(type: str):
+    if type == "ball":
+        return "box"
+    elif type == "box":
+        return "ball"
+    else:
+        raise RuntimeError()
+
+
 class PlantAnimalWrapper(MissionWrapper):
     green_animal = "green box"
     orange_animal = "yellow box"
@@ -330,30 +340,14 @@ class PlantAnimalWrapper(MissionWrapper):
         ],
     }
 
-    def __init__(self, env, prefix_length: int):
-        self.prefix_length = prefix_length
+    def __init__(self, env, prefixes: dict):
+        self.prefixes = prefixes
         super().__init__(env)
 
     def change_mission(self, mission: str) -> str:
-        # for k, v in self.replacements.items():
-        # if k in mission:
-        # replacement = self.np_random.choice(v)
-        # mission = mission.replace(k, replacement)
         mission = mission.replace("pick up the ", "")
-        #
-        # types = [
-        #     t
-        #     for t in self.replacements.keys()
-        #     if t not in mission and t not in [self.black_plant, self.purple_plant]
-        # ]
-        # idxs = self.np_random.choice(len(types), replace=False, size=self.prefix_length)
-        # prefix_types = [types[i] for i in idxs]
-        # for k in prefix_types:
-        #     v = self.replacements[k]
-        #     v = self.np_random.choice(v)
-        #     k = mapping[k]
-        #     mission = f"{v}: {k}, {mission}"
-
+        color, type = mission.split()
+        mission = f"{self.prefixes[type]}. {color} {alt_type(type)}: {color} {type}."
         return mission
 
 

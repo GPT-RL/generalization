@@ -3,6 +3,7 @@ from typing import List, Literal, cast
 
 import gym
 import main
+import numpy as np
 from babyai_agent import Agent
 from babyai_env import (
     ActionInObsWrapper,
@@ -12,8 +13,10 @@ from babyai_env import (
     RolloutsWrapper,
     SuccessWrapper,
     TokenizerWrapper,
+    alt_type,
 )
 from envs import RenderWrapper, VecPyTorch
+from gym_minigrid.minigrid import COLORS
 from stable_baselines3.common.monitor import Monitor
 from transformers import GPT2Tokenizer
 
@@ -30,7 +33,6 @@ class Args(main.Args):
         "EleutherAI/gpt-neo-2.7B",
     ] = "gpt2-large"  # what size of pretrained GPT to use
     env: str = "plant-animal"  # env ID for gym
-    num_dists: int = 1
     room_size: int = 5
     second_layer: bool = False
     strict: bool = True
@@ -83,10 +85,9 @@ class Trainer(main.Trainer):
     def make_env(cls, env, allow_early_resets, render: bool = False, *args, **kwargs):
         def _thunk(
             env_id: str,
-            num_dists: int,
-            prefix_length: int,
             room_size: int,
             seed: int,
+            prefixes: dict,
             strict: bool,
             test: bool,
             test_organisms: str,
@@ -108,8 +109,8 @@ class Trainer(main.Trainer):
                 objects = [(t, c) for (c, t) in objects]
                 kwargs.update(room_objects=objects)
                 _env = PickupEnv(objects=objects, **_kwargs)
-                _env = PlantAnimalWrapper(_env, prefix_length)
-                longest_mission = "pick up the grasshopper"
+                _env = PlantAnimalWrapper(_env, prefixes)
+                longest_mission = prefixes["box"] + "pick up the magenta grasshopper"
 
             else:
                 raise RuntimeError(f"{env_id} is not a valid env_id")
@@ -132,16 +133,34 @@ class Trainer(main.Trainer):
 
         return functools.partial(_thunk, env_id=env, **kwargs)
 
+    # noinspection PyShadowingBuiltins
+    @staticmethod
+    @functools.lru_cache(maxsize=2)
+    def stock_prefix(type: str, prefix_length: int, seed: int):
+        rng = np.random.default_rng(seed=seed)
+        colors = rng.choice(list(COLORS), replace=False, size=prefix_length)
+        return ". ".join(
+            [f"{color} {alt_type(type)}: {color} {type}" for color in colors]
+        )
+
     @staticmethod
     @functools.lru_cache(maxsize=1)
     def tokenizer(pretrained_model):
         return GPT2Tokenizer.from_pretrained(pretrained_model)
 
     @classmethod
-    def make_vec_envs(cls, *args, pretrained_model: str, **kwargs):
+    def make_vec_envs(
+        cls, *args, pretrained_model: str, prefix_length: int, seed: int, **kwargs
+    ):
+        prefixes = {
+            ty: cls.stock_prefix(ty, prefix_length=prefix_length, seed=seed)
+            for ty in ["ball", "box"]
+        }
         return super().make_vec_envs(
             *args,
             **kwargs,
+            seed=seed,
+            prefixes=prefixes,
             tokenizer=cls.tokenizer(pretrained_model),
         )
 
