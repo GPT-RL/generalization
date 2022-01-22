@@ -1,16 +1,14 @@
 import abc
 import re
-import sys
 from abc import ABC
 from dataclasses import astuple, dataclass
 from itertools import chain, cycle, islice
-from typing import Generator, Optional, Set, TypeVar
+from typing import Generator, List, Optional, Set, TypeVar
 
 import gym
 import gym_minigrid
 import numpy as np
-from babyai.levels.levelgen import LevelGen, RejectSampling
-from babyai.levels.verifier import ActionInstr
+from babyai.levels.levelgen import LevelGen
 from colors import color as ansi_color
 from gym.spaces import Box, Dict, Discrete, MultiDiscrete, Tuple
 from gym_minigrid.minigrid import COLORS, OBJECT_TO_IDX, MiniGridEnv, WorldObj
@@ -162,12 +160,8 @@ class BabyAIEnv(ReproducibleEnv, RenderEnv, LevelGen):
         room_size: int,
         seed: int,
         unblocking: bool,
-        train_instructions: Set[ActionInstr],
-        test: bool,
         **_,
     ):
-        self.train = not test
-        self.train_instructions = train_instructions
         # We add many distractors to increase the probability
         # of ambiguous locations within the same room
         super().__init__(
@@ -183,32 +177,28 @@ class BabyAIEnv(ReproducibleEnv, RenderEnv, LevelGen):
             unblocking=unblocking,  # False,
         )
 
-    def instr_is_valid(self, instr: ActionInstr):
-        try:
-            self.validate_instrs(instr)
-            instr.surface(self)
-            return True
-        except (RejectSampling, AssertionError):
-            return False
 
-    def rand_instr(self, *args, allow_invalid=False, **kwargs):
-        if allow_invalid:
-            return super().rand_instr(*args, **kwargs)
+class MultiSeedWrapper(gym.Wrapper):
+    def __init__(self, env, seeds: List[int]):
+        self.seeds = seed, *_ = seeds
+        self.rng = np.random.default_rng(seed)
+        super().__init__(env)
 
-        while True:
-            if self.train:
-                valid_train_instructions = list(
-                    filter(self.instr_is_valid, self.train_instructions)
-                )
-                if not valid_train_instructions:
-                    print(".", end="")
-                    sys.stdout.flush()
-                    raise RejectSampling("No valid train instructions.")
-                return self._rand_elem(valid_train_instructions)
-            else:
-                instr = super().rand_instr(*args, **kwargs)
-                if instr not in self.train_instructions:
-                    return instr
+    def reset(self, **kwargs):
+        seed = int(self.rng.choice(self.seeds))
+        self.env.seed(seed)
+        return super().reset()
+
+
+class TrainTestChecker(gym.Wrapper):
+    def __init__(self, env: gym.Env, missions: Set[str]):
+        self.missions = missions
+        super().__init__(env)
+
+    def reset(self, **kwargs):
+        s = super().reset(**kwargs)
+        assert s["mission"] in self.missions
+        return s
 
 
 class RenderColorPickupEnv(RenderColorEnv, BabyAIEnv):

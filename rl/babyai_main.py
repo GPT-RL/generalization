@@ -1,34 +1,36 @@
 import functools
-import pickle
-from pathlib import Path
-from typing import List, Literal, cast
+import itertools
+from collections import defaultdict
+from typing import List, Literal, NamedTuple, Set, cast
 
 import gym
 import main
 import numpy as np
-from babyai.levels.verifier import (
-    LOC_NAMES,
-    OBJ_TYPES,
-    GoToInstr,
-    ObjDesc,
-    OpenInstr,
-    PickupInstr,
-    PutNextInstr,
-)
 from babyai_agent import Agent
 from babyai_env import (
     ActionInObsWrapper,
     BabyAIEnv,
     FullyObsWrapper,
+    MultiSeedWrapper,
     RolloutsWrapper,
     SuccessWrapper,
     TokenizerWrapper,
+    TrainTestChecker,
 )
 from envs import RenderWrapper, VecPyTorch
-from gym_minigrid.minigrid import COLOR_NAMES
 from stable_baselines3.common.monitor import Monitor
 from tqdm import tqdm
 from transformers import GPT2Tokenizer
+
+
+class MissionsSeeds(NamedTuple):
+    missions: Set[str]
+    seeds: Set[int]
+
+
+class TrainTestSplits(NamedTuple):
+    train: MissionsSeeds
+    test: MissionsSeeds
 
 
 class Args(main.Args):
@@ -44,12 +46,13 @@ class Args(main.Args):
         "EleutherAI/gpt-neo-2.7B",
     ] = "gpt2-large"  # what size of pretrained GPT to use
     env: str = "plant-animal"  # env ID for gym
+    envs_per_mission: int = 32
     instr_kinds: str = "action"
+    missions_per_split: int = 30
     locations: bool = False
     locked_room_prob: float = 0
     num_dists: int = 1
     num_rows: int = 1
-    num_train: int = 30
     room_size: int = 5
     second_layer: bool = False
     strict: bool = True
@@ -101,13 +104,34 @@ class Trainer(main.Trainer):
         return args.recurrent
 
     @classmethod
-    def make_env(cls, env, allow_early_resets, render: bool = False, *args, **kwargs):
+    def make_env(cls, **kwargs):
         def _thunk(
+            allow_early_resets: bool,
+            test: bool,
+            train_test_splits: TrainTestSplits,
             tokenizer: GPT2Tokenizer,
-            **kwargs,
+            render: bool = False,
+            **_kwargs,
         ):
-            _env = BabyAIEnv(**kwargs)
-            longest_mission = "pick up the grasshopper"
+            _env = BabyAIEnv(**_kwargs)
+            _env = MultiSeedWrapper(
+                _env,
+                seeds=list(
+                    train_test_splits.train.seeds
+                    if test
+                    else train_test_splits.test.seeds
+                ),
+            )
+            _env = TrainTestChecker(
+                _env,
+                missions=train_test_splits.train.missions
+                if test
+                else train_test_splits.test.missions,
+            )
+            longest_mission = (
+                "put a ball next to a purple door after you put a blue box next to a grey box and pick "
+                "up the purple box "
+            )
 
             _env = FullyObsWrapper(_env)
             _env = ActionInObsWrapper(_env)
@@ -125,98 +149,91 @@ class Trainer(main.Trainer):
 
             return _env
 
-        return functools.partial(_thunk, env_id=env, **kwargs)
+        return functools.partial(_thunk, **kwargs)
 
     @staticmethod
     @functools.lru_cache(maxsize=1)
     def tokenizer(pretrained_model):
         return GPT2Tokenizer.from_pretrained(pretrained_model)
 
-    @classmethod
+    @staticmethod
     @functools.lru_cache(maxsize=1)
-    def instructions(cls, seed, num_train, env):
-        def get_objs():
-            colors = [None, *COLOR_NAMES]
-            types = list(OBJ_TYPES)
-            locations = [None, *LOC_NAMES]
+    def train_test_splits(
+        envs_per_mission: int,
+        missions_per_split: int,
+        seed: int,
+        **kwargs,
+    ):
+        env = BabyAIEnv(**kwargs, seed=seed)
+        missions_to_seeds = defaultdict(list)
+        total_missions = 2 * missions_per_split
+        prev_num_seeds = 0
 
-            for color in colors:
-                for ty in types:
-                    for loc in locations:
-                        yield ObjDesc(ty, color, loc)
+        with tqdm(
+            desc="Generating mission/environment pairs...",
+            total=envs_per_mission * missions_per_split * 2,
+        ) as bar:
+            for i in itertools.count():
+                if len(missions_to_seeds) > total_missions:
+                    num_seeds = [len(v) for v in missions_to_seeds.values()]
+                    num_seeds = sorted(num_seeds, reverse=True)[:total_missions]
+                    total_num_seeds = sum(num_seeds)
+                    bar.update(total_num_seeds - prev_num_seeds)
+                    prev_num_seeds = total_num_seeds
+                    if all([n >= envs_per_mission for n in num_seeds]):
+                        break
 
-        def get_instrs():
-            for obj in get_objs():
-                yield GoToInstr(obj)
-                if obj.type == "door":
-                    yield OpenInstr(obj)
-                else:
-                    yield PickupInstr(obj)
-                    for obj_fixed in get_objs():
-                        yield PutNextInstr(obj, obj_fixed)
+                env.seed(seed + i)
+                mission = env.reset()["mission"]
+                if len(missions_to_seeds[mission]) < envs_per_mission:
+                    missions_to_seeds[mission].append(seed + i)
 
-        def is_valid(instr):
-            env.reset()
-            for _ in range(1000):
-                env.reset()
-                if env.instr_is_valid(instr):
-                    return True
-            return False
-
-        instrs = list(get_instrs())
         rng = np.random.default_rng(seed=seed)
-        rng.shuffle(instrs)
-        train_instructions = []
-        with tqdm(desc="Validating train instructions...", total=num_train) as bar:
-            for instr in instrs:
-                if len(train_instructions) == num_train:
-                    break
-                if is_valid(instr):
-                    train_instructions.append(instr)
-                    bar.update(1)
-
-        train_instructions = rng.choice(
-            train_instructions, replace=False, size=num_train
+        missions_to_seeds = {
+            k: v for k, v in missions_to_seeds.items() if len(v) >= envs_per_mission
+        }
+        missions = set(missions_to_seeds)
+        train_missions = set(
+            rng.choice(
+                list(missions_to_seeds.keys()), replace=False, size=missions_per_split
+            )
         )
-        length = len(train_instructions)
-        train_instructions = set(train_instructions)
-        assert length == len(train_instructions)
-        return train_instructions
+        test_missions = missions - train_missions
+
+        def get_seeds(_missions: Set[str]):
+            for _mission in _missions:
+                for _seed in missions_to_seeds[_mission]:
+                    yield _seed
+
+        def missions_and_seeds(_missions: Set[str]):
+            return MissionsSeeds(missions=_missions, seeds=set(get_seeds(_missions)))
+
+        return TrainTestSplits(
+            train=missions_and_seeds(train_missions),
+            test=missions_and_seeds(test_missions),
+        )
 
     @classmethod
     def make_vec_envs(
         cls,
         *args,
-        num_train: int,
+        missions_per_split: int,
+        envs_per_mission: int,
         pretrained_model: str,
-        seed: int,
+        test: bool,
         train_instructions_path: str,
         **kwargs,
     ):
-        train_instructions = None
-        path = Path(train_instructions_path)
-        if path.exists():
-            with path.open("rb") as f:
-                cached_num_train, cached_train_instructions = pickle.load(f)
-                if cached_num_train == num_train:
-                    train_instructions = cached_train_instructions
-
-        if train_instructions is None:
-            _kwargs = dict(**kwargs)
-            _kwargs.update(test=True)
-            env = BabyAIEnv(
-                seed=seed,
-                train_instructions=set(),
-                **_kwargs,
-            )
-            train_instructions = cls.instructions(seed, num_train, env)
-            with path.open("wb") as f:
-                pickle.dump((num_train, train_instructions), f)
+        train_test_splits = cls.train_test_splits(
+            envs_per_mission=envs_per_mission,
+            missions_per_split=missions_per_split,
+            **kwargs,
+        )
         return super().make_vec_envs(
             *args,
             **kwargs,
-            seed=seed,
-            train_instructions=train_instructions,
+            test=test,
+            train_test_splits=train_test_splits,
             tokenizer=cls.tokenizer(pretrained_model),
         )
 
