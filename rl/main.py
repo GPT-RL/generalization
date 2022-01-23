@@ -553,6 +553,8 @@ class Trainer:
         for k, v in parameters.items():
             if k not in cls.excluded():
                 if check_hasattr:
+                    if not hasattr(args, k):
+                        breakpoint()
                     assert hasattr(args, k), k
                 setattr(args, k, v)
 

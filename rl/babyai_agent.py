@@ -56,11 +56,6 @@ class Base(NNBase):
         recurrent: bool,
         use_gru: bool,
     ):
-        super().__init__(
-            recurrent=recurrent,
-            recurrent_input_size=hidden_size,
-            hidden_size=hidden_size,
-        )
         self.use_gru = use_gru
         self.hidden_size = hidden_size
         self.observation_spaces = Spaces(*observation_space.spaces)
@@ -68,6 +63,7 @@ class Base(NNBase):
         self.num_actions = self.observation_spaces.action.n
 
         self.pad_token_id = GPT2Tokenizer.from_pretrained(pretrained_model).eos_token_id
+        nn.Module.__init__(self)
 
         if "neo" in pretrained_model:
             config = GPTNeoConfig.from_pretrained(
@@ -135,13 +131,32 @@ class Base(NNBase):
             )
             output = self.image_net(dummy_input)
 
+        self._hidden_size = hidden_size
+        self._recurrent = recurrent
+        self.initial_hxs = nn.Parameter(self._initial_hxs)
+
+        if recurrent:
+            recurrent_input_size = (
+                output.size(-1) + self.num_directions + self.num_actions
+            )
+            self.rnn = nn.GRU(recurrent_input_size, hidden_size)
+            for name, param in self.rnn.named_parameters():
+                if "bias" in name:
+                    nn.init.constant_(param, 0)
+                elif "weight" in name:
+                    nn.init.orthogonal_(param)
+
         self.merge = nn.Sequential(
             init_(
                 nn.Linear(
-                    output.size(-1)
-                    + self.num_directions
-                    + self.num_actions
-                    + self.embedding_size,
+                    (hidden_size + self.embedding_size)
+                    if self.is_recurrent
+                    else (
+                        output.size(-1)
+                        + self.num_directions
+                        + self.num_actions
+                        + self.embedding_size
+                    ),
                     hidden_size,
                 )
             ),
@@ -187,10 +202,13 @@ class Base(NNBase):
         action = F.one_hot(action, num_classes=self.num_actions).squeeze(1)
 
         mission = self.embed(inputs.mission.long())
-        x = torch.cat([image, directions, action, mission], dim=-1)
-        x = self.merge(x)
         if self.is_recurrent:
+            x = torch.cat([image, directions, action], dim=-1)
             x, rnn_hxs = self._forward_gru(x, rnn_hxs, masks)
+            x = torch.cat([x, mission], dim=-1)
+        else:
+            x = torch.cat([image, directions, action, mission], dim=-1)
+        x = self.merge(x)
         return self.critic_linear(x), x, rnn_hxs
 
     def embed(self, inputs):

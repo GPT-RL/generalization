@@ -46,9 +46,9 @@ class Args(main.Args):
         "EleutherAI/gpt-neo-2.7B",
     ] = "gpt2-large"  # what size of pretrained GPT to use
     env: str = "plant-animal"  # env ID for gym
-    envs_per_mission: int = 32
+    envs_per_mission: int = 2
     instr_kinds: str = "action"
-    missions_per_split: int = 30
+    missions_per_split: int = 2
     locations: bool = False
     locked_room_prob: float = 0
     num_dists: int = 1
@@ -99,7 +99,8 @@ class Trainer(main.Trainer):
 
     @staticmethod
     def recurrent(args: Args):
-        if "sequence" in args.env:
+        instr_kinds = set(args.instr_kinds.split(","))
+        if instr_kinds & {"and", "seq"}:
             assert args.recurrent
         return args.recurrent
 
