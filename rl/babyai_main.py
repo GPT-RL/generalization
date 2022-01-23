@@ -94,21 +94,17 @@ class Trainer(main.Trainer):
             tokenizer: GPT2Tokenizer,
             **_,
         ):
-            _kwargs = dict(room_size=room_size, strict=strict, seed=seed)
             if env_id == "plant-animal":
                 test_objects = {
                     getattr(PlantAnimalWrapper, a) for a in test_organisms.split(",")
                 }
-                objects = {
-                    k
-                    for k in PlantAnimalWrapper.replacements.keys()
-                    if k not in test_objects
-                }
+                objects = set(PlantAnimalWrapper.replacements)
                 objects = test_objects if test else objects - test_objects
                 objects = [o.split() for o in objects]
                 objects = [(t, c) for (c, t) in objects]
-                kwargs.update(room_objects=objects)
-                _env = PickupEnv(objects=objects, **_kwargs)
+                _env = PickupEnv(
+                    objects=objects, room_size=room_size, strict=strict, seed=seed
+                )
                 _env = PlantAnimalWrapper(_env, prefixes)
                 longest_mission = prefixes["box"] + "pick up the magenta grasshopper"
 
