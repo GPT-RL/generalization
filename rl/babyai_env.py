@@ -9,6 +9,16 @@ import gym
 import gym_minigrid
 import numpy as np
 from babyai.levels.levelgen import LevelGen
+from babyai.levels.verifier import (
+    OBJ_TYPES_NOT_DOOR,
+    AfterInstr,
+    AndInstr,
+    BeforeInstr,
+    GoToInstr,
+    OpenInstr,
+    PickupInstr,
+    PutNextInstr,
+)
 from colors import color as ansi_color
 from gym.spaces import Box, Dict, Discrete, MultiDiscrete, Tuple
 from gym_minigrid.minigrid import COLORS, OBJECT_TO_IDX, MiniGridEnv, WorldObj
@@ -176,6 +186,75 @@ class BabyAIEnv(ReproducibleEnv, RenderEnv, LevelGen):
             seed=seed,
             unblocking=unblocking,  # False,
         )
+
+    def rand_instr(self, action_kinds, instr_kinds, depth=0):
+        """
+        Generate random instructions
+        """
+
+        kind = self._rand_elem(instr_kinds)
+
+        if kind == "action":
+            action = self._rand_elem(action_kinds)
+
+            if action == "goto":
+                return GoToInstr(
+                    self.rand_obj(),
+                )
+            elif action == "pickup":
+                return PickupInstr(
+                    self.rand_obj(types=OBJ_TYPES_NOT_DOOR),
+                    strict=True,
+                )
+            elif action == "open":
+                return OpenInstr(
+                    self.rand_obj(types=["door"]),
+                    strict=True,
+                )
+            elif action == "putnext":
+                return PutNextInstr(
+                    self.rand_obj(types=OBJ_TYPES_NOT_DOOR),
+                    self.rand_obj(),
+                    strict=True,
+                )
+
+            assert False
+
+        elif kind == "and":
+            instr_a = self.rand_instr(
+                action_kinds=action_kinds,
+                instr_kinds=["action"],
+                depth=depth + 1,
+            )
+            instr_b = self.rand_instr(
+                action_kinds=action_kinds,
+                instr_kinds=["action"],
+                depth=depth + 1,
+            )
+            return AndInstr(instr_a, instr_b, strict=True)
+
+        elif kind == "seq":
+            instr_a = self.rand_instr(
+                action_kinds=action_kinds,
+                instr_kinds=["action", "and"],
+                depth=depth + 1,
+            )
+            instr_b = self.rand_instr(
+                action_kinds=action_kinds,
+                instr_kinds=["action", "and"],
+                depth=depth + 1,
+            )
+
+            kind = self._rand_elem(["before", "after"])
+
+            if kind == "before":
+                return BeforeInstr(instr_a, instr_b, strict=True)
+            elif kind == "after":
+                return AfterInstr(instr_a, instr_b, strict=True)
+
+            assert False
+
+        assert False
 
 
 class MultiSeedWrapper(gym.Wrapper):
