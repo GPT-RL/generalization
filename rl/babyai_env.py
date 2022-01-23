@@ -148,7 +148,9 @@ class PickupEnv(RenderEnv, ReproducibleEnv):
         seed: int,
         strict: bool,
         num_dists: int = 1,
+        prohibited=None,
     ):
+        self.prohibited = prohibited
         self.objects = sorted(objects)
         self.strict = strict
         self.num_dists = num_dists
@@ -168,7 +170,8 @@ class PickupEnv(RenderEnv, ReproducibleEnv):
         objects = {*self.objects} - {goal_object}
         for _ in range(self.num_dists):
             obj = self._rand_elem(objects)
-            self.add_object(0, 0, *obj)
+            if {goal_object, obj} != self.prohibited:
+                self.add_object(0, 0, *obj)
 
         self.check_objs_reachable()
         self.instrs = PickupInstr(ObjDesc(*goal_object), strict=self.strict)

@@ -98,8 +98,19 @@ class Trainer(main.Trainer):
                 objects = test_objects if test else objects - test_objects
                 objects = [o.split() for o in objects]
                 objects = [(t, c) for (c, t) in objects]
+                kwargs = {}
+                if test:
+                    (c1, t1), (c2, t2) = objects
+                    cross_product = [(c1, t2), (c2, t1)]
+                    objects.extend(cross_product)
+                    kwargs.update(prohibited=set(cross_product))
+
                 _env = PickupEnv(
-                    objects=objects, room_size=room_size, strict=strict, seed=seed
+                    objects=objects,
+                    room_size=room_size,
+                    strict=strict,
+                    seed=seed,
+                    **kwargs,
                 )
                 _env = PlantAnimalWrapper(_env, prefixes)
                 longest_mission = prefixes["box"] + "pick up the magenta grasshopper"
