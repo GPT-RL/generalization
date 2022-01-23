@@ -12,6 +12,7 @@ class Base(babyai_agent.Base):
     def __init__(
         self,
         *args,
+        multihead_attention: bool,
         num_embeddings: int,
         pretrained_model: str,
         randomize_parameters: bool,
@@ -19,14 +20,18 @@ class Base(babyai_agent.Base):
         train_wpe: bool,
         **kwargs,
     ):
+        self.multihead_attention = multihead_attention
         self._embedding_size = pretrained_model
         self.randomize_parameters = randomize_parameters
         self.train_wpe = train_wpe
         self.train_ln = train_ln
         super().__init__(*args, pretrained_model=pretrained_model, **kwargs)
-        self.keys = nn.Linear(num_embeddings, self.embedding_size)
-        self.values = nn.Embedding(num_embeddings, self.embedding_size)
-        self.multihead_attn = nn.MultiheadAttention(self.embedding_size, num_heads=1)
+        if multihead_attention:
+            self.keys = nn.Linear(num_embeddings, self.embedding_size)
+            self.values = nn.Embedding(num_embeddings, self.embedding_size)
+            self.multihead_attn = nn.MultiheadAttention(
+                self.embedding_size, num_heads=1
+            )
 
     def build_embeddings(self):
         gpt = build_gpt(self._embedding_size, self.randomize_parameters)
@@ -41,7 +46,12 @@ class Base(babyai_agent.Base):
         states = self.embeddings.forward(
             inputs, attention_mask=inputs != self.pad_token_id
         ).last_hidden_state[:, -2:]
-        key = self.keys.weight.T.unsqueeze(1)
-        value = self.values.weight.unsqueeze(1)
-        attn_output, _ = self.multihead_attn.forward(query=states, key=key, value=value)
-        return attn_output.mean(1)
+        if self.multihead_attention:
+            key = self.keys.weight.T.unsqueeze(1)
+            value = self.values.weight.unsqueeze(1)
+            attn_output, _ = self.multihead_attn.forward(
+                query=states, key=key, value=value
+            )
+            return attn_output.mean(1)
+        else:
+            return states.mean(1)
