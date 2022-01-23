@@ -1,5 +1,5 @@
 import functools
-from typing import List, Literal, cast
+from typing import List, Literal, Set, cast
 
 import gym
 import main
@@ -36,7 +36,6 @@ class Args(main.Args):
     room_size: int = 5
     second_layer: bool = False
     strict: bool = True
-    test_organisms: str = None
     prefix_length: int = 4
 
     def configure(self) -> None:
@@ -90,14 +89,11 @@ class Trainer(main.Trainer):
             prefixes: dict,
             strict: bool,
             test: bool,
-            test_organisms: str,
+            test_objects: Set[str],
             tokenizer: GPT2Tokenizer,
             **_,
         ):
             if env_id == "plant-animal":
-                test_objects = {
-                    getattr(PlantAnimalWrapper, a) for a in test_organisms.split(",")
-                }
                 objects = set(PlantAnimalWrapper.replacements)
                 objects = test_objects if test else objects - test_objects
                 objects = [o.split() for o in objects]
@@ -152,11 +148,17 @@ class Trainer(main.Trainer):
             ty: cls.stock_prefix(ty, prefix_length=prefix_length, seed=seed)
             for ty in ["ball", "box"]
         }
+        rng = np.random.default_rng(seed=seed)
+        colors, _ = zip(*[o.split() for o in PlantAnimalWrapper.replacements])
+        test_color1, test_color2 = rng.choice(list(colors), size=2, replace=False)
+        test_objects = {f"{test_color1} box", f"{test_color2} ball"}
+
         return super().make_vec_envs(
             *args,
             **kwargs,
             seed=seed,
             prefixes=prefixes,
+            test_objects=test_objects,
             tokenizer=cls.tokenizer(pretrained_model),
         )
 
