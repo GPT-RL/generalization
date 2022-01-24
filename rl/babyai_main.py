@@ -1,6 +1,8 @@
 import functools
 import itertools
-from collections import defaultdict
+import pickle
+from pathlib import Path
+from pprint import pprint
 from typing import List, Literal, NamedTuple, Set, cast
 
 import gym
@@ -17,6 +19,7 @@ from babyai_env import (
     TokenizerWrapper,
     TrainTestChecker,
 )
+from colors import color as ansi_color
 from envs import RenderWrapper, VecPyTorch
 from stable_baselines3.common.monitor import Monitor
 from tqdm import tqdm
@@ -56,7 +59,7 @@ class Args(main.Args):
     room_size: int = 5
     second_layer: bool = False
     strict: bool = True
-    train_instructions_path: str = "/root/.cache/data/train_instructions.pkl"
+    instr_path: str = "/root/.cache/data/instructions.pkl"
     unblocking: bool = False
     use_gru: bool = False
 
@@ -166,33 +169,52 @@ class Trainer(main.Trainer):
         **kwargs,
     ):
         env = BabyAIEnv(**kwargs, seed=seed)
-        missions_to_seeds = defaultdict(list)
         total_missions = 2 * missions_per_split
-        prev_num_seeds = 0
+        missions_to_seeds = {}
+        rng = np.random.default_rng(seed=seed)
 
         with tqdm(
             desc="Generating mission/environment pairs...",
             total=envs_per_mission * missions_per_split * 2,
         ) as bar:
             for i in itertools.count():
-                if len(missions_to_seeds) > total_missions:
-                    num_seeds = [len(v) for v in missions_to_seeds.values()]
-                    num_seeds = sorted(num_seeds, reverse=True)[:total_missions]
-                    total_num_seeds = sum(num_seeds)
-                    bar.update(total_num_seeds - prev_num_seeds)
-                    prev_num_seeds = total_num_seeds
-                    if all([n >= envs_per_mission for n in num_seeds]):
-                        break
+                if i % 10_000 == 0:
+                    empty_missions = {
+                        k: v for k, v in missions_to_seeds.items() if len(v) == 0
+                    }
+                    if empty_missions:
+                        print(
+                            ansi_color(
+                                "missions with no environments", style="underline"
+                            )
+                        )
+                    for k in empty_missions:
+                        print(k)
+                        del missions_to_seeds[k]
 
-                env.seed(seed + i)
+                    while len(missions_to_seeds) < total_missions:
+                        env.seed(int(rng.choice(1_000_000)))
+                        instr = env.rand_instr(env.action_kinds, env.instr_kinds)
+                        mission = instr.surface(env)
+                        if mission not in missions_to_seeds:
+                            missions_to_seeds[mission] = []
+
+                num_seeds = [len(v) for v in missions_to_seeds.values()]
+                if all([n >= envs_per_mission for n in num_seeds]):
+                    break
+
+                seed_i = seed + i
+                env.seed(seed_i)
                 mission = env.reset()["mission"]
-                if len(missions_to_seeds[mission]) < envs_per_mission:
-                    missions_to_seeds[mission].append(seed + i)
+                if mission in missions_to_seeds:
+                    seeds = missions_to_seeds[mission]
+                    if len(seeds) < envs_per_mission:
+                        bar.update(1)
+                        seeds.append(seed_i)
 
-        rng = np.random.default_rng(seed=seed)
-        missions_to_seeds = {
-            k: v for k, v in missions_to_seeds.items() if len(v) >= envs_per_mission
-        }
+        assert len(missions_to_seeds) == total_missions
+        for v in missions_to_seeds.values():
+            assert len(v) == envs_per_mission
         missions = set(missions_to_seeds)
         train_missions = set(
             rng.choice(
@@ -222,14 +244,40 @@ class Trainer(main.Trainer):
         envs_per_mission: int,
         pretrained_model: str,
         test: bool,
-        train_instructions_path: str,
+        instr_path: str,
         **kwargs,
     ):
-        train_test_splits = cls.train_test_splits(
-            envs_per_mission=envs_per_mission,
-            missions_per_split=missions_per_split,
-            **kwargs,
-        )
+        train_test_splits = None
+        path = Path(instr_path)
+        if path.exists():
+            with path.open("rb") as f:
+                cached: TrainTestSplits = pickle.load(f)
+            if (
+                envs_per_mission * missions_per_split
+                == len(cached.test.seeds)
+                == len(cached.train.seeds)
+            ) and (
+                missions_per_split
+                == len(cached.test.missions)
+                == len(cached.train.missions)
+            ):
+                train_test_splits = cached
+        if train_test_splits is None:
+            train_test_splits = cls.train_test_splits(
+                envs_per_mission=envs_per_mission,
+                missions_per_split=missions_per_split,
+                **kwargs,
+            )
+            with path.open("wb") as f:
+                pickle.dump(train_test_splits, f)
+
+        if test:
+            print("Test missions:")
+            pprint(train_test_splits.test.missions)
+        else:
+            print("Train missions:")
+            pprint(train_test_splits.train.missions)
+
         return super().make_vec_envs(
             *args,
             **kwargs,
