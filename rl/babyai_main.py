@@ -140,6 +140,8 @@ class Trainer(main.Trainer):
     @staticmethod
     @functools.lru_cache(maxsize=2)
     def stock_prefix(type: str, prefix_length: int, seed: int):
+        if prefix_length == 0:
+            return ""
         rng = np.random.default_rng(seed=seed)
         colors = rng.choice(list(COLORS), replace=False, size=prefix_length)
         return ". ".join(

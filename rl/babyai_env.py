@@ -350,7 +350,9 @@ class PlantAnimalWrapper(MissionWrapper):
     def change_mission(self, mission: str) -> str:
         mission = mission.replace("pick up the ", "")
         color, type = mission.split()
-        mission = f"{self.prefixes[type]}. {color} {alt_type(type)}: {color}"
+        prefix = self.prefixes[type]
+        if prefix != "":
+            mission = f"{prefix}. {color} {alt_type(type)}: {color}"
         return mission
 
 
