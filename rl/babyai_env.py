@@ -256,6 +256,12 @@ class BabyAIEnv(ReproducibleEnv, RenderEnv, LevelGen):
 
         assert False
 
+    def step(self, action):
+        s, r, t, i = super().step(action)
+        if t:
+            i.update(mission=s["mission"])
+        return s, r, t, i
+
 
 class MultiSeedWrapper(gym.Wrapper):
     def __init__(self, env, seeds: List[int]):

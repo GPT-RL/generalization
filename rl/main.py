@@ -192,6 +192,9 @@ class Trainer:
         episode_rewards = []
         episode_lengths = []
         episode_successes = []
+        from collections import defaultdict
+
+        successes_per_mission = defaultdict(list)
 
         start = time.time()
         save_count = 0
@@ -224,7 +227,10 @@ class Trainer:
                 # decrease learning rate linearly
                 utils.update_linear_schedule(ppo.optimizer, j, num_updates, args.lr)
 
-            for step in range(args.num_steps):
+            import itertools
+
+            for step in itertools.count():
+                step = step % args.num_steps
                 # Sample actions
                 with torch.no_grad():
                     (
@@ -247,6 +253,7 @@ class Trainer:
                         episode_lengths.append(info["episode"]["l"])
                     if "success" in info.keys():
                         episode_successes.append(info["success"])
+                        successes_per_mission[info["mission"]].append(info["success"])
 
                 # If done then clean the history of observations.
                 masks = torch.FloatTensor([[0.0] if done_ else [1.0] for done_ in done])
@@ -266,6 +273,18 @@ class Trainer:
                     masks=masks,
                     bad_masks=bad_masks,
                 )
+                if len(successes_per_mission) == args.missions_per_split and all(
+                    [
+                        len(successes) >= 5
+                        for successes in successes_per_mission.values()
+                    ]
+                ):
+                    print(
+                        pformat(
+                            {k: np.mean(v) for k, v in successes_per_mission.items()}
+                        )
+                    )
+                    breakpoint()
 
             with torch.no_grad():
                 next_value = agent.get_value(
