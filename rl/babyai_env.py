@@ -11,7 +11,6 @@ import numpy as np
 from babyai.levels.levelgen import LevelGen
 from babyai.levels.verifier import (
     OBJ_TYPES_NOT_DOOR,
-    AfterInstr,
     AndInstr,
     BeforeInstr,
     GoToInstr,
@@ -244,15 +243,16 @@ class BabyAIEnv(ReproducibleEnv, RenderEnv, LevelGen):
                 instr_kinds=["action", "and"],
                 depth=depth + 1,
             )
+            return BeforeInstr(instr_a, instr_b, strict=True)
 
-            kind = self._rand_elem(["before", "after"])
-
-            if kind == "before":
-                return BeforeInstr(instr_a, instr_b, strict=True)
-            elif kind == "after":
-                return AfterInstr(instr_a, instr_b, strict=True)
-
-            assert False
+            # kind = self._rand_elem(["before", "after"])
+            #
+            # if kind == "before":
+            #     return BeforeInstr(instr_a, instr_b, strict=True)
+            # elif kind == "after":
+            #     return AfterInstr(instr_a, instr_b, strict=True)
+            #
+            # assert False
 
         assert False
 
