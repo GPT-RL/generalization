@@ -9,6 +9,7 @@ from agent import NNBase
 from babyai_env import Spaces
 from gym import Space
 from gym.spaces import Box, Dict, Discrete, MultiDiscrete
+from torch.nn.utils.rnn import pack_padded_sequence
 from transformers import BertConfig, GPT2Config, GPT2Tokenizer, GPTNeoConfig
 from utils import init
 
@@ -33,18 +34,23 @@ class Agent(agent.Agent):
 
 
 class GRUEmbed(nn.Module):
-    def __init__(self, num_embeddings: int, hidden_size: int, output_size: int):
+    def __init__(
+        self, num_embeddings: int, hidden_size: int, output_size: int, pad_token_id: int
+    ):
         super().__init__()
-        gru = nn.GRU(hidden_size, hidden_size, batch_first=True)
-        self.embed = nn.Sequential(
-            nn.Embedding(num_embeddings, hidden_size),
-            gru,
-        )
+        self.pad_token_id = pad_token_id
+        self.gru = nn.GRU(hidden_size, hidden_size, batch_first=True)
+        self.embed = nn.Embedding(num_embeddings, hidden_size)
         self.projection = nn.Linear(hidden_size, output_size)
 
     def forward(self, x, **_):
-        hidden = self.embed.forward(x)[1].squeeze(0)
-        return self.projection(hidden)
+        lengths = torch.sum(x != self.pad_token_id, dim=-1).detach().cpu()
+        embedded = self.embed(x)
+        packed = pack_padded_sequence(
+            embedded, lengths, batch_first=True, enforce_sorted=False
+        )
+        _, last_hidden = self.gru.forward(packed)
+        return self.projection(last_hidden.squeeze(0))
 
 
 class Base(NNBase):
@@ -176,7 +182,12 @@ class Base(NNBase):
     def build_embeddings(self):
         num_embeddings = int(self.observation_spaces.mission.nvec[0])
         return (
-            GRUEmbed(num_embeddings, 100, output_size=self.embedding_size)
+            GRUEmbed(
+                num_embeddings,
+                100,
+                output_size=self.embedding_size,
+                pad_token_id=self.pad_token_id,
+            )
             if self.use_gru
             else nn.EmbeddingBag(
                 num_embeddings, self.embedding_size, padding_idx=self.pad_token_id
