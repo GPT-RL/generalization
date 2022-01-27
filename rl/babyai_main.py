@@ -1,7 +1,6 @@
 import functools
 from typing import List, Literal, Set, cast
 
-import gym
 import main
 import numpy as np
 from babyai_agent import Agent
@@ -52,20 +51,6 @@ class Trainer(main.Trainer):
     def make_agent(cls, envs: VecPyTorch, args: ArgsType) -> Agent:
         action_space = envs.action_space
         observation_space, *_ = envs.get_attr("original_observation_space")
-        missions: List[str]
-        return cls._make_agent(
-            action_space=action_space,
-            observation_space=observation_space,
-            args=args,
-        )
-
-    @classmethod
-    def _make_agent(
-        cls,
-        action_space: gym.spaces.Discrete,
-        observation_space: gym.spaces.Dict,
-        args: ArgsType,
-    ):
         return Agent(
             action_space=action_space,
             pretrained_model=args.pretrained_model,
@@ -113,7 +98,8 @@ class Trainer(main.Trainer):
                     **kwargs,
                 )
                 _env = PlantAnimalWrapper(_env, prefixes)
-                longest_mission = prefixes["box"] + "pick up the magenta grasshopper"
+                missions: List[str] = _env.missions
+                longest_mission = max(missions, key=len)
 
             else:
                 raise RuntimeError(f"{env_id} is not a valid env_id")

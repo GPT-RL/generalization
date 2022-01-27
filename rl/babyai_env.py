@@ -345,10 +345,15 @@ class PlantAnimalWrapper(MissionWrapper):
 
     def __init__(self, env, prefixes: dict):
         self.prefixes = prefixes
+        self.missions = [self.new_mission(m) for m in self.replacements]
         super().__init__(env)
 
     def change_mission(self, mission: str) -> str:
         mission = mission.replace("pick up the ", "")
+        mission = self.new_mission(mission)
+        return mission
+
+    def new_mission(self, mission):
         color, type = mission.split()
         prefix = self.prefixes[type]
         if prefix != "":
@@ -430,12 +435,19 @@ class TokenizerWrapper(gym.ObservationWrapper):
         )
 
     def observation(self, observation):
-        mission = self.tokenizer.encode(observation["mission"])
-        length = len(self.observation_space.spaces["mission"].nvec)
-        eos = self.tokenizer.eos_token_id
-        mission = [*islice(chain(mission, cycle([eos])), length)]
+        mission = observation["mission"]
+        mission_space = self.observation_space.spaces["mission"]
+        mission = self.new_mission(self.tokenizer, mission, mission_space)
         observation.update(mission=mission)
         return observation
+
+    @staticmethod
+    def new_mission(tokenizer, mission, mission_space):
+        length = len(mission_space.nvec)
+        mission = tokenizer.encode(mission)
+        eos = tokenizer.eos_token_id
+        mission = [*islice(chain(mission, cycle([eos])), length)]
+        return mission
 
 
 class MissionEnumeratorWrapper(gym.ObservationWrapper):

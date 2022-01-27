@@ -1,5 +1,6 @@
 import glob
 import os
+from functools import lru_cache
 
 import torch.nn as nn
 from envs import VecNormalize
@@ -65,6 +66,7 @@ def cleanup_log_dir(log_dir):
             os.remove(f)
 
 
+@lru_cache(maxsize=1)
 def build_gpt(gpt_size: str, randomize_parameters):
     return (
         GPT2Model(

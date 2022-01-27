@@ -2,15 +2,18 @@ import logging
 from typing import cast
 
 import babyai_main
-import gym
 import torch
-from gpt_agent import Agent
+from babyai_env import Spaces, TokenizerWrapper
+from envs import VecPyTorch
+from gpt_agent import Agent, Base
+from utils import build_gpt
 
 
 class Args(babyai_main.Args):
     multihead_attention: bool = False
-    num_embeddings: int = 64
+    freeze_keys: bool = False
     randomize_parameters: bool = False
+    attn_temp: float = 5
     train_ln: bool = False
     train_wpe: bool = False
     gpt: bool = False
@@ -22,21 +25,35 @@ class ArgsType(Args, babyai_main.ArgsType):
 
 class Trainer(babyai_main.Trainer):
     @classmethod
-    def _make_agent(
-        cls,
-        action_space: gym.spaces.Discrete,
-        observation_space: gym.spaces.Dict,
-        args: ArgsType,
-    ):
+    def make_agent(cls, envs: VecPyTorch, args: ArgsType) -> Agent:
+        action_space = envs.action_space
+        observation_space, *_ = envs.get_attr("original_observation_space")
+        gpt = build_gpt(args.pretrained_model, args.randomize_parameters)
+        outputs = None
+        if args.multihead_attention:
+            tokenizer = cls.tokenizer(args.pretrained_model)
+            missions, *_ = envs.get_attr("missions")
+            mission_space = Spaces(*observation_space.spaces).mission
+            tokens = [
+                TokenizerWrapper.new_mission(tokenizer, mission, mission_space)
+                for mission in missions
+            ]
+            tokens = torch.Tensor(tokens).long()
+            outputs = Base.pass_through_gpt(gpt, tokens, tokenizer.eos_token_id)
+            outputs = outputs.reshape(-1, outputs.size(-1))
+
         return Agent(
             action_space=action_space,
+            attn_temp=args.attn_temp,
+            freeze_keys=args.freeze_keys,
+            gpt=gpt,
             hidden_size=args.hidden_size,
             multihead_attention=args.multihead_attention,
-            num_embeddings=args.num_embeddings,
             observation_space=observation_space,
-            recurrent=cls.recurrent(args),
+            outputs=outputs,
             pretrained_model=args.pretrained_model,
             randomize_parameters=args.randomize_parameters,
+            recurrent=cls.recurrent(args),
             train_wpe=args.train_wpe,
             train_ln=args.train_ln,
         )
