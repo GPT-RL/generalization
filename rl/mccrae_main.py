@@ -89,7 +89,9 @@ class Trainer(main.Trainer):
     @classmethod
     def make_vec_envs(cls, args: Args, device, test: bool, **kwargs):
         with zipfile.ZipFile(args.data_path) as zip_file:
-            with zip_file.open("mccrae.csv") as file:
+            with zip_file.open(
+                "McRae-BRM-InPress/CONCS_FEATS_concstats_brm.txt"
+            ) as file:
                 df: pd.DataFrame = pd.read_csv(file, sep="\t")
 
         common_features = df.Feature.value_counts().index[: args.n_features]
