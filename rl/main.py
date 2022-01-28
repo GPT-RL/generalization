@@ -148,13 +148,13 @@ class Trainer:
         torch.cuda.manual_seed_all(args.seed)
         np.random.seed(args.seed)
 
-        cuda = args.cuda and torch.cuda.is_available()
+        cuda = cls.cuda(args)
         if cuda:
             torch.backends.cudnn.benchmark = False
             torch.backends.cudnn.deterministic = True
 
         torch.set_num_threads(1)
-        device = torch.device("cuda:0" if cuda else "cpu")
+        device = cls.device(cuda)
 
         envs = cls.make_vec_envs(device=device, test=False, **args.as_dict())
 
@@ -319,6 +319,14 @@ class Trainer:
                     logging.info(pformat(log))
                     if logger.run_id is not None:
                         logger.log(log)
+
+    @classmethod
+    def cuda(cls, args):
+        return args.cuda and torch.cuda.is_available()
+
+    @classmethod
+    def device(cls, cuda):
+        return torch.device("cuda:0" if cuda else "cpu")
 
     @staticmethod
     def load(agent, load_path):

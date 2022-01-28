@@ -5,8 +5,7 @@ import babyai_main
 import torch
 from babyai_env import Spaces, TokenizerWrapper
 from envs import VecPyTorch
-from gpt_agent import Agent, Base
-from utils import build_gpt
+from gpt_agent import Agent
 
 
 class Args(babyai_main.Args):
@@ -28,8 +27,9 @@ class Trainer(babyai_main.Trainer):
     def make_agent(cls, envs: VecPyTorch, args: ArgsType) -> Agent:
         action_space = envs.action_space
         observation_space, *_ = envs.get_attr("original_observation_space")
-        gpt = build_gpt(args.pretrained_model, args.randomize_parameters)
-        outputs = None
+        missions = None
+        cuda = cls.cuda(args)
+        device = cls.device(cuda)
         if args.multihead_attention:
             tokenizer = cls.tokenizer(args.pretrained_model)
             missions, *_ = envs.get_attr("missions")
@@ -38,19 +38,17 @@ class Trainer(babyai_main.Trainer):
                 TokenizerWrapper.new_mission(tokenizer, mission, mission_space)
                 for mission in missions
             ]
-            tokens = torch.Tensor(tokens).long()
-            outputs = Base.pass_through_gpt(gpt, tokens, tokenizer.eos_token_id)
-            outputs = outputs.reshape(-1, outputs.size(-1))
+            missions = torch.Tensor(tokens).long()
 
         return Agent(
             action_space=action_space,
             attn_temp=args.attn_temp,
+            device=device,
             freeze_keys=args.freeze_keys,
-            gpt=gpt,
             hidden_size=args.hidden_size,
             multihead_attention=args.multihead_attention,
             observation_space=observation_space,
-            outputs=outputs,
+            missions=missions,
             pretrained_model=args.pretrained_model,
             randomize_parameters=args.randomize_parameters,
             recurrent=cls.recurrent(args),

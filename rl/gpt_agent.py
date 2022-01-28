@@ -1,7 +1,12 @@
+import itertools
+from dataclasses import dataclass
+from functools import lru_cache
+from typing import cast
+
 import babyai_agent
 import torch
 from multihead_attention import MultiheadAttention
-from torch import nn
+from torch import Tensor, nn
 from torch.nn import Parameter
 from utils import build_gpt
 
@@ -11,15 +16,50 @@ class Agent(babyai_agent.Agent):
         return Base(**kwargs)
 
 
+def get_primes():
+    for i in itertools.count():
+        if not any(i % j == 0 for j in range(2, i // 2 + 1)):
+            yield i
+
+
+@lru_cache()
+def get_primes_tensor(num_el, device, shape):
+    return torch.tensor(
+        list(itertools.islice(get_primes(), num_el)),
+        device=device,
+    ).reshape(shape)
+
+
+@dataclass(frozen=True)
+class HashTensorWrapper:
+    """
+    https://discuss.pytorch.org/t/how-to-put-tensors-in-a-set/123836/7
+    """
+
+    tensor: Tensor
+
+    def __hash__(self):
+        primes = get_primes_tensor(
+            self.tensor.numel(), self.tensor.device, self.tensor.shape
+        )
+        return torch.sum(self.tensor * primes).item()
+
+    def __eq__(self, other):
+        assert isinstance(other, HashTensorWrapper)
+        equals = self.tensor == other.tensor
+        equals = cast(Tensor, equals)
+        return torch.all(equals)
+
+
 class Base(babyai_agent.Base):
     def __init__(
         self,
         *args,
         attn_temp: float,
+        device: torch.DeviceObjType,
         freeze_keys: bool,
-        gpt: nn.Module,
         multihead_attention: bool,
-        outputs: torch.Tensor,
+        missions: torch.Tensor,
         pretrained_model: str,
         randomize_parameters: bool,
         train_ln: bool,
@@ -32,8 +72,11 @@ class Base(babyai_agent.Base):
         self.train_wpe = train_wpe
         self.train_ln = train_ln
         super().__init__(*args, pretrained_model=pretrained_model, **kwargs)
-        self.gpt = gpt
         if multihead_attention:
+            self.embeddings.to(device)
+            missions = missions.to(device)
+            outputs = self.gpt_forward_pass(missions)
+            outputs = outputs.reshape(-1, outputs.size(-1))
             self.keys = Parameter(attn_temp * outputs, requires_grad=not freeze_keys)
             self.values = nn.Embedding(*outputs.shape)
             self.multihead_attn = MultiheadAttention(self.embedding_size, num_heads=1)
@@ -47,10 +90,30 @@ class Base(babyai_agent.Base):
             p.requires_grad_(requires_grad)
         return gpt
 
+    @lru_cache()
+    def cached_gpt_forward_pass(self, inputs: HashTensorWrapper):
+        with torch.no_grad():
+            return self.uncached_gpt_forward_pass(inputs.tensor)
+
+    def uncached_gpt_forward_pass(self, tensor):
+        return self.embeddings.forward(
+            tensor, attention_mask=tensor != self.pad_token_id
+        ).last_hidden_state[:, -2:]
+
+    def gpt_forward_pass(self, inputs):
+        if self.train_ln or self.train_wpe:
+            return self.uncached_gpt_forward_pass(inputs)
+        else:
+            return torch.cat(
+                [
+                    self.cached_gpt_forward_pass(HashTensorWrapper(x))
+                    for x in inputs.unsqueeze(1)
+                ],
+                dim=0,
+            )
+
     def embed(self, inputs):
-        embeddings = self.embeddings
-        pad_token_id = self.pad_token_id
-        states = self.pass_through_gpt(embeddings, inputs, pad_token_id)
+        states = self.gpt_forward_pass(inputs)
         if self.multihead_attention:
             query = states.transpose(0, 1)
             n = query.size(1)
@@ -64,9 +127,3 @@ class Base(babyai_agent.Base):
             return attn_output.mean(0)
         else:
             return states.mean(1)
-
-    @staticmethod
-    def pass_through_gpt(gpt, inputs, pad_token_id):
-        return gpt.forward(
-            inputs, attention_mask=inputs != pad_token_id
-        ).last_hidden_state[:, -2:]
