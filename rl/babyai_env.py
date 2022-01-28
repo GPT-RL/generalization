@@ -3,6 +3,7 @@ import re
 import typing
 from abc import ABC
 from dataclasses import astuple, dataclass
+from functools import lru_cache
 from typing import Generator, Optional, TypeVar
 
 import gym
@@ -437,6 +438,7 @@ class TokenizerWrapper(gym.ObservationWrapper):
         )
 
     @staticmethod
+    @lru_cache()
     def encode(mission, tokenizer):
         words = mission.split()
         tokens = [tokenizer.encode(w, return_tensors="pt").T for w in words]
@@ -449,23 +451,29 @@ class TokenizerWrapper(gym.ObservationWrapper):
         mission = self.new_mission(
             self.tokenizer,
             observation["mission"],
-            self.observation_space.spaces["mission"],
+            tuple(self.observation_space.spaces["mission"].nvec.shape),
         )
         observation.update(mission=mission)
         return observation
 
     @classmethod
-    def new_mission(cls, tokenizer, mission, mission_space):
+    @lru_cache()
+    def new_mission(
+        cls,
+        tokenizer: GPT2Tokenizer,
+        mission: str,
+        mission_shape: typing.Tuple[int, int],
+    ):
         encoded = cls.encode(mission, tokenizer)
         n1, d1 = encoded.shape
-        n2, d2 = mission_space.nvec.shape
+        n2, d2 = mission_shape
         assert n2 >= n1 and d2 >= d1
         padded = np.pad(
             encoded,
             [(0, n2 - n1), (0, d2 - d1)],
             constant_values=tokenizer.eos_token_id,
         )
-        assert mission_space.contains(padded)
+        # assert mission_space.contains(padded)
         return padded
 
 

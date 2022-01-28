@@ -33,9 +33,9 @@ class Trainer(babyai_main.Trainer):
         if args.multihead_attention:
             tokenizer = cls.tokenizer(args.pretrained_model)
             missions, *_ = envs.get_attr("missions")
-            mission_space = Spaces(*observation_space.spaces).mission
+            mission_shape = tuple(Spaces(*observation_space.spaces).mission.nvec.shape)
             tokens = [
-                TokenizerWrapper.new_mission(tokenizer, mission, mission_space)
+                TokenizerWrapper.new_mission(tokenizer, mission, mission_shape)
                 for mission in missions
             ]
             missions = torch.Tensor(tokens).long()
