@@ -98,7 +98,7 @@ class Base(babyai_agent.Base):
     def uncached_gpt_forward_pass(self, tensor):
         return self.embeddings.forward(
             tensor, attention_mask=tensor != self.pad_token_id
-        ).last_hidden_state[:, -2:]
+        ).last_hidden_state
 
     def gpt_forward_pass(self, inputs):
         if self.train_ln or self.train_wpe:
@@ -113,7 +113,11 @@ class Base(babyai_agent.Base):
             )
 
     def embed(self, inputs):
-        states = self.gpt_forward_pass(inputs)
+        inputs = inputs.reshape(-1, *self.observation_spaces.mission.nvec.shape)
+        n, l, e = inputs.shape
+        flattened = inputs.reshape(n * l, e)
+        states = self.gpt_forward_pass(flattened)
+        states = states.mean(1).reshape(n, l, -1)
         if self.multihead_attention:
             query = states.transpose(0, 1)
             n = query.size(1)

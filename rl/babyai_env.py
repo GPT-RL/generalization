@@ -3,7 +3,6 @@ import re
 import typing
 from abc import ABC
 from dataclasses import astuple, dataclass
-from itertools import chain, cycle, islice
 from typing import Generator, Optional, TypeVar
 
 import gym
@@ -16,6 +15,7 @@ from gym.spaces import Box, Dict, Discrete, MultiDiscrete, Tuple
 from gym_minigrid.minigrid import COLORS, OBJECT_TO_IDX, MiniGridEnv, WorldObj
 from gym_minigrid.window import Window
 from gym_minigrid.wrappers import ImgObsWrapper
+from torch.nn.utils.rnn import pad_sequence
 from transformers import GPT2Tokenizer
 
 T = TypeVar("T")  # Declare type variable
@@ -412,42 +412,61 @@ class RolloutsWrapper(gym.ObservationWrapper):
         )
 
     def observation(self, observation):
-        return np.concatenate(
+        obs = np.concatenate(
             astuple(
                 Spaces(
                     image=observation["image"].flatten(),
                     direction=np.array([observation["direction"]]),
                     action=np.array([int(observation["action"])]),
-                    mission=observation["mission"],
+                    mission=observation["mission"].flatten(),
                 )
             )
         )
+        # assert self.observation_space.contains(obs)
+        return obs
 
 
 class TokenizerWrapper(gym.ObservationWrapper):
     def __init__(self, env, tokenizer: GPT2Tokenizer, longest_mission: str):
         self.tokenizer: GPT2Tokenizer = tokenizer
-        encoded = tokenizer.encode(longest_mission)
+        encoded = self.encode(longest_mission, tokenizer)
         super().__init__(env)
         spaces = {**self.observation_space.spaces}
         self.observation_space = Dict(
-            spaces=dict(**spaces, mission=MultiDiscrete([50257 for _ in encoded]))
+            spaces=dict(**spaces, mission=MultiDiscrete(50257 * np.ones_like(encoded)))
         )
 
+    @staticmethod
+    def encode(mission, tokenizer):
+        words = mission.split()
+        tokens = [tokenizer.encode(w, return_tensors="pt").T for w in words]
+        padded = (
+            pad_sequence(tokens, padding_value=tokenizer.eos_token_id).squeeze(-1).T
+        )
+        return padded.numpy()
+
     def observation(self, observation):
-        mission = observation["mission"]
-        mission_space = self.observation_space.spaces["mission"]
-        mission = self.new_mission(self.tokenizer, mission, mission_space)
+        mission = self.new_mission(
+            self.tokenizer,
+            observation["mission"],
+            self.observation_space.spaces["mission"],
+        )
         observation.update(mission=mission)
         return observation
 
-    @staticmethod
-    def new_mission(tokenizer, mission, mission_space):
-        length = len(mission_space.nvec)
-        mission = tokenizer.encode(mission)
-        eos = tokenizer.eos_token_id
-        mission = [*islice(chain(mission, cycle([eos])), length)]
-        return mission
+    @classmethod
+    def new_mission(cls, tokenizer, mission, mission_space):
+        encoded = cls.encode(mission, tokenizer)
+        n1, d1 = encoded.shape
+        n2, d2 = mission_space.nvec.shape
+        assert n2 >= n1 and d2 >= d1
+        padded = np.pad(
+            encoded,
+            [(0, n2 - n1), (0, d2 - d1)],
+            constant_values=tokenizer.eos_token_id,
+        )
+        assert mission_space.contains(padded)
+        return padded
 
 
 class MissionEnumeratorWrapper(gym.ObservationWrapper):

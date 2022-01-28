@@ -98,7 +98,10 @@ class Trainer(main.Trainer):
                     **kwargs,
                 )
                 _env = PlantAnimalWrapper(_env, prefixes)
-                missions: List[str] = _env.missions
+                missions: List[str] = _env.missions  # + [
+                #     "a really long string that I just added for testing purposes. a really long string that I just "
+                #     "added for testing purposes. "
+                # ]
                 longest_mission = max(missions, key=len)
 
             else:
