@@ -76,7 +76,7 @@ class Base(babyai_agent.Base):
 
     @staticmethod
     def process_last_hidden_state(last_hidden_state: Tensor):
-        return last_hidden_state[:, -1]
+        return last_hidden_state.mean(1)
 
     @lru_cache()
     def _embed(self, inputs: HashTensorWrapper):
