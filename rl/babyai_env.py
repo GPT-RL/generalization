@@ -2,6 +2,7 @@ import abc
 import re
 from abc import ABC
 from dataclasses import astuple, dataclass
+from functools import lru_cache
 from itertools import chain, cycle, islice
 from typing import Generator, List, Optional, Set, TypeVar
 
@@ -383,12 +384,20 @@ class TokenizerWrapper(gym.ObservationWrapper):
         )
 
     def observation(self, observation):
-        mission = self.tokenizer.encode(observation["mission"])
+        mission = observation["mission"]
         length = len(self.observation_space.spaces["mission"].nvec)
-        eos = self.tokenizer.eos_token_id
-        mission = [*islice(chain(mission, cycle([eos])), length)]
+        tokenizer = self.tokenizer
+        mission = self.new_mission(length, mission, tokenizer)
         observation.update(mission=mission)
         return observation
+
+    @staticmethod
+    @lru_cache()
+    def new_mission(length, mission, tokenizer):
+        mission = tokenizer.encode(mission)
+        eos = tokenizer.eos_token_id
+        mission = [*islice(chain(mission, cycle([eos])), length)]
+        return mission
 
 
 class DirectionWrapper(gym.Wrapper):
