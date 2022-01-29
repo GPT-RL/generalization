@@ -34,6 +34,7 @@ class Args(main.Args):
     env: str = "plant-animal"  # env ID for gym
     room_size: int = 5
     second_layer: bool = False
+    split_words: bool = False
     strict: bool = True
     prefix_length: int = 4
 
@@ -57,6 +58,7 @@ class Trainer(main.Trainer):
             hidden_size=args.hidden_size,
             observation_space=observation_space,
             recurrent=cls.recurrent(args),
+            split_words=args.split_words,
         )
 
     @staticmethod
@@ -72,6 +74,7 @@ class Trainer(main.Trainer):
             room_size: int,
             seed: int,
             prefixes: dict,
+            split_words: bool,
             strict: bool,
             test: bool,
             test_objects: Set[str],
@@ -114,6 +117,7 @@ class Trainer(main.Trainer):
                 _env,
                 tokenizer=tokenizer,
                 longest_mission=longest_mission,
+                split_words=split_words,
             )
             _env = RolloutsWrapper(_env)
 

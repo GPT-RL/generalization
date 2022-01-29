@@ -54,12 +54,14 @@ class Base(NNBase):
         hidden_size: int,
         observation_space: Dict,
         recurrent: bool,
+        split_words: bool,
     ):
         super().__init__(
             recurrent=recurrent,
             recurrent_input_size=hidden_size,
             hidden_size=hidden_size,
         )
+        self.split_words = split_words
         self.observation_spaces = Spaces(*observation_space.spaces)
         self.num_directions = self.observation_spaces.direction.n
         self.num_actions = self.observation_spaces.action.n
@@ -183,4 +185,6 @@ class Base(NNBase):
         return self.critic_linear(x), x, rnn_hxs
 
     def embed(self, inputs):
+        if self.split_words:
+            inputs = inputs.reshape(inputs.size(0), -1)
         return self.embeddings.forward(inputs)

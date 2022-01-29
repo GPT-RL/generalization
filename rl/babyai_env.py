@@ -428,9 +428,12 @@ class RolloutsWrapper(gym.ObservationWrapper):
 
 
 class TokenizerWrapper(gym.ObservationWrapper):
-    def __init__(self, env, tokenizer: GPT2Tokenizer, longest_mission: str):
+    def __init__(
+        self, env, tokenizer: GPT2Tokenizer, longest_mission: str, split_words: bool
+    ):
+        self.split_words = split_words
         self.tokenizer: GPT2Tokenizer = tokenizer
-        encoded = self.encode(longest_mission, tokenizer)
+        encoded = self.encode(longest_mission, tokenizer, split_words)
         super().__init__(env)
         spaces = {**self.observation_space.spaces}
         self.observation_space = Dict(
@@ -438,20 +441,23 @@ class TokenizerWrapper(gym.ObservationWrapper):
         )
 
     @staticmethod
-    @lru_cache()
-    def encode(mission, tokenizer):
-        words = mission.split()
-        tokens = [tokenizer.encode(w, return_tensors="pt").T for w in words]
-        padded = (
-            pad_sequence(tokens, padding_value=tokenizer.eos_token_id).squeeze(-1).T
-        )
-        return padded.numpy()
+    def encode(mission, tokenizer, split_words):
+        if split_words:
+            words = mission.split()
+            tokens = [tokenizer.encode(w, return_tensors="pt").T for w in words]
+            padded = (
+                pad_sequence(tokens, padding_value=tokenizer.eos_token_id).squeeze(-1).T
+            )
+            return padded.numpy()
+        else:
+            return tokenizer.encode(mission, return_tensors="np")
 
     def observation(self, observation):
         mission = self.new_mission(
-            self.tokenizer,
-            observation["mission"],
-            tuple(self.observation_space.spaces["mission"].nvec.shape),
+            tokenizer=self.tokenizer,
+            mission=observation["mission"],
+            mission_shape=tuple(self.observation_space.spaces["mission"].nvec.shape),
+            split_words=self.split_words,
         )
         observation.update(mission=mission)
         return observation
@@ -463,8 +469,9 @@ class TokenizerWrapper(gym.ObservationWrapper):
         tokenizer: GPT2Tokenizer,
         mission: str,
         mission_shape: typing.Tuple[int, int],
+        split_words: bool,
     ):
-        encoded = cls.encode(mission, tokenizer)
+        encoded = cls.encode(mission, tokenizer, split_words)
         n1, d1 = encoded.shape
         n2, d2 = mission_shape
         assert n2 >= n1 and d2 >= d1

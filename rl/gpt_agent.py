@@ -113,11 +113,12 @@ class Base(babyai_agent.Base):
             )
 
     def embed(self, inputs):
-        inputs = inputs.reshape(-1, *self.observation_spaces.mission.nvec.shape)
-        n, l, e = inputs.shape
-        flattened = inputs.reshape(n * l, e)
-        states = self.gpt_forward_pass(flattened)
-        states = states.mean(1).reshape(n, l, -1)
+        if self.split_words:
+            inputs = inputs.reshape(-1, *self.observation_spaces.mission.nvec.shape)
+            n, l, e = inputs.shape
+            inputs = inputs.reshape(n * l, e)
+        states = self.gpt_forward_pass(inputs)
+        breakpoint()
         if self.multihead_attention:
             query = states.transpose(0, 1)
             n = query.size(1)
