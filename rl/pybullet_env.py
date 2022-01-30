@@ -195,7 +195,7 @@ class Env(gym.Env):
 
         self._p.configureDebugVisualizer(self._p.COV_ENABLE_GUI, False)
 
-        # self._p.setGravity(0, 0, -10)
+        self._p.setGravity(0, 0, -10)
         halfExtents = [1.5 * self.env_bounds, 1.5 * self.env_bounds, 0.1]
         floor_collision = self._p.createCollisionShape(
             self._p.GEOM_BOX, halfExtents=halfExtents
@@ -285,12 +285,6 @@ class Env(gym.Env):
         return obs
 
     def generator(self):
-        self._p.resetBasePositionAndOrientation(self.mass, [0, 0, 0.6], [0, 0, 0, 1])
-        yield self.observation_space.sample()
-        while True:
-            yield self.observation_space.sample(), 1, True, {}
-
-    def _generator(self):
         i = dict(mission=self.mission)
 
         self._p.resetBasePositionAndOrientation(self.mass, [0, 0, 0.6], [0, 0, 0, 1])
