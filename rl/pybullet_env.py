@@ -6,7 +6,7 @@ from contextlib import contextmanager
 from dataclasses import astuple, dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Generator, Generic, List, NamedTuple, TypeVar, Union, cast
+from typing import Generator, Generic, List, NamedTuple, Tuple, TypeVar, Union, cast
 
 import gym.spaces as spaces
 import gym.utils.seeding
@@ -19,8 +19,8 @@ from pybullet_utils import bullet_client
 from torch.nn.utils.rnn import pad_sequence
 from transformers import GPT2Tokenizer
 
-CAMERA_DISTANCE = 3
-CAMERA_PITCH = -45
+CAMERA_DISTANCE = 0.1
+CAMERA_PITCH = -10
 CAMERA_YAW = 45
 
 M = TypeVar("M")
@@ -105,8 +105,8 @@ class Env(gym.Env):
     urdfs: List[URDF]
     cameraYaw: float = CAMERA_YAW
     env_bounds: float = 5
-    image_height: float = 5  # 72
-    image_width: float = 5  # 96
+    image_height: float = 64  # 72
+    image_width: float = 64  # 96
     is_render: bool = False
     max_episode_steps: int = 200
     metadata = {"render.modes": ["human", "rgb_array"], "video.frames_per_second": 60}
@@ -207,45 +207,8 @@ class Env(gym.Env):
 
         self._p.setTimeStep(1)
 
-    def get_observation(
-        self,
-        cameraYaw,
-        mission,
-    ) -> Observation[np.ndarray, np.ndarray]:
-        pos, _ = self._p.getBasePositionAndOrientation(self.mass)
-        (_, _, rgbaPixels, _, _,) = self._p.getCameraImage(
-            self.image_width,
-            self.image_height,
-            viewMatrix=self._p.computeViewMatrixFromYawPitchRoll(
-                cameraTargetPosition=pos,
-                distance=CAMERA_DISTANCE,
-                yaw=cameraYaw,
-                pitch=CAMERA_PITCH,
-                roll=0,
-                upAxisIndex=2,
-            ),
-            shadow=0,
-            flags=self._p.ER_NO_SEGMENTATION_MASK,
-            renderer=self._p.ER_BULLET_HARDWARE_OPENGL,
-        )
-        rgbaPixels = rgbaPixels[..., :-1].astype(np.float32)
-        obs = Observation(
-            image=rgbaPixels,
-            mission=self.tokens[mission],
-        )
-        obs = astuple(obs)
-        assert self.observation_space.contains(obs)
-        return obs
-
-    def generator(self):
-        self._p.resetBasePositionAndOrientation(self.mass, [0, 0, 0.6], [0, 0, 0, 1])
-        yield self.observation_space.sample()
-        while True:
-            yield self.observation_space.sample(), 1, True, {}
-
-    def _generator(self):
         missions = []
-        goals = []
+        self.goals = goals = []
         urdfs = [
             self.urdfs[i]
             for i in self.random.choice(len(self.urdfs), size=2, replace=False)
@@ -287,14 +250,52 @@ class Env(gym.Env):
                 self.relativeChildPosition,
                 self.relativeChildOrientation,
             )
-        choice = self.random.choice(2)
+        self.choice = choice = self.random.choice(2)
         self.goal = goals[choice]
-        mission = missions[choice]
-        i = dict(mission=mission, goals=goals)
+        self.mission = missions[choice]
+
+    def get_observation(
+        self,
+        cameraYaw,
+        mission,
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        pos, _ = self._p.getBasePositionAndOrientation(self.mass)
+        (_, _, rgbaPixels, _, _,) = self._p.getCameraImage(
+            self.image_width,
+            self.image_height,
+            viewMatrix=self._p.computeViewMatrixFromYawPitchRoll(
+                cameraTargetPosition=pos,
+                distance=CAMERA_DISTANCE,
+                yaw=cameraYaw,
+                pitch=CAMERA_PITCH,
+                roll=0,
+                upAxisIndex=2,
+            ),
+            shadow=0,
+            flags=self._p.ER_NO_SEGMENTATION_MASK,
+            renderer=self._p.ER_BULLET_HARDWARE_OPENGL,
+        )
+        rgbaPixels = rgbaPixels[..., :-1].astype(np.float32)
+        obs = Observation(
+            image=rgbaPixels,
+            mission=self.tokens[mission],
+        )
+        obs = astuple(obs)
+        assert self.observation_space.contains(obs)
+        return obs
+
+    def generator(self):
+        self._p.resetBasePositionAndOrientation(self.mass, [0, 0, 0.6], [0, 0, 0, 1])
+        yield self.observation_space.sample()
+        while True:
+            yield self.observation_space.sample(), 1, True, {}
+
+    def _generator(self):
+        i = dict(mission=self.mission)
 
         self._p.resetBasePositionAndOrientation(self.mass, [0, 0, 0.6], [0, 0, 0, 1])
         cameraYaw = self.cameraYaw
-        action = yield self.get_observation(cameraYaw, mission)
+        action = yield self.get_observation(cameraYaw, self.mission)
 
         for global_step in range(self.max_episode_steps):
             a = ACTIONS[action].value
@@ -311,24 +312,24 @@ class Env(gym.Env):
             self._p.changeConstraint(self.mass_cid, [new_x, new_y, -0.1], maxForce=10)
             self._p.stepSimulation()
 
-            s = self.get_observation(cameraYaw, mission)
+            s = self.get_observation(cameraYaw, self.mission)
             if ACTIONS[action].value.take_picture:
-                PIL.Image.fromarray(np.uint8(s.image)).show()
+                PIL.Image.fromarray(np.uint8(Observation(*s).image)).show()
             t = ACTIONS[action].value.done
             if t:
                 (*goal_poss, pos), _ = zip(
                     *[
                         self._p.getBasePositionAndOrientation(g)
-                        for g in (*goals, self.mass)
+                        for g in (*self.goals, self.mass)
                     ]
                 )
                 dists = [np.linalg.norm(np.array(pos) - np.array(g)) for g in goal_poss]
-                r = float(np.argmin(dists) == choice)
+                r = float(np.argmin(dists) == self.choice)
             else:
                 r = 0
             action = yield s, r, t, i
 
-        s = self.get_observation(cameraYaw, mission)
+        s = self.get_observation(cameraYaw, self.mission)
         r = 0
         t = True
         yield s, r, t, i
