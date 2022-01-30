@@ -6,7 +6,7 @@ from contextlib import contextmanager
 from dataclasses import astuple, dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Generator, Generic, List, NamedTuple, TypeVar, cast
+from typing import Generator, Generic, List, NamedTuple, TypeVar, Union, cast
 
 import gym.spaces as spaces
 import gym.utils.seeding
@@ -116,6 +116,7 @@ class Env(gym.Env):
     def __post_init__(self):
         names, paths, zs = zip(*self.urdfs)
         self.missions = names
+        self.seed(0)
 
         def tokens() -> Generator[torch.Tensor, None, None]:
             for k in names:
@@ -182,7 +183,7 @@ class Env(gym.Env):
         )
         self._p.configureDebugVisualizer(self._p.COV_ENABLE_GUI, False)
 
-        self._p.setGravity(0, 0, -10)
+        # self._p.setGravity(0, 0, -10)
         halfExtents = [1.5 * self.env_bounds, 1.5 * self.env_bounds, 0.1]
         floor_collision = self._p.createCollisionShape(
             self._p.GEOM_BOX, halfExtents=halfExtents
@@ -226,7 +227,7 @@ class Env(gym.Env):
         self._p.resetBasePositionAndOrientation(self.mass, [0, 0, 0.6], [0, 0, 0, 1])
         yield self.observation_space.sample()
         while True:
-            action = yield self.observation_space.sample(), 1, True, {}
+            yield self.observation_space.sample(), 1, True, {}
 
     def _generator(self):
         missions = []
@@ -277,18 +278,6 @@ class Env(gym.Env):
         mission = missions[choice]
         i = dict(mission=mission, goals=goals)
 
-        self._p.configureDebugVisualizer(self._p.COV_ENABLE_GUI, False)
-
-        self._p.setGravity(0, 0, -10)
-        halfExtents = [1.5 * self.env_bounds, 1.5 * self.env_bounds, 0.1]
-        floor_collision = self._p.createCollisionShape(
-            self._p.GEOM_BOX, halfExtents=halfExtents
-        )
-        floor_visual = self._p.createVisualShape(
-            self._p.GEOM_BOX, halfExtents=halfExtents, rgbaColor=[1, 1, 1, 0.5]
-        )
-        self._p.createMultiBody(0, floor_collision, floor_visual, [0, 0, -0.2])
-
         self._p.resetBasePositionAndOrientation(self.mass, [0, 0, 0.6], [0, 0, 0, 1])
         cameraYaw = self.cameraYaw
         action = yield self.get_observation(cameraYaw, mission)
@@ -331,8 +320,10 @@ class Env(gym.Env):
         t = True
         yield s, r, t, i
 
-    def step(self, action: int):
-        s, r, t, i = self.iterator.send(action.item())
+    def step(self, action: Union[np.ndarray, int]):
+        if isinstance(action, np.ndarray):
+            action = action.item()
+        s, r, t, i = self.iterator.send(action)
         # if t:
         #     for goal in i["goals"]:
         #         self._p.removeBody(goal)
@@ -359,9 +350,12 @@ class Env(gym.Env):
 
 
 def main():
+    path = Path(Path.home(), "downloads/dataset")
+    model_ids = list(get_model_ids())
     env = Env(
+        tokenizer=GPT2Tokenizer.from_pretrained("gpt2"),
+        urdfs=list(get_urdfs(path, model_ids)),
         is_render=True,
-        reindex_tokens=True,
         max_episode_steps=10000000,
     )
     env.render(mode="human")
