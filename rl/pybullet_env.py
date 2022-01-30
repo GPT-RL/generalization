@@ -193,6 +193,20 @@ class Env(gym.Env):
         )
         self._p.createMultiBody(0, floor_collision, floor_visual, [0, 0, -0.2])
 
+        self._p.configureDebugVisualizer(self._p.COV_ENABLE_GUI, False)
+
+        # self._p.setGravity(0, 0, -10)
+        halfExtents = [1.5 * self.env_bounds, 1.5 * self.env_bounds, 0.1]
+        floor_collision = self._p.createCollisionShape(
+            self._p.GEOM_BOX, halfExtents=halfExtents
+        )
+        floor_visual = self._p.createVisualShape(
+            self._p.GEOM_BOX, halfExtents=halfExtents, rgbaColor=[1, 1, 1, 0.5]
+        )
+        self._p.createMultiBody(0, floor_collision, floor_visual, [0, 0, -0.2])
+
+        self._p.setTimeStep(1)
+
     def get_observation(
         self,
         cameraYaw,
@@ -295,8 +309,7 @@ class Env(gym.Env):
             new_x = np.clip(x + x_shift, -self.env_bounds, self.env_bounds)
             new_y = np.clip(y + y_shift, -self.env_bounds, self.env_bounds)
             self._p.changeConstraint(self.mass_cid, [new_x, new_y, -0.1], maxForce=10)
-            for _ in range(0, 20):
-                self._p.stepSimulation()
+            self._p.stepSimulation()
 
             s = self.get_observation(cameraYaw, mission)
             if ACTIONS[action].value.take_picture:
