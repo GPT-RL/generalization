@@ -180,6 +180,17 @@ class Env(gym.Env):
             self.relativeChildPosition,
             self.relativeChildOrientation,
         )
+        self._p.configureDebugVisualizer(self._p.COV_ENABLE_GUI, False)
+
+        self._p.setGravity(0, 0, -10)
+        halfExtents = [1.5 * self.env_bounds, 1.5 * self.env_bounds, 0.1]
+        floor_collision = self._p.createCollisionShape(
+            self._p.GEOM_BOX, halfExtents=halfExtents
+        )
+        floor_visual = self._p.createVisualShape(
+            self._p.GEOM_BOX, halfExtents=halfExtents, rgbaColor=[1, 1, 1, 0.5]
+        )
+        self._p.createMultiBody(0, floor_collision, floor_visual, [0, 0, -0.2])
 
     def get_observation(
         self,
@@ -212,6 +223,12 @@ class Env(gym.Env):
         return obs
 
     def generator(self):
+        self._p.resetBasePositionAndOrientation(self.mass, [0, 0, 0.6], [0, 0, 0, 1])
+        yield self.observation_space.sample()
+        while True:
+            action = yield self.observation_space.sample(), 1, True, {}
+
+    def _generator(self):
         missions = []
         goals = []
         urdfs = [
@@ -315,15 +332,13 @@ class Env(gym.Env):
         yield s, r, t, i
 
     def step(self, action: int):
-        return self.observation_space.sample(), 0, True, {}
         s, r, t, i = self.iterator.send(action.item())
-        if t:
-            for goal in i["goals"]:
-                self._p.removeBody(goal)
+        # if t:
+        #     for goal in i["goals"]:
+        #         self._p.removeBody(goal)
         return s, r, t, i
 
     def reset(self):
-        return self.observation_space.sample()
         self.iterator = self.generator()
         return next(self.iterator)
 
