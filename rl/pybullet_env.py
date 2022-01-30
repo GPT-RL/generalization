@@ -205,7 +205,8 @@ class Env(gym.Env):
         )
         self._p.createMultiBody(0, floor_collision, floor_visual, [0, 0, -0.2])
 
-        self._p.setTimeStep(1)
+        self._p.setTimeStep(1.0)
+        # p.setPhysicsEngineParameter(numSolverIterations=150)
 
         missions = []
         self.goals = goals = []
@@ -331,6 +332,7 @@ class Env(gym.Env):
     def step(self, action: Union[np.ndarray, int]):
         if isinstance(action, np.ndarray):
             action = action.item()
+        return self.observation_space.sample(), 0, True, {}
         s, r, t, i = self.iterator.send(action)
         # if t:
         #     for goal in i["goals"]:
@@ -338,6 +340,7 @@ class Env(gym.Env):
         return s, r, t, i
 
     def reset(self):
+        return self.observation_space.sample()
         self.iterator = self.generator()
         return next(self.iterator)
 
