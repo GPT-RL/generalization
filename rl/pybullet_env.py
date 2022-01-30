@@ -145,7 +145,6 @@ class Env(gym.Env):
         )
         self.observation_space = spaces.Tuple(astuple(obs_spaces))
         self.action_space = spaces.Discrete(5)
-        return
 
         self.iterator = None
 
@@ -337,7 +336,6 @@ class Env(gym.Env):
             raise NotImplementedError
 
     def close(self):
-        return
         self._p.disconnect()
 
     def seed(self, seed=None):

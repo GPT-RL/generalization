@@ -1,24 +1,16 @@
 import functools
 from pathlib import Path
-from typing import List, Literal, Set, cast
+from typing import List, Literal, cast
 
 import main
 import numpy as np
 from envs import RenderWrapper, VecPyTorch
 from gym_minigrid.minigrid import COLORS
-from gym_minigrid.wrappers import FullyObsWrapper
 from pybullet_agent import Agent
+from pybullet_env import URDF, Env, get_model_ids, get_urdfs
 from stable_baselines3.common.monitor import Monitor
 from transformers import GPT2Tokenizer
-
-from pybullet_env import Env, URDF, get_model_ids, get_urdfs
-from wrappers import (
-    PickupEnv,
-    PlantAnimalWrapper,
-    RolloutsWrapper,
-    TokenizerWrapper,
-    alt_type,
-)
+from wrappers import RolloutsWrapper, alt_type
 
 
 class Args(main.Args):
