@@ -5,7 +5,8 @@ import pybullet_main
 import torch
 from envs import VecPyTorch
 from gpt_agent import Agent
-from wrappers import Spaces, TokenizerWrapper
+from pybullet_env import Observation
+from wrappers import TokenizerWrapper
 
 
 class Args(pybullet_main.Args):
@@ -33,7 +34,9 @@ class Trainer(pybullet_main.Trainer):
         if args.multihead_attention:
             tokenizer = cls.tokenizer(args.pretrained_model)
             missions, *_ = envs.get_attr("missions")
-            mission_shape = tuple(Spaces(*observation_space.spaces).mission.nvec.shape)
+            mission_shape = tuple(
+                Observation(*observation_space.spaces).mission.nvec.shape
+            )
             tokens = [
                 TokenizerWrapper.new_mission(tokenizer, mission, mission_shape)
                 for mission in missions

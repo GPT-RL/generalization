@@ -45,6 +45,7 @@ services:
     volumes:
       - "${PWD}/logs:/tmp/logs"
       - "${HOME}/.cache/GPT/:/root/.cache/GPT"
+      - "${HOME}/.cache/data/:/root/.cache/data"
       - "${HOME}/.cache/huggingface/:/root/.cache/huggingface"
     deploy:
       replicas: ${REPLICAS}

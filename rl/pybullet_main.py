@@ -1,5 +1,6 @@
 import functools
-from typing import Literal, Set, cast
+from pathlib import Path
+from typing import List, Literal, Set, cast
 
 import main
 import numpy as np
@@ -9,6 +10,8 @@ from gym_minigrid.wrappers import FullyObsWrapper
 from pybullet_agent import Agent
 from stable_baselines3.common.monitor import Monitor
 from transformers import GPT2Tokenizer
+
+from pybullet_env import Env, URDF, get_model_ids, get_urdfs
 from wrappers import (
     PickupEnv,
     PlantAnimalWrapper,
@@ -19,6 +22,7 @@ from wrappers import (
 
 
 class Args(main.Args):
+    data_path: str = "/root/.cache/data/dataset"
     pretrained_model: Literal[
         "gpt2",
         "gpt2-medium",
@@ -29,11 +33,7 @@ class Args(main.Args):
         "EleutherAI/gpt-neo-1.3B",
         "EleutherAI/gpt-neo-2.7B",
     ] = "gpt2-large"  # what size of pretrained GPT to use
-    env: str = "plant-animal"  # env ID for gym
-    room_size: int = 5
-    second_layer: bool = False
-    strict: bool = True
-    prefix_length: int = 4
+    prefix_length: int = 0
 
     def configure(self) -> None:
         self.add_subparsers(dest="logger_args")
@@ -66,42 +66,14 @@ class Trainer(main.Trainer):
     @classmethod
     def make_env(cls, env, allow_early_resets, render: bool = False, *args, **kwargs):
         def _thunk(
-            env_id: str,
-            room_size: int,
             seed: int,
-            prefixes: dict,
-            strict: bool,
-            test: bool,
-            test_objects: Set[str],
             tokenizer: GPT2Tokenizer,
+            urdfs: List[URDF],
             **_,
         ):
-            if env_id == "plant-animal":
-                objects = set(PlantAnimalWrapper.replacements)
-                objects = test_objects if test else objects - test_objects
-                objects = [o.split() for o in objects]
-                objects = [(t, c) for (c, t) in objects]
-                kwargs = {}
-                if test:
-                    (c1, t1), (c2, t2) = objects
-                    cross_product = [(c1, t2), (c2, t1)]
-                    objects.extend(cross_product)
-                    kwargs.update(prohibited=set(cross_product))
+            _env = Env(tokenizer, urdfs)
+            _env.seed(seed)
 
-                _env = PickupEnv(
-                    objects=objects,
-                    room_size=room_size,
-                    strict=strict,
-                    seed=seed,
-                    **kwargs,
-                )
-                _env = PlantAnimalWrapper(_env, prefixes)
-
-            else:
-                raise RuntimeError(f"{env_id} is not a valid env_id")
-
-            _env = FullyObsWrapper(_env)
-            _env = TokenizerWrapper(_env, tokenizer=tokenizer)
             _env = RolloutsWrapper(_env)
 
             _env = Monitor(_env, allow_early_resets=allow_early_resets)
@@ -131,23 +103,37 @@ class Trainer(main.Trainer):
 
     @classmethod
     def make_vec_envs(
-        cls, *args, pretrained_model: str, prefix_length: int, seed: int, **kwargs
+        cls,
+        *args,
+        data_path: str,
+        prefix_length: int,
+        pretrained_model: str,
+        seed: int,
+        **kwargs,
     ):
-        prefixes = {
-            ty: cls.stock_prefix(ty, prefix_length=prefix_length, seed=seed)
-            for ty in ["ball", "box"]
-        }
-        rng = np.random.default_rng(seed=seed)
-        colors, _ = zip(*[o.split() for o in PlantAnimalWrapper.replacements])
-        test_color1, test_color2 = rng.choice(list(colors), size=2, replace=False)
-        test_objects = {f"{test_color1} box", f"{test_color2} ball"}
+        data_path = Path(data_path)
+
+        if not data_path.exists():
+            raise RuntimeError(
+                f"""\
+{data_path} does not exist.
+Download dataset using:
+wget 'https://sapien.ucsd.edu/api/download/partnet-mobility-v0.zip\
+?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImV0aGFuYn\
+JvQHVtaWNoLmVkdSIsImlwIjoiMTcyLjIwLjAuMSIsInByaXZpbGVnZSI6MSwiaWF0\
+IjoxNjQzNDkyNzc3LCJleHAiOjE2NDM1NzkxNzd9.R3y0kIb11_85VHBdVgU0xRP15\
+zM_ZGMrpH3vL4ECpsw'
+and unzip downloaded file\
+"""
+            )
+
+        urdfs = list(get_urdfs(data_path, get_model_ids()))
 
         return super().make_vec_envs(
             *args,
             **kwargs,
             seed=seed,
-            prefixes=prefixes,
-            test_objects=test_objects,
+            urdfs=urdfs,
             tokenizer=cls.tokenizer(pretrained_model),
         )
 

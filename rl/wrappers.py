@@ -2,7 +2,7 @@ import abc
 import re
 import typing
 from abc import ABC
-from dataclasses import astuple, dataclass
+from dataclasses import astuple, dataclass, replace
 from functools import lru_cache
 from typing import Generator, Optional, TypeVar
 
@@ -19,13 +19,9 @@ from gym_minigrid.wrappers import ImgObsWrapper
 from torch.nn.utils.rnn import pad_sequence
 from transformers import GPT2Tokenizer
 
+from pybullet_env import Observation
+
 T = TypeVar("T")  # Declare type variable
-
-
-@dataclass
-class Spaces:
-    image: T
-    mission: T
 
 
 @dataclass
@@ -390,13 +386,13 @@ class SuccessWrapper(gym.Wrapper):
 class RolloutsWrapper(gym.ObservationWrapper):
     def __init__(self, env):
         super().__init__(env)
-        spaces = {**self.observation_space.spaces}
+        spaces = Observation(*self.observation_space.spaces)
         self.original_observation_space = Tuple(
-            astuple(Spaces(**self.observation_space.spaces))
+            astuple(Observation(*self.observation_space.spaces))
         )
 
         def sizes():
-            for space in spaces.values():
+            for space in astuple(spaces):
                 if isinstance(space, Box):
                     yield np.prod(space.shape)
                 elif isinstance(space, MultiDiscrete):
@@ -411,14 +407,7 @@ class RolloutsWrapper(gym.ObservationWrapper):
         )
 
     def observation(self, observation):
-        obs = np.concatenate(
-            astuple(
-                Spaces(
-                    image=observation["image"].flatten(),
-                    mission=observation["mission"].flatten(),
-                )
-            )
-        )
+        obs = np.concatenate(astuple(Observation(*[x.flatten() for x in observation])))
         # assert self.observation_space.contains(obs)
         return obs
 
@@ -431,11 +420,13 @@ class TokenizerWrapper(gym.ObservationWrapper):
         ns, ds = zip(*(t.shape for t in tokens))
         maxes = [int(t.max()) for t in tokens]
         nvec = max(maxes) * np.ones((max(ns), max(ds)))
-        spaces = {**self.observation_space.spaces}
-        self.observation_space = Dict(
-            spaces=dict(
-                **spaces,
-                mission=MultiDiscrete(nvec),
+        spaces = Observation(*self.observation_space.spaces)
+        self.observation_space = Tuple(
+            astuple(
+                replace(
+                    spaces,
+                    mission=MultiDiscrete(nvec),
+                )
             )
         )
 

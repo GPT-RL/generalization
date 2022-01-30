@@ -8,5 +8,6 @@ docker run --rm -it \
 	-e HOST_MACHINE="$(hostname -s)" \
 	-v "$(pwd)/logs:/tmp/logs" \
 	-v "$HOME/.cache/GPT/:/root/.cache/GPT" \
+	-v "$HOME/.cache/data/:/root/.cache/data" \
 	-v "$HOME/.cache/huggingface/:/root/.cache/huggingface" \
 	"$name" "${@:2}"
