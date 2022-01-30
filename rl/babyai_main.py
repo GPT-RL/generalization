@@ -110,11 +110,7 @@ class Trainer(main.Trainer):
             _env = FullyObsWrapper(_env)
             _env = ActionInObsWrapper(_env)
             _env = SuccessWrapper(_env)
-            _env = TokenizerWrapper(
-                _env,
-                tokenizer=tokenizer,
-                longest_mission=longest_mission,
-            )
+            _env = TokenizerWrapper(_env, tokenizer=tokenizer)
             _env = RolloutsWrapper(_env)
 
             _env = Monitor(_env, allow_early_resets=allow_early_resets)

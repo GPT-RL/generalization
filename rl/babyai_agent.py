@@ -152,7 +152,7 @@ class Base(NNBase):
         self.critic_linear = init_(nn.Linear(hidden_size, 1))
 
     def build_embeddings(self):
-        num_embeddings = int(self.observation_spaces.mission.nvec[0])
+        num_embeddings = 1 + int(self.observation_spaces.mission.nvec.flat[0])
         return nn.EmbeddingBag(
             num_embeddings, self.embedding_size, padding_idx=self.pad_token_id
         )

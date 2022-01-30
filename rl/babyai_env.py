@@ -428,13 +428,19 @@ class RolloutsWrapper(gym.ObservationWrapper):
 
 
 class TokenizerWrapper(gym.ObservationWrapper):
-    def __init__(self, env, tokenizer: GPT2Tokenizer, longest_mission: str):
+    def __init__(self, env, tokenizer: GPT2Tokenizer):
         self.tokenizer: GPT2Tokenizer = tokenizer
-        encoded = self.encode(longest_mission, tokenizer)
         super().__init__(env)
+        tokens = [self.encode(m, tokenizer) for m in env.missions]
+        ns, ds = zip(*(t.shape for t in tokens))
+        maxes = [int(t.max()) for t in tokens]
+        nvec = max(maxes) * np.ones((max(ns), max(ds)))
         spaces = {**self.observation_space.spaces}
         self.observation_space = Dict(
-            spaces=dict(**spaces, mission=MultiDiscrete(50257 * np.ones_like(encoded)))
+            spaces=dict(
+                **spaces,
+                mission=MultiDiscrete(nvec),
+            )
         )
 
     @staticmethod
@@ -445,7 +451,7 @@ class TokenizerWrapper(gym.ObservationWrapper):
         padded = (
             pad_sequence(tokens, padding_value=tokenizer.eos_token_id).squeeze(-1).T
         )
-        return padded.numpy()
+        return padded
 
     def observation(self, observation):
         mission = self.new_mission(
@@ -464,7 +470,7 @@ class TokenizerWrapper(gym.ObservationWrapper):
         mission: str,
         mission_shape: typing.Tuple[int, int],
     ):
-        encoded = cls.encode(mission, tokenizer)
+        encoded = cls.encode(mission, tokenizer).numpy()
         n1, d1 = encoded.shape
         n2, d2 = mission_shape
         assert n2 >= n1 and d2 >= d1
