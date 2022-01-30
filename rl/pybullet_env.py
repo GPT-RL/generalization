@@ -206,7 +206,7 @@ class Env(gym.Env):
         self._p.createMultiBody(0, floor_collision, floor_visual, [0, 0, -0.2])
 
         self._p.setTimeStep(1.0)
-        # p.setPhysicsEngineParameter(numSolverIterations=150)
+        p.setPhysicsEngineParameter(numSolverIterations=150)
 
         missions = []
         self.goals = goals = []
