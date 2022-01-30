@@ -260,7 +260,6 @@ class Env(gym.Env):
         cameraYaw,
         mission,
     ) -> Tuple[np.ndarray, np.ndarray]:
-        return self.observation_space.sample()
         pos, _ = self._p.getBasePositionAndOrientation(self.mass)
         (_, _, rgbaPixels, _, _,) = self._p.getCameraImage(
             self.image_width,
@@ -306,7 +305,7 @@ class Env(gym.Env):
             new_x = np.clip(x + x_shift, -self.env_bounds, self.env_bounds)
             new_y = np.clip(y + y_shift, -self.env_bounds, self.env_bounds)
             self._p.changeConstraint(self.mass_cid, [new_x, new_y, -0.1], maxForce=10)
-            self._p.stepSimulation()
+            # self._p.stepSimulation()
 
             s = self.get_observation(cameraYaw, self.mission)
             if ACTIONS[action].value.take_picture:
