@@ -61,8 +61,6 @@ class Base(NNBase):
             hidden_size=hidden_size,
         )
         self.observation_spaces = Spaces(*observation_space.spaces)
-        self.num_directions = self.observation_spaces.direction.n
-        self.num_actions = self.observation_spaces.action.n
 
         self.pad_token_id = GPT2Tokenizer.from_pretrained(pretrained_model).eos_token_id
 
@@ -135,10 +133,7 @@ class Base(NNBase):
         self.merge = nn.Sequential(
             init_(
                 nn.Linear(
-                    output.size(-1)
-                    + self.num_directions
-                    + self.num_actions
-                    + self.embedding_size,
+                    output.size(-1) + self.embedding_size,
                     hidden_size,
                 )
             ),
@@ -170,13 +165,9 @@ class Base(NNBase):
         if len(image.shape) == 4:
             image = image.permute(0, 3, 1, 2)
         image = self.image_net(image)
-        directions = inputs.direction.long()
-        directions = F.one_hot(directions, num_classes=self.num_directions).squeeze(1)
-        action = inputs.action.long()
-        action = F.one_hot(action, num_classes=self.num_actions).squeeze(1)
 
         mission = self.embed(inputs.mission.long())
-        x = torch.cat([image, directions, action, mission], dim=-1)
+        x = torch.cat([image, mission], dim=-1)
         x = self.merge(x)
         if self.is_recurrent:
             x, rnn_hxs = self._forward_gru(x, rnn_hxs, masks)

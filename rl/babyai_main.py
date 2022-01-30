@@ -1,23 +1,22 @@
 import functools
 from typing import List, Literal, Set, cast
 
-import main
 import numpy as np
+from gym_minigrid.minigrid import COLORS
+from gym_minigrid.wrappers import FullyObsWrapper
+from stable_baselines3.common.monitor import Monitor
+from transformers import GPT2Tokenizer
+
+import main
 from babyai_agent import Agent
 from babyai_env import (
-    ActionInObsWrapper,
-    FullyObsWrapper,
     PickupEnv,
     PlantAnimalWrapper,
     RolloutsWrapper,
-    SuccessWrapper,
     TokenizerWrapper,
     alt_type,
 )
 from envs import RenderWrapper, VecPyTorch
-from gym_minigrid.minigrid import COLORS
-from stable_baselines3.common.monitor import Monitor
-from transformers import GPT2Tokenizer
 
 
 class Args(main.Args):
@@ -98,18 +97,11 @@ class Trainer(main.Trainer):
                     **kwargs,
                 )
                 _env = PlantAnimalWrapper(_env, prefixes)
-                missions: List[str] = _env.missions  # + [
-                #     "a really long string that I just added for testing purposes. a really long string that I just "
-                #     "added for testing purposes. "
-                # ]
-                longest_mission = max(missions, key=len)
 
             else:
                 raise RuntimeError(f"{env_id} is not a valid env_id")
 
             _env = FullyObsWrapper(_env)
-            _env = ActionInObsWrapper(_env)
-            _env = SuccessWrapper(_env)
             _env = TokenizerWrapper(_env, tokenizer=tokenizer)
             _env = RolloutsWrapper(_env)
 

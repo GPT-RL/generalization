@@ -25,9 +25,7 @@ T = TypeVar("T")  # Declare type variable
 @dataclass
 class Spaces:
     image: T
-    direction: T
     mission: T
-    action: T
 
 
 @dataclass
@@ -417,8 +415,6 @@ class RolloutsWrapper(gym.ObservationWrapper):
             astuple(
                 Spaces(
                     image=observation["image"].flatten(),
-                    direction=np.array([observation["direction"]]),
-                    action=np.array([int(observation["action"])]),
                     mission=observation["mission"].flatten(),
                 )
             )
