@@ -3,19 +3,19 @@ from typing import Literal, Set, cast
 
 import main
 import numpy as np
-from babyai_agent import Agent
-from babyai_env import (
+from envs import RenderWrapper, VecPyTorch
+from gym_minigrid.minigrid import COLORS
+from gym_minigrid.wrappers import FullyObsWrapper
+from pybullet_agent import Agent
+from stable_baselines3.common.monitor import Monitor
+from transformers import GPT2Tokenizer
+from wrappers import (
     PickupEnv,
     PlantAnimalWrapper,
     RolloutsWrapper,
     TokenizerWrapper,
     alt_type,
 )
-from envs import RenderWrapper, VecPyTorch
-from gym_minigrid.minigrid import COLORS
-from gym_minigrid.wrappers import FullyObsWrapper
-from stable_baselines3.common.monitor import Monitor
-from transformers import GPT2Tokenizer
 
 
 class Args(main.Args):

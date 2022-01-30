@@ -4,7 +4,7 @@ from itertools import chain
 from pathlib import Path
 from typing import List, Tuple
 
-import babyai_env
+import wrappers
 import jsonlines
 import numpy as np
 import pandas as pd

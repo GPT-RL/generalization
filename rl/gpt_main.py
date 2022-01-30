@@ -1,14 +1,14 @@
 import logging
 from typing import cast
 
-import babyai_main
+import pybullet_main
 import torch
-from babyai_env import Spaces, TokenizerWrapper
 from envs import VecPyTorch
 from gpt_agent import Agent
+from wrappers import Spaces, TokenizerWrapper
 
 
-class Args(babyai_main.Args):
+class Args(pybullet_main.Args):
     multihead_attention: bool = False
     freeze_keys: bool = False
     randomize_parameters: bool = False
@@ -18,11 +18,11 @@ class Args(babyai_main.Args):
     gpt: bool = False
 
 
-class ArgsType(Args, babyai_main.ArgsType):
+class ArgsType(Args, pybullet_main.ArgsType):
     pass
 
 
-class Trainer(babyai_main.Trainer):
+class Trainer(pybullet_main.Trainer):
     @classmethod
     def make_agent(cls, envs: VecPyTorch, args: ArgsType) -> Agent:
         action_space = envs.action_space
@@ -92,7 +92,7 @@ class Trainer(babyai_main.Trainer):
         return (
             super().train(args, **kwargs)
             if args.gpt
-            else babyai_main.Trainer().train(args, **kwargs)
+            else pybullet_main.Trainer().train(args, **kwargs)
         )
 
 

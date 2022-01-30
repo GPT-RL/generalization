@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from functools import lru_cache
 from typing import cast
 
-import babyai_agent
+import pybullet_agent
 import torch
 from multihead_attention import MultiheadAttention
 from torch import Tensor, nn
@@ -11,7 +11,7 @@ from torch.nn import Parameter
 from utils import build_gpt
 
 
-class Agent(babyai_agent.Agent):
+class Agent(pybullet_agent.Agent):
     def build_base(self, obs_shape, **kwargs):
         return Base(**kwargs)
 
@@ -51,7 +51,7 @@ class HashTensorWrapper:
         return torch.all(equals)
 
 
-class Base(babyai_agent.Base):
+class Base(pybullet_agent.Base):
     def __init__(
         self,
         *args,

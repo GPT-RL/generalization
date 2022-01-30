@@ -5,11 +5,11 @@ import numpy as np
 import torch
 import torch.nn as nn
 from agent import NNBase
-from babyai_env import Spaces
 from gym import Space
 from gym.spaces import Box, Dict, Discrete, MultiDiscrete
 from transformers import BertConfig, GPT2Config, GPT2Tokenizer, GPTNeoConfig
 from utils import init
+from wrappers import Spaces
 
 
 def get_size(space: Space):
