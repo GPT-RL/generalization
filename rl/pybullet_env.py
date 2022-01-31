@@ -85,7 +85,7 @@ def get_model_ids():
         return set(json.load(f))
 
 
-def get_urdfs(path, model_ids):
+def get_urdfs(path):
     for subdir in path.iterdir():
         urdf = Path(subdir, "mobility.urdf")
         assert urdf.exists()
@@ -94,9 +94,8 @@ def get_urdfs(path, model_ids):
         with Path(subdir, "bounding_box.json").open() as f:
             box = json.load(f)
         _, _, z_min = box["min"]
-        model_id = meta["model_id"]
-        if model_id in model_ids:
-            yield URDF(name=meta["model_cat"], path=urdf, z=-z_min)
+        name = meta["model_cat"]
+        yield URDF(name=name, path=urdf, z=-z_min)
 
 
 @dataclass
@@ -111,15 +110,16 @@ class Env(gym.Env):
     max_episode_steps: int = 200
     metadata = {"render.modes": ["human", "rgb_array"], "video.frames_per_second": 60}
     model_name: str = "gpt2"
+    random_seed: int = 0
     reindex_tokens: bool = False
 
     def __post_init__(self):
-        names, paths, zs = zip(*self.urdfs)
-        self.missions = names
-        self.seed(0)
+        name_to_urdf, paths, zs = zip(*self.urdfs)
+        self.missions = name_to_urdf
+        self.random = np.random.default_rng(self.random_seed)
 
         def tokens() -> Generator[torch.Tensor, None, None]:
-            for k in names:
+            for k in name_to_urdf:
                 encoded = self.tokenizer.encode(k, return_tensors="pt")
                 tensor = cast(torch.Tensor, encoded)
                 yield tensor.squeeze(0)
@@ -132,7 +132,7 @@ class Env(gym.Env):
             _, indices = np.unique(padded, return_inverse=True)
             padded = indices.reshape(padded.shape)
 
-        self.tokens = OrderedDict(zip(names, padded))
+        self.tokens = OrderedDict(zip(name_to_urdf, padded))
 
         max_padded = padded.max()
         nvec = np.ones_like(padded[0]) * (max_padded + 1)
@@ -207,11 +207,13 @@ class Env(gym.Env):
 
         missions = []
         self.goals = goals = []
+        name_to_urdf = {urdf.name: urdf for urdf in self.urdfs}
         urdfs = [
-            self.urdfs[i]
-            for i in self.random.choice(len(self.urdfs), size=2, replace=False)
+            name_to_urdf[name]
+            for name in self.random.choice(list(name_to_urdf), size=2, replace=False)
         ]
 
+        print([u.name for u in urdfs])
         for base_position, urdf in zip(
             [
                 [self.env_bounds / 3, self.env_bounds / 3, 0],
@@ -350,17 +352,12 @@ class Env(gym.Env):
     def close(self):
         self._p.disconnect()
 
-    def seed(self, seed=None):
-        self.random = np.random.default_rng(seed=seed)
-        return [seed]
-
 
 def main():
     path = Path(Path.home(), "downloads/dataset")
-    model_ids = list(get_model_ids())
     env = Env(
         tokenizer=GPT2Tokenizer.from_pretrained("gpt2"),
-        urdfs=list(get_urdfs(path, model_ids)),
+        urdfs=list(get_urdfs(path)),
         is_render=True,
         max_episode_steps=10000000,
     )

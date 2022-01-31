@@ -7,9 +7,8 @@ import torch.nn as nn
 from agent import NNBase
 from gym import Space
 from gym.spaces import Box, Dict, Discrete, MultiDiscrete
-from transformers import BertConfig, GPT2Config, GPT2Tokenizer, GPTNeoConfig
-
 from pybullet_env import Observation
+from transformers import BertConfig, GPT2Config, GPT2Tokenizer, GPTNeoConfig
 from utils import init
 
 

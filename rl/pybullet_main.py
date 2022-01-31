@@ -7,14 +7,16 @@ import numpy as np
 from envs import RenderWrapper, VecPyTorch
 from gym_minigrid.minigrid import COLORS
 from pybullet_agent import Agent
-from pybullet_env import URDF, Env, get_model_ids, get_urdfs
+from pybullet_env import URDF, Env, get_urdfs
 from stable_baselines3.common.monitor import Monitor
 from transformers import GPT2Tokenizer
+from vec_env import DummyVecEnv, SubprocVecEnv
 from wrappers import RolloutsWrapper, alt_type
 
 
 class Args(main.Args):
     data_path: str = "/root/.cache/data/dataset"
+    num_envs: int = 8
     pretrained_model: Literal[
         "gpt2",
         "gpt2-medium",
@@ -63,8 +65,7 @@ class Trainer(main.Trainer):
             urdfs: List[URDF],
             **_,
         ):
-            _env = Env(tokenizer, urdfs)
-            _env.seed(seed)
+            _env = Env(tokenizer, urdfs, random_seed=seed)
 
             _env = RolloutsWrapper(_env)
 
@@ -119,7 +120,7 @@ and unzip downloaded file\
 """
             )
 
-        urdfs = list(get_urdfs(data_path, get_model_ids()))
+        urdfs = list(get_urdfs(data_path))
 
         return super().make_vec_envs(
             *args,
@@ -128,6 +129,21 @@ and unzip downloaded file\
             urdfs=urdfs,
             tokenizer=cls.tokenizer(pretrained_model),
         )
+
+    @classmethod
+    def _make_vec_envs(cls, num_processes, render, seed, sync_envs, test, **kwargs):
+        num_envs = kwargs["num_envs"]
+
+        envs = [
+            cls.make_env(seed=seed + i, render=render, test=test, **kwargs)
+            for i in range(num_envs)
+        ]
+
+        if len(envs) > 1 and not sync_envs:
+            envs = SubprocVecEnv(envs, num_processes)
+        else:
+            envs = DummyVecEnv(envs, num_processes)
+        return envs
 
 
 if __name__ == "__main__":

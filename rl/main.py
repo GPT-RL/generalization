@@ -462,28 +462,15 @@ class Trainer:
     def make_vec_envs(
         cls,
         device,
-        num_processes,
         render,
         render_test,
-        seed,
-        sync_envs,
         test,
         num_frame_stack=None,
         **kwargs,
     ):
         if test:
             render = render_test
-        envs = [
-            cls.make_env(
-                seed=seed + i, render=render, test=test, device=device, **kwargs
-            )
-            for i in range(num_processes)
-        ]
-
-        if len(envs) > 1 and not sync_envs:
-            envs = SubprocVecEnv(envs)
-        else:
-            envs = DummyVecEnv(envs)
+        envs = cls._make_vec_envs(render=render, test=test, **kwargs)
 
         envs = VecPyTorch(envs, device)
 
@@ -492,6 +479,20 @@ class Trainer:
         elif len(envs.observation_space.shape) == 3:
             envs = VecPyTorchFrameStack(envs, 4, device)
 
+        return envs
+
+    @classmethod
+    def _make_vec_envs(cls, num_processes, render, seed, sync_envs, test, **kwargs):
+
+        envs = [
+            cls.make_env(seed=seed + i, render=render, test=test, **kwargs)
+            for i in range(num_processes)
+        ]
+
+        if len(envs) > 1 and not sync_envs:
+            envs = SubprocVecEnv(envs)
+        else:
+            envs = DummyVecEnv(envs)
         return envs
 
     @staticmethod

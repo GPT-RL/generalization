@@ -16,10 +16,9 @@ from gym.spaces import Box, Dict, Discrete, MultiDiscrete, Tuple
 from gym_minigrid.minigrid import COLORS, OBJECT_TO_IDX, MiniGridEnv, WorldObj
 from gym_minigrid.window import Window
 from gym_minigrid.wrappers import ImgObsWrapper
+from pybullet_env import Observation
 from torch.nn.utils.rnn import pad_sequence
 from transformers import GPT2Tokenizer
-
-from pybullet_env import Observation
 
 T = TypeVar("T")  # Declare type variable
 
