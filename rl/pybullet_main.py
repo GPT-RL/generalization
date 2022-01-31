@@ -17,6 +17,7 @@ from wrappers import RolloutsWrapper, TokenizerWrapper, TrainTest
 class Args(main.Args):
     data_path: str = "/root/.cache/data/dataset"
     names: Optional[str] = None
+    models: Optional[str] = None
     num_envs: int = 8
     num_test: int = 2
     pretrained_model: Literal[
@@ -104,7 +105,8 @@ class Trainer(main.Trainer):
         data_path: str,
         num_envs: int,
         pretrained_model: str,
-        names: str,
+        models: Optional[str],
+        names: Optional[str],
         num_processes: int,
         num_test: int,
         render: bool,
@@ -141,7 +143,9 @@ and unzip downloaded file\
 
         if names:
             names: Set[str] = set(names.split(","))
-        urdfs = list(get_urdfs(data_path, names))
+        if models:
+            models: Set[str] = set(models.split(","))
+        urdfs = list(get_urdfs(data_path, models, names))
         names: List[str] = [urdf.name for urdf in urdfs]
         longest_mission = max(names, key=len)
         rng = np.random.default_rng(seed=seed)

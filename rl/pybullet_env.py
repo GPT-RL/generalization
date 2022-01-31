@@ -78,9 +78,10 @@ def suppress_stdout():
             # CLOEXEC may be different
 
 
-def get_urdfs(path: Path, names: Set[str] = None):
+def get_urdfs(path: Path, models: Set[str] = None, names: Set[str] = None):
     with Path("models.yml").open() as f:
-        models = yaml.load(f, Loader=yaml.FullLoader)
+        _models = set(yaml.load(f, Loader=yaml.FullLoader))
+        models = _models if models is None else _models & models
     for subdir in path.iterdir():
         with Path(subdir, "meta.json").open() as f:
             meta = json.load(f)
