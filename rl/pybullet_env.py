@@ -1,23 +1,20 @@
 import json
 import os
+import string
 import sys
-from collections import OrderedDict
 from contextlib import contextmanager
 from dataclasses import astuple, dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Generator, Generic, List, NamedTuple, Tuple, TypeVar, Union, cast
+from typing import Generic, NamedTuple, Tuple, TypeVar, Union
 
 import gym.spaces as spaces
 import gym.utils.seeding
 import numpy as np
 import PIL.Image
 import pybullet as p
-import torch
 from gym.spaces import Box, MultiDiscrete
 from pybullet_utils import bullet_client
-from torch.nn.utils.rnn import pad_sequence
-from transformers import GPT2Tokenizer
 
 CAMERA_DISTANCE = 0.1
 CAMERA_PITCH = -10
@@ -98,10 +95,17 @@ def get_urdfs(path):
         yield URDF(name=name, path=urdf, z=-z_min)
 
 
+class String(gym.Space):
+    def sample(self):
+        return "".join(self.np_random.choice(string.ascii_letters) for _ in range(10))
+
+    def contains(self, x):
+        return isinstance(x, str)
+
+
 @dataclass
 class Env(gym.Env):
-    tokenizer: GPT2Tokenizer
-    urdfs: List[URDF]
+    urdfs: Tuple[URDF, URDF]
     cameraYaw: float = CAMERA_YAW
     env_bounds: float = 5
     image_height: float = 64  # 72
@@ -114,30 +118,9 @@ class Env(gym.Env):
     reindex_tokens: bool = False
 
     def __post_init__(self):
-        name_to_urdf, paths, zs = zip(*self.urdfs)
-        self.missions = name_to_urdf
         self.random = np.random.default_rng(self.random_seed)
-
-        def tokens() -> Generator[torch.Tensor, None, None]:
-            for k in name_to_urdf:
-                encoded = self.tokenizer.encode(k, return_tensors="pt")
-                tensor = cast(torch.Tensor, encoded)
-                yield tensor.squeeze(0)
-
-        padded = pad_sequence(
-            list(tokens()),
-            padding_value=self.tokenizer.eos_token_id,
-        ).T.numpy()
-        if self.reindex_tokens:
-            _, indices = np.unique(padded, return_inverse=True)
-            padded = indices.reshape(padded.shape)
-
-        self.tokens = OrderedDict(zip(name_to_urdf, padded))
-
-        max_padded = padded.max()
-        nvec = np.ones_like(padded[0]) * (max_padded + 1)
         obs_spaces: Observation[MultiDiscrete, Box] = Observation(
-            mission=MultiDiscrete(nvec),
+            mission=String(),
             image=Box(
                 low=0,
                 high=255,
@@ -149,9 +132,7 @@ class Env(gym.Env):
 
         self.iterator = None
 
-        self.relativeChildPosition = [0, 0, 0]
-        self.relativeChildOrientation = [0, 0, 0, 1]
-
+        # initialize simulator
         if self.is_render:
             with suppress_stdout():
                 self._p = bullet_client.BulletClient(connection_mode=p.GUI)
@@ -170,6 +151,9 @@ class Env(gym.Env):
             mass, colSphereId, visualShapeId, [0, 0, 0.4]
         )
 
+        relativeChildPosition = [0, 0, 0]
+        relativeChildOrientation = [0, 0, 0, 1]
+
         self.mass_cid = self._p.createConstraint(
             self.mass,
             -1,
@@ -178,8 +162,8 @@ class Env(gym.Env):
             self._p.JOINT_FIXED,
             [0, 0, 0],
             [0, 0, 0],
-            self.relativeChildPosition,
-            self.relativeChildOrientation,
+            relativeChildPosition,
+            relativeChildOrientation,
         )
         self._p.configureDebugVisualizer(self._p.COV_ENABLE_GUI, False)
 
@@ -205,23 +189,18 @@ class Env(gym.Env):
         )
         self._p.createMultiBody(0, floor_collision, floor_visual, [0, 0, -0.2])
 
-        missions = []
-        self.goals = goals = []
-        name_to_urdf = {urdf.name: urdf for urdf in self.urdfs}
-        urdfs = [
-            name_to_urdf[name]
-            for name in self.random.choice(list(name_to_urdf), size=2, replace=False)
-        ]
+        self.choice = choice = self.random.choice(2)
+        self.mission = [urdf.name for urdf in self.urdfs][choice]
+        self.objects = objects = []
 
-        print([u.name for u in urdfs])
+        print([u.name for u in self.urdfs])
         for base_position, urdf in zip(
             [
                 [self.env_bounds / 3, self.env_bounds / 3, 0],
                 [-self.env_bounds / 3, -self.env_bounds / 3, 0],
             ],
-            urdfs,
+            self.urdfs,
         ):
-            missions.append(urdf.name)
             base_position[-1] = urdf.z
 
             try:
@@ -232,7 +211,7 @@ class Env(gym.Env):
             except self._p.error:
                 print(self._p.error)
                 raise RuntimeError(f"Error while loading {urdf.path}")
-            goals.append(goal)
+            objects.append(goal)
 
             collisionFilterGroup = 0
             collisionFilterMask = 0
@@ -247,12 +226,9 @@ class Env(gym.Env):
                 self._p.JOINT_FIXED,
                 [1, 1, 1.4],
                 [0, 0, 0],
-                self.relativeChildPosition,
-                self.relativeChildOrientation,
+                relativeChildPosition,
+                relativeChildOrientation,
             )
-        self.choice = choice = self.random.choice(2)
-        self.goal = goals[choice]
-        self.mission = missions[choice]
 
     def get_observation(
         self,
@@ -278,7 +254,7 @@ class Env(gym.Env):
         rgbaPixels = rgbaPixels[..., :-1].astype(np.float32)
         obs = Observation(
             image=rgbaPixels,
-            mission=self.tokens[mission],
+            mission=mission,
         )
         obs = astuple(obs)
         assert self.observation_space.contains(obs)
@@ -314,7 +290,7 @@ class Env(gym.Env):
                 (*goal_poss, pos), _ = zip(
                     *[
                         self._p.getBasePositionAndOrientation(g)
-                        for g in (*self.goals, self.mass)
+                        for g in (*self.objects, self.mass)
                     ]
                 )
                 dists = [np.linalg.norm(np.array(pos) - np.array(g)) for g in goal_poss]
@@ -355,9 +331,9 @@ class Env(gym.Env):
 
 def main():
     path = Path(Path.home(), "downloads/dataset")
+    urdf1, urdf2, *_ = get_urdfs(path)
     env = Env(
-        tokenizer=GPT2Tokenizer.from_pretrained("gpt2"),
-        urdfs=list(get_urdfs(path)),
+        urdfs=(urdf1, urdf2),
         is_render=True,
         max_episode_steps=10000000,
     )

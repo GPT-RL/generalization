@@ -1,6 +1,6 @@
 import functools
 from pathlib import Path
-from typing import List, Literal, cast
+from typing import List, Literal, Tuple, cast
 
 import main
 import numpy as np
@@ -60,12 +60,12 @@ class Trainer(main.Trainer):
     @classmethod
     def make_env(cls, env, allow_early_resets, render: bool = False, *args, **kwargs):
         def _thunk(
+            rank: int,
             seed: int,
-            tokenizer: GPT2Tokenizer,
-            urdfs: List[URDF],
+            urdfs: List[Tuple[URDF, URDF]],
             **_,
         ):
-            _env = Env(tokenizer, urdfs, random_seed=seed)
+            _env = Env(urdfs[rank], random_seed=seed + rank)
 
             _env = RolloutsWrapper(_env)
 
@@ -121,6 +121,8 @@ and unzip downloaded file\
             )
 
         urdfs = list(get_urdfs(data_path))
+        np.random.default_rng(seed).shuffle(urdfs)
+        urdfs = list(zip(urdfs, reversed(urdfs)))
 
         return super().make_vec_envs(
             *args,
@@ -135,7 +137,7 @@ and unzip downloaded file\
         num_envs = kwargs["num_envs"]
 
         envs = [
-            cls.make_env(seed=seed + i, render=render, test=test, **kwargs)
+            cls.make_env(seed=seed, rank=i, render=render, test=test, **kwargs)
             for i in range(num_envs)
         ]
 
