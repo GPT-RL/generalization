@@ -16,7 +16,9 @@ from wrappers import RolloutsWrapper, TokenizerWrapper, TrainTest
 
 class Args(main.Args):
     data_path: str = "/root/.cache/data/dataset"
+    image_size: float = 64
     names: Optional[str] = None
+    max_episode_steps: int = 200
     models: Optional[str] = None
     num_envs: int = 8
     num_test: int = 2
@@ -31,6 +33,7 @@ class Args(main.Args):
         "EleutherAI/gpt-neo-2.7B",
     ] = "gpt2-large"  # what size of pretrained GPT to use
     prefix_length: int = 0
+    steps_per_action: int = 5
 
     def configure(self) -> None:
         self.add_subparsers(dest="logger_args")
@@ -63,13 +66,23 @@ class Trainer(main.Trainer):
     @classmethod
     def make_env(cls, env, allow_early_resets, render: bool = False, *args, **kwargs):
         def _thunk(
+            image_size: float,
             longest_mission: str,
+            max_episode_steps: int,
             seed: int,
+            steps_per_action: int,
             tokenizer: GPT2Tokenizer,
             urdfs: Tuple[URDF, URDF],
             **_,
         ):
-            _env = Env(is_render=render, random_seed=seed, urdfs=urdfs)
+            _env = Env(
+                image_size=image_size,
+                is_render=render,
+                max_episode_steps=max_episode_steps,
+                random_seed=seed,
+                steps_per_action=steps_per_action,
+                urdfs=urdfs,
+            )
             _env = TokenizerWrapper(
                 _env, tokenizer=tokenizer, longest_mission=longest_mission
             )

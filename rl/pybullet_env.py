@@ -108,17 +108,16 @@ class String(gym.Space):
 
 @dataclass
 class Env(gym.Env):
+    image_size: float
+    max_episode_steps: int
+    steps_per_action: int
     urdfs: Tuple[URDF, URDF]
     camera_yaw: float = CAMERA_YAW
     env_bounds: float = 5
-    image_height: float = 64  # 72
-    image_width: float = 64  # 96
     is_render: bool = False
-    max_episode_steps: int = 200
     metadata = {"render.modes": ["human", "rgb_array"], "video.frames_per_second": 60}
     model_name: str = "gpt2"
     random_seed: int = 0
-    reindex_tokens: bool = False
 
     def __post_init__(self):
         self._camera_yaw = self.camera_yaw
@@ -130,7 +129,7 @@ class Env(gym.Env):
             image=Box(
                 low=0,
                 high=255,
-                shape=[self.image_height, self.image_width, 3],
+                shape=[self.image_size, self.image_size, 3],
             ),
         )
         self.observation_space = spaces.Tuple(astuple(obs_spaces))
@@ -151,8 +150,8 @@ class Env(gym.Env):
         sphereRadius = 0.02
         mass = 1
         visualShapeId = 2
-        colSphereId = self._p.createCollisionShape(
-            self._p.GEOM_SPHERE, radius=sphereRadius
+        colSphereId = self._p.createVisualShape(
+            self._p.GEOM_SPHERE, radius=sphereRadius, rgbaColor=[0, 0, 0, 1]
         )
         self.mass_start_pos = [-3, -3, 0]
         self.mass = self._p.createMultiBody(
@@ -237,8 +236,8 @@ class Env(gym.Env):
     ) -> Tuple[np.ndarray, np.ndarray]:
         pos, _ = self._p.getBasePositionAndOrientation(self.mass)
         (_, _, rgbaPixels, _, _,) = self._p.getCameraImage(
-            self.image_width,
-            self.image_height,
+            self.image_size,
+            self.image_size,
             viewMatrix=self._p.computeViewMatrixFromYawPitchRoll(
                 cameraTargetPosition=pos,
                 distance=CAMERA_DISTANCE,
@@ -282,7 +281,7 @@ class Env(gym.Env):
             new_x = np.clip(x + x_shift, -self.env_bounds, self.env_bounds)
             new_y = np.clip(y + y_shift, -self.env_bounds, self.env_bounds)
             self._p.changeConstraint(self.mass_cid, [new_x, new_y, -0.1], maxForce=10)
-            for _ in range(5):
+            for _ in range(self.steps_per_action):
                 self._p.stepSimulation()
 
             s = self.get_observation(self._camera_yaw, self.mission)
@@ -342,8 +341,10 @@ def main():
     urdf1, urdf2, *_ = get_urdfs(path)
     env = Env(
         urdfs=(urdf1, urdf2),
+        image_size=64,
         is_render=True,
         max_episode_steps=10000000,
+        steps_per_action=5,
     )
     env.render(mode="human")
     t = True
