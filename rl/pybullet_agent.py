@@ -129,10 +129,23 @@ class Base(NNBase):
             )
             output = self.image_net(dummy_input)
 
+        self._hidden_size = hidden_size
+        self._recurrent = recurrent
+        self.initial_hxs = nn.Parameter(self._initial_hxs)
+
+        assert recurrent
+        recurrent_input_size = output.size(-1)
+        self.rnn = nn.GRU(recurrent_input_size, hidden_size)
+        for name, param in self.rnn.named_parameters():
+            if "bias" in name:
+                nn.init.constant_(param, 0)
+            elif "weight" in name:
+                nn.init.orthogonal_(param)
+
         self.merge = nn.Sequential(
             init_(
                 nn.Linear(
-                    output.size(-1) + self.embedding_size,
+                    hidden_size + self.embedding_size,
                     hidden_size,
                 )
             ),
@@ -166,10 +179,11 @@ class Base(NNBase):
         image = self.image_net(image)
 
         mission = self.embed(inputs.mission.long())
+
+        assert self.is_recurrent
+        image, rnn_hxs = self._forward_gru(image, rnn_hxs, masks)
         x = torch.cat([image, mission], dim=-1)
         x = self.merge(x)
-        if self.is_recurrent:
-            x, rnn_hxs = self._forward_gru(x, rnn_hxs, masks)
         return self.critic_linear(x), x, rnn_hxs
 
     def embed(self, inputs):
