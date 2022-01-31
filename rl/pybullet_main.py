@@ -1,17 +1,16 @@
 import functools
 from pathlib import Path
-from typing import List, Literal, Tuple, cast
+from typing import List, Literal, cast
 
 import main
 import numpy as np
 from envs import RenderWrapper, VecPyTorch
-from gym_minigrid.minigrid import COLORS
 from pybullet_agent import Agent
 from pybullet_env import URDF, Env, get_urdfs
 from stable_baselines3.common.monitor import Monitor
 from transformers import GPT2Tokenizer
 from vec_env import DummyVecEnv, SubprocVecEnv
-from wrappers import RolloutsWrapper, alt_type
+from wrappers import RolloutsWrapper, TokenizerWrapper
 
 
 class Args(main.Args):
@@ -62,10 +61,17 @@ class Trainer(main.Trainer):
         def _thunk(
             rank: int,
             seed: int,
-            urdfs: List[Tuple[URDF, URDF]],
+            tokenizer: GPT2Tokenizer,
+            urdfs: List[URDF],
             **_,
         ):
+            missions = [urdf.name for urdf in urdfs]
+            urdfs = list(zip(urdfs, reversed(urdfs)))
+            longest_mission = max(missions, key=len)
             _env = Env(urdfs[rank], random_seed=seed + rank)
+            _env = TokenizerWrapper(
+                _env, tokenizer=tokenizer, longest_mission=longest_mission
+            )
 
             _env = RolloutsWrapper(_env)
 
@@ -76,18 +82,6 @@ class Trainer(main.Trainer):
             return _env
 
         return functools.partial(_thunk, env_id=env, **kwargs)
-
-    # noinspection PyShadowingBuiltins
-    @staticmethod
-    @functools.lru_cache(maxsize=2)
-    def stock_prefix(type: str, prefix_length: int, seed: int):
-        if prefix_length == 0:
-            return ""
-        rng = np.random.default_rng(seed=seed)
-        colors = rng.choice(list(COLORS), replace=False, size=prefix_length)
-        return ". ".join(
-            [f"{color} {alt_type(type)}: {color} {type}" for color in colors]
-        )
 
     @staticmethod
     @functools.lru_cache(maxsize=1)
@@ -122,7 +116,6 @@ and unzip downloaded file\
 
         urdfs = list(get_urdfs(data_path))
         np.random.default_rng(seed).shuffle(urdfs)
-        urdfs = list(zip(urdfs, reversed(urdfs)))
 
         return super().make_vec_envs(
             *args,
