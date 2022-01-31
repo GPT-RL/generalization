@@ -108,7 +108,7 @@ class String(gym.Space):
 @dataclass
 class Env(gym.Env):
     urdfs: Tuple[URDF, URDF]
-    cameraYaw: float = CAMERA_YAW
+    camera_yaw: float = CAMERA_YAW
     env_bounds: float = 5
     image_height: float = 64  # 72
     image_width: float = 64  # 96
@@ -120,6 +120,7 @@ class Env(gym.Env):
     reindex_tokens: bool = False
 
     def __post_init__(self):
+        self._camera_yaw = self.camera_yaw
         names = [urdf.name for urdf in self.urdfs]
         assert len(set(names)) == 2, names
         self.random = np.random.default_rng(self.random_seed)
@@ -238,7 +239,7 @@ class Env(gym.Env):
 
     def get_observation(
         self,
-        cameraYaw,
+        camera_yaw,
         mission,
     ) -> Tuple[np.ndarray, np.ndarray]:
         pos, _ = self._p.getBasePositionAndOrientation(self.mass)
@@ -248,7 +249,7 @@ class Env(gym.Env):
             viewMatrix=self._p.computeViewMatrixFromYawPitchRoll(
                 cameraTargetPosition=pos,
                 distance=CAMERA_DISTANCE,
-                yaw=cameraYaw,
+                yaw=camera_yaw,
                 pitch=CAMERA_PITCH,
                 roll=0,
                 upAxisIndex=2,
@@ -270,15 +271,15 @@ class Env(gym.Env):
         i = dict(mission=self.mission)
 
         self._p.resetBasePositionAndOrientation(self.mass, [0, 0, 0.6], [0, 0, 0, 1])
-        cameraYaw = self.cameraYaw
-        action = yield self.get_observation(cameraYaw, self.mission)
+        self._camera_yaw = self.camera_yaw
+        action = yield self.get_observation(self._camera_yaw, self.mission)
 
         for global_step in range(self.max_episode_steps):
             a = ACTIONS[action].value
 
-            cameraYaw += a.turn
+            self._camera_yaw += a.turn
             x, y, _, _ = self._p.getQuaternionFromEuler(
-                [np.pi, 0, np.deg2rad(2 * cameraYaw) + np.pi]
+                [np.pi, 0, np.deg2rad(2 * self._camera_yaw) + np.pi]
             )
             x_shift = a.forward * x
             y_shift = a.forward * y
@@ -288,7 +289,7 @@ class Env(gym.Env):
             self._p.changeConstraint(self.mass_cid, [new_x, new_y, -0.1], maxForce=10)
             self._p.stepSimulation()
 
-            s = self.get_observation(cameraYaw, self.mission)
+            s = self.get_observation(self._camera_yaw, self.mission)
             if ACTIONS[action].value.take_picture:
                 PIL.Image.fromarray(np.uint8(Observation(*s).image)).show()
             t = ACTIONS[action].value.done
@@ -305,7 +306,7 @@ class Env(gym.Env):
                 r = 0
             action = yield s, r, t, i
 
-        s = self.get_observation(cameraYaw, self.mission)
+        s = self.get_observation(self._camera_yaw, self.mission)
         r = 0
         t = True
         yield s, r, t, i
@@ -324,9 +325,14 @@ class Env(gym.Env):
         return next(self.iterator)
 
     def render(self, mode="human"):
-
         if mode == "human":
             self.is_render = True
+
+            cameraTargetPosition, orn = p.getBasePositionAndOrientation(self.mass)
+
+            self._p.resetDebugVisualizerCamera(
+                CAMERA_DISTANCE, self._camera_yaw, CAMERA_PITCH, cameraTargetPosition
+            )
             return np.array([])
         if mode == "rgb_array":
             raise NotImplementedError
@@ -348,7 +354,6 @@ def main():
     r = None
     printed_mission = False
 
-    cameraYaw = None
     action = Actions.NO_OP
 
     mapping = {
@@ -363,17 +368,12 @@ def main():
     while True:
         try:
             if t:
-                cameraYaw = CAMERA_YAW
                 env.reset()
                 printed_mission = False
                 if r is not None:
                     print("Reward:", r)
-            spherePos, orn = p.getBasePositionAndOrientation(env.mass)
 
-            cameraTargetPosition = spherePos
-            p.resetDebugVisualizerCamera(
-                CAMERA_DISTANCE, cameraYaw, CAMERA_PITCH, cameraTargetPosition
-            )
+            env.render()
 
             keys = p.getKeyboardEvents()
             for k, v in keys.items():
@@ -383,16 +383,14 @@ def main():
                 if v & p.KEY_WAS_TRIGGERED:
                     action = mapping.get(k, Actions.NO_OP)
 
-            turn = action.value.turn
             action_index = ACTIONS.index(action)
             o, r, t, i = env.step(action_index)
             if not printed_mission:
-                print(i["mission"])
+                print(Observation(*o).mission)
                 printed_mission = True
 
             if action == Actions.PICTURE:
                 action = Actions.NO_OP
-            cameraYaw += turn
 
         except KeyboardInterrupt:
             print("Received keyboard interrupt. Exiting.")
