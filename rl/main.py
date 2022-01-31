@@ -521,13 +521,11 @@ class Trainer:
         charts = [
             *[
                 spec(x=HOURS, y=y, **kwargs)
-                for y in (EPISODE_SUCCESS, TEST_EPISODE_SUCCESS)
+                for y in (EPISODE_RETURN, TEST_EPISODE_RETURN)
             ],
             *[
                 spec(x=STEP, y=y, **kwargs)
                 for y in (
-                    EPISODE_SUCCESS,
-                    TEST_EPISODE_SUCCESS,
                     EPISODE_RETURN,
                     TEST_EPISODE_RETURN,
                     FPS,
