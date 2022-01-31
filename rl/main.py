@@ -193,7 +193,8 @@ class Trainer:
         episode_lengths = []
         episode_successes = []
 
-        start = time.time()
+        tick = start = time.time()
+        num_steps = 0
         save_count = 0
         num_updates = int(args.num_env_steps) // args.num_steps // args.num_processes
         for j in range(num_updates):
@@ -292,7 +293,9 @@ class Trainer:
 
                 if j % args.log_interval == 0:
                     now = time.time()
-                    fps = int(total_num_steps / (now - start))
+                    fps = (total_num_steps - num_steps) / (now - tick)
+                    tick = time.time()
+                    num_steps = total_num_steps
                     log = {
                         EPISODE_RETURN: np.mean(episode_rewards),
                         EPISODE_LENGTH: np.mean(episode_lengths),
