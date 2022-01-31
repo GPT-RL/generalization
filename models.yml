@@ -263,7 +263,7 @@
 '8930': Door
 '8936': Door
 '8961': Door
-'8966': Door
+#'8966': Door
 '8983': Door
 '8994': Door
 '8997': Door
@@ -295,16 +295,16 @@
 #'9918': Laptop
 '9960': Laptop
 '9968': Laptop
-'9987': Laptop
+#'9987': Laptop
 '9992': Laptop
 '9996': Laptop
 '10036': Refrigerator
 '10040': Laptop
 '10068': Refrigerator
-'10090': Laptop
+#'10090': Laptop
 '10098': Laptop
 '10101': Laptop
-'10108': Laptop
+#'10108': Laptop
 '10125': Laptop
 '10143': Refrigerator
 '10144': Refrigerator
@@ -321,7 +321,7 @@
 '10305': Laptop
 '10306': Laptop
 '10347': Refrigerator
-'10356': Laptop
+#'10356': Laptop
 '10357': TrashCan
 '10373': Refrigerator
 '10383': Laptop
@@ -405,7 +405,7 @@
 '11242': Laptop
 '11248': Laptop
 '11259': TrashCan
-'11260': Refrigerator
+#'11260': Refrigerator
 '11279': TrashCan
 '11299': Refrigerator
 '11304': Refrigerator
@@ -415,7 +415,7 @@
 '11406': Laptop
 '11429': Laptop
 '11477': Laptop
-'11538': Laptop
+#'11538': Laptop
 '11550': Refrigerator
 '11581': Laptop
 '11586': Laptop
@@ -449,7 +449,7 @@
 '12073': Laptop
 '12085': Dishwasher
 '12092': Dishwasher
-'12115': Laptop
+#'12115': Laptop
 '12231': TrashCan
 '12248': Refrigerator
 '12249': Refrigerator

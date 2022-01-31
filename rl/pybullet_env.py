@@ -6,7 +6,7 @@ from contextlib import contextmanager
 from dataclasses import astuple, dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Generic, NamedTuple, Tuple, TypeVar, Union
+from typing import Generic, NamedTuple, Set, Tuple, TypeVar, Union
 
 import gym.spaces as spaces
 import gym.utils.seeding
@@ -78,20 +78,22 @@ def suppress_stdout():
             # CLOEXEC may be different
 
 
-def get_urdfs(path: Path):
+def get_urdfs(path: Path, names: Set[str] = None):
     with Path("models.yml").open() as f:
         models = yaml.load(f, Loader=yaml.FullLoader)
     for subdir in path.iterdir():
+        with Path(subdir, "meta.json").open() as f:
+            meta = json.load(f)
+        name = meta["model_cat"]
+        if names is not None and name not in names:
+            continue
         if subdir.name not in models:
             continue
         urdf = Path(subdir, "mobility.urdf")
         assert urdf.exists()
-        with Path(subdir, "meta.json").open() as f:
-            meta = json.load(f)
         with Path(subdir, "bounding_box.json").open() as f:
             box = json.load(f)
         _, _, z_min = box["min"]
-        name = meta["model_cat"]
         yield URDF(name=name, path=urdf, z=-z_min)
 
 

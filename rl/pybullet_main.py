@@ -1,7 +1,7 @@
 import functools
 import itertools
 from pathlib import Path
-from typing import List, Literal, Set, Tuple, cast
+from typing import List, Literal, Optional, Set, Tuple, cast
 
 import main
 import numpy as np
@@ -16,6 +16,7 @@ from wrappers import RolloutsWrapper, TokenizerWrapper, TrainTest
 
 class Args(main.Args):
     data_path: str = "/root/.cache/data/dataset"
+    names: Optional[str] = None
     num_envs: int = 8
     num_test: int = 2
     pretrained_model: Literal[
@@ -100,15 +101,16 @@ class Trainer(main.Trainer):
     @classmethod
     def _make_vec_envs(
         cls,
-        data_path,
-        num_envs,
-        pretrained_model,
-        num_processes,
-        num_test,
-        render,
-        seed,
-        sync_envs,
-        test,
+        data_path: str,
+        num_envs: int,
+        pretrained_model: str,
+        names: str,
+        num_processes: int,
+        num_test: int,
+        render: bool,
+        seed: int,
+        sync_envs: bool,
+        test: bool,
         **kwargs,
     ):
 
@@ -134,12 +136,15 @@ and unzip downloaded file\
         #     name = meta["model_cat"]
         #     mapping[subdir.name] = name
 
-        urdfs = list(get_urdfs(data_path))
+        if names:
+            names: Set[str] = set(names.split(","))
+        urdfs = list(get_urdfs(data_path, names))
         names: List[str] = [urdf.name for urdf in urdfs]
         longest_mission = max(names, key=len)
         rng = np.random.default_rng(seed=seed)
         names: TrainTest[Set[str]] = cls.train_test_split(tuple(names), num_test, rng)
         names: Set[str] = names.test if test else names.train
+        assert len(names) > 1
         urdfs = [u for u in urdfs if u.name in names]
 
         def get_pairs():
