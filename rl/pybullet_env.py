@@ -113,7 +113,7 @@ class Env(gym.Env):
     steps_per_action: int
     urdfs: Tuple[URDF, URDF]
     camera_yaw: float = CAMERA_YAW
-    env_bounds: float = 5
+    env_bounds: float = 2
     is_render: bool = False
     metadata = {"render.modes": ["human", "rgb_array"], "video.frames_per_second": 60}
     model_name: str = "gpt2"
