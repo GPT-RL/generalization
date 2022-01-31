@@ -17,9 +17,9 @@ import yaml
 from gym.spaces import Box, MultiDiscrete
 from pybullet_utils import bullet_client
 
-CAMERA_DISTANCE = 0.1
-CAMERA_PITCH = -10
-CAMERA_YAW = 45
+CAMERA_DISTANCE = 0.2
+CAMERA_PITCH = -1
+CAMERA_YAW = 315
 
 M = TypeVar("M")
 I = TypeVar("I")
@@ -138,6 +138,7 @@ class Env(gym.Env):
         self.iterator = None
 
         # initialize simulator
+
         if self.is_render:
             with suppress_stdout():
                 self._p = bullet_client.BulletClient(connection_mode=p.GUI)
@@ -146,14 +147,15 @@ class Env(gym.Env):
             with suppress_stdout():
                 self._p = bullet_client.BulletClient(connection_mode=p.DIRECT)
 
-        sphereRadius = 0.2
+        sphereRadius = 0.02
         mass = 1
         visualShapeId = 2
         colSphereId = self._p.createCollisionShape(
             self._p.GEOM_SPHERE, radius=sphereRadius
         )
+        self.mass_start_pos = [-3, -3, 0]
         self.mass = self._p.createMultiBody(
-            mass, colSphereId, visualShapeId, [0, 0, 0.4]
+            mass, colSphereId, visualShapeId, self.mass_start_pos
         )
 
         relativeChildPosition = [0, 0, 0]
@@ -174,25 +176,15 @@ class Env(gym.Env):
 
         # self._p.setGravity(0, 0, -10)
         halfExtents = [1.5 * self.env_bounds, 1.5 * self.env_bounds, 0.1]
-        floor_collision = self._p.createCollisionShape(
-            self._p.GEOM_BOX, halfExtents=halfExtents
-        )
+        # floor_collision = self._p.createCollisionShape(
+        #     self._p.GEOM_BOX, halfExtents=halfExtents
+        # )
         floor_visual = self._p.createVisualShape(
             self._p.GEOM_BOX, halfExtents=halfExtents, rgbaColor=[1, 1, 1, 0.5]
         )
-        self._p.createMultiBody(0, floor_collision, floor_visual, [0, 0, -0.2])
-
-        self._p.configureDebugVisualizer(self._p.COV_ENABLE_GUI, False)
-
-        self._p.setGravity(0, 0, -10)
-        halfExtents = [1.5 * self.env_bounds, 1.5 * self.env_bounds, 0.1]
-        floor_collision = self._p.createCollisionShape(
-            self._p.GEOM_BOX, halfExtents=halfExtents
+        self._p.createMultiBody(
+            baseMass=0, baseVisualShapeIndex=floor_visual, basePosition=[0, 0, -1]
         )
-        floor_visual = self._p.createVisualShape(
-            self._p.GEOM_BOX, halfExtents=halfExtents, rgbaColor=[1, 1, 1, 0.5]
-        )
-        self._p.createMultiBody(0, floor_collision, floor_visual, [0, 0, -0.2])
 
         self.choice = choice = self.random.choice(2)
         self.mission = names[choice]
@@ -203,12 +195,12 @@ class Env(gym.Env):
             print(u.name, u.path.parent.name)
         for base_position, urdf in zip(
             [
-                [self.env_bounds / 3, self.env_bounds / 3, 0],
-                [-self.env_bounds / 3, -self.env_bounds / 3, 0],
+                [-self.env_bounds / 3, self.env_bounds / 3, 0],
+                [self.env_bounds / 3, -self.env_bounds / 3, 0],
             ],
             self.urdfs,
         ):
-            base_position[-1] = urdf.z
+            base_position[-1] = 0  # urdf.z
 
             try:
                 with suppress_stdout():
@@ -270,7 +262,9 @@ class Env(gym.Env):
     def generator(self):
         i = dict(mission=self.mission)
 
-        self._p.resetBasePositionAndOrientation(self.mass, [0, 0, 0.6], [0, 0, 0, 1])
+        self._p.resetBasePositionAndOrientation(
+            self.mass, self.mass_start_pos, [0, 0, 0, 1]
+        )
         self._camera_yaw = self.camera_yaw
         action = yield self.get_observation(self._camera_yaw, self.mission)
 
@@ -287,7 +281,8 @@ class Env(gym.Env):
             new_x = np.clip(x + x_shift, -self.env_bounds, self.env_bounds)
             new_y = np.clip(y + y_shift, -self.env_bounds, self.env_bounds)
             self._p.changeConstraint(self.mass_cid, [new_x, new_y, -0.1], maxForce=10)
-            self._p.stepSimulation()
+            for _ in range(5):
+                self._p.stepSimulation()
 
             s = self.get_observation(self._camera_yaw, self.mission)
             if ACTIONS[action].value.take_picture:
@@ -342,7 +337,7 @@ class Env(gym.Env):
 
 
 def main():
-    path = Path(Path.home(), "downloads/dataset")
+    path = Path(Path.home(), ".cache/data/dataset")
     urdf1, urdf2, *_ = get_urdfs(path)
     env = Env(
         urdfs=(urdf1, urdf2),

@@ -1,4 +1,5 @@
 #! /usr/bin/env bash
+xhost +
 mkdir -p logs ~/.cache/GPT ~/.cache/huggingface
 name=$(basename "$PWD")_agent
 docker build -t "$name" .

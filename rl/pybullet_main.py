@@ -68,7 +68,7 @@ class Trainer(main.Trainer):
             urdfs: Tuple[URDF, URDF],
             **_,
         ):
-            _env = Env(urdfs=urdfs, random_seed=seed)
+            _env = Env(is_render=render, random_seed=seed, urdfs=urdfs)
             _env = TokenizerWrapper(
                 _env, tokenizer=tokenizer, longest_mission=longest_mission
             )
@@ -113,6 +113,9 @@ class Trainer(main.Trainer):
         test: bool,
         **kwargs,
     ):
+
+        if render:
+            num_envs = 1
 
         data_path = Path(data_path)
         if not data_path.exists():
@@ -170,10 +173,10 @@ and unzip downloaded file\
             for i in range(num_envs)
         ]
 
-        if len(envs) > 1 and not sync_envs:
-            envs = SubprocVecEnv(envs, num_processes)
-        else:
+        if len(envs) == 1 or sync_envs or render:
             envs = DummyVecEnv(envs, num_processes)
+        else:
+            envs = SubprocVecEnv(envs, num_processes)
         return envs
 
 
