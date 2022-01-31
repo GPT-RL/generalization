@@ -1,6 +1,7 @@
 import functools
+import itertools
 from pathlib import Path
-from typing import List, Literal, cast
+from typing import List, Literal, Set, Tuple, cast
 
 import main
 import numpy as np
@@ -10,12 +11,13 @@ from pybullet_env import URDF, Env, get_urdfs
 from stable_baselines3.common.monitor import Monitor
 from transformers import GPT2Tokenizer
 from vec_env import DummyVecEnv, SubprocVecEnv
-from wrappers import RolloutsWrapper, TokenizerWrapper
+from wrappers import RolloutsWrapper, TokenizerWrapper, TrainTest
 
 
 class Args(main.Args):
     data_path: str = "/root/.cache/data/dataset"
     num_envs: int = 8
+    num_test: int = 2
     pretrained_model: Literal[
         "gpt2",
         "gpt2-medium",
@@ -59,16 +61,13 @@ class Trainer(main.Trainer):
     @classmethod
     def make_env(cls, env, allow_early_resets, render: bool = False, *args, **kwargs):
         def _thunk(
-            rank: int,
+            longest_mission: str,
             seed: int,
             tokenizer: GPT2Tokenizer,
-            urdfs: List[URDF],
+            urdfs: Tuple[URDF, URDF],
             **_,
         ):
-            missions = [urdf.name for urdf in urdfs]
-            urdfs = list(zip(urdfs, reversed(urdfs)))
-            longest_mission = max(missions, key=len)
-            _env = Env(urdfs[rank], random_seed=seed + rank)
+            _env = Env(urdfs=urdfs, random_seed=seed)
             _env = TokenizerWrapper(
                 _env, tokenizer=tokenizer, longest_mission=longest_mission
             )
@@ -88,18 +87,32 @@ class Trainer(main.Trainer):
     def tokenizer(pretrained_model):
         return GPT2Tokenizer.from_pretrained(pretrained_model)
 
+    @staticmethod
+    @functools.lru_cache(maxsize=1)
+    def train_test_split(
+        names: Tuple[str], num_test: int, rng: np.random.Generator
+    ) -> TrainTest[Set[str]]:
+        test_set = set(rng.choice(list(names), size=num_test, replace=False))
+        train_set = set(names) - test_set
+        return TrainTest(train=train_set, test=test_set)
+
+    # noinspection PyMethodOverriding
     @classmethod
-    def make_vec_envs(
+    def _make_vec_envs(
         cls,
-        *args,
-        data_path: str,
-        prefix_length: int,
-        pretrained_model: str,
-        seed: int,
+        data_path,
+        num_envs,
+        pretrained_model,
+        num_processes,
+        num_test,
+        render,
+        seed,
+        sync_envs,
+        test,
         **kwargs,
     ):
-        data_path = Path(data_path)
 
+        data_path = Path(data_path)
         if not data_path.exists():
             raise RuntimeError(
                 f"""\
@@ -114,23 +127,41 @@ and unzip downloaded file\
 """
             )
 
+        # mapping = {}
+        # for subdir in data_path.iterdir():
+        #     with Path(subdir, "meta.json").open() as f:
+        #         meta = json.load(f)
+        #     name = meta["model_cat"]
+        #     mapping[subdir.name] = name
+
         urdfs = list(get_urdfs(data_path))
-        np.random.default_rng(seed).shuffle(urdfs)
+        names: List[str] = [urdf.name for urdf in urdfs]
+        longest_mission = max(names, key=len)
+        rng = np.random.default_rng(seed=seed)
+        names: TrainTest[Set[str]] = cls.train_test_split(tuple(names), num_test, rng)
+        names: Set[str] = names.test if test else names.train
+        urdfs = [u for u in urdfs if u.name in names]
 
-        return super().make_vec_envs(
-            *args,
-            **kwargs,
-            seed=seed,
-            urdfs=urdfs,
-            tokenizer=cls.tokenizer(pretrained_model),
-        )
+        def get_pairs():
+            while True:
+                rng.shuffle(urdfs)
+                for urdf in urdfs:
+                    opposites = [u for u in urdfs if u.name != urdf.name]
+                    opposite = opposites[rng.choice(len(opposites))]
+                    yield urdf, opposite
 
-    @classmethod
-    def _make_vec_envs(cls, num_processes, render, seed, sync_envs, test, **kwargs):
-        num_envs = kwargs["num_envs"]
+        pairs = list(itertools.islice(get_pairs(), num_envs))
 
         envs = [
-            cls.make_env(seed=seed, rank=i, render=render, test=test, **kwargs)
+            cls.make_env(
+                longest_mission=longest_mission,
+                render=render,
+                seed=seed + i,
+                test=test,
+                tokenizer=cls.tokenizer(pretrained_model=pretrained_model),
+                urdfs=pairs[i],
+                **kwargs,
+            )
             for i in range(num_envs)
         ]
 

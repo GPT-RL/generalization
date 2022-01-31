@@ -2,7 +2,7 @@ import abc
 from dataclasses import astuple, dataclass, replace
 from functools import lru_cache
 from itertools import chain, cycle, islice
-from typing import TypeVar
+from typing import Generic, TypeVar
 
 import gym
 import numpy as np
@@ -14,9 +14,9 @@ T = TypeVar("T")  # Declare type variable
 
 
 @dataclass
-class TrainTest:
-    train: list
-    test: list
+class TrainTest(Generic[T]):
+    train: T
+    test: T
 
 
 class MissionWrapper(gym.Wrapper, abc.ABC):

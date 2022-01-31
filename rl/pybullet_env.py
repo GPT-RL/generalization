@@ -13,6 +13,7 @@ import gym.utils.seeding
 import numpy as np
 import PIL.Image
 import pybullet as p
+import yaml
 from gym.spaces import Box, MultiDiscrete
 from pybullet_utils import bullet_client
 
@@ -77,13 +78,12 @@ def suppress_stdout():
             # CLOEXEC may be different
 
 
-def get_model_ids():
-    with Path("model_ids.json").open() as f:
-        return set(json.load(f))
-
-
-def get_urdfs(path):
+def get_urdfs(path: Path):
+    with Path("models.yml").open() as f:
+        models = yaml.load(f, Loader=yaml.FullLoader)
     for subdir in path.iterdir():
+        if subdir.name not in models:
+            continue
         urdf = Path(subdir, "mobility.urdf")
         assert urdf.exists()
         with Path(subdir, "meta.json").open() as f:
@@ -118,6 +118,8 @@ class Env(gym.Env):
     reindex_tokens: bool = False
 
     def __post_init__(self):
+        names = [urdf.name for urdf in self.urdfs]
+        assert len(set(names)) == 2, names
         self.random = np.random.default_rng(self.random_seed)
         obs_spaces: Observation[MultiDiscrete, Box] = Observation(
             mission=String(),
@@ -190,10 +192,12 @@ class Env(gym.Env):
         self._p.createMultiBody(0, floor_collision, floor_visual, [0, 0, -0.2])
 
         self.choice = choice = self.random.choice(2)
-        self.mission = [urdf.name for urdf in self.urdfs][choice]
+        self.mission = names[choice]
         self.objects = objects = []
 
-        print([u.name for u in self.urdfs])
+        print()
+        for u in self.urdfs:
+            print(u.name, u.path.parent.name)
         for base_position, urdf in zip(
             [
                 [self.env_bounds / 3, self.env_bounds / 3, 0],
