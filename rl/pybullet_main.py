@@ -7,13 +7,11 @@ from typing import List, Literal, Optional, Set, Tuple, cast
 
 import main
 import numpy as np
-from area_chart import spec
 from envs import RenderWrapper, VecPyTorch
 from pybullet_agent import Agent
 from pybullet_env import URDF, Env, get_urdfs
 from stable_baselines3.common.monitor import Monitor
 from transformers import GPT2Tokenizer
-from vec_env import DummyVecEnv, SubprocVecEnv
 from wrappers import (
     ImageNormalizerWrapper,
     RolloutsWrapper,
@@ -32,7 +30,6 @@ class Args(main.Args):
     names: Optional[str] = None
     max_episode_steps: int = 200
     models: Optional[str] = None
-    num_envs: int = 8
     num_test_envs: int = 8
     num_test_names: int = 2
     pretrained_model: Literal[
@@ -68,39 +65,8 @@ class Counters(main.Counters):
 
 class Trainer(main.Trainer):
     @classmethod
-    def process_info(cls, counters: Counters, info: dict):
-        super().process_info(counters, info)
-        if "episode" in info.keys():
-            env = info["env"]
-            episode_return = info["episode"]["r"]
-            counters.episode_rewards_per_env[env].append(episode_return)
-
-    @classmethod
-    def log(
-        cls,
-        logger,
-        log: dict,
-        counters: Counters,
-        total_num_steps: int,
-    ):
-        super().log(logger, log, counters, total_num_steps)
-        rounded_step = round(total_num_steps / 100) * 100
-        if logger.run_id is not None:
-            for k, v in counters.episode_rewards_per_env.items():
-                logger.log({ROUNDED_STEP: rounded_step, ENV_RETURN: np.mean(v)})
-                for _ in v:
-                    logger.log({ROUNDED_STEP: rounded_step, ENV: k})
-
-    @classmethod
     def build_counters(cls):
         return Counters()
-
-    @classmethod
-    def charts(cls, **kwargs):
-        return super().charts(**kwargs) + [
-            spec(x=ROUNDED_STEP, color=ENV),
-            spec(x=ROUNDED_STEP, color=ENV_RETURN),
-        ]
 
     @classmethod
     def make_agent(cls, envs: VecPyTorch, args: ArgsType) -> Agent:
@@ -130,7 +96,7 @@ class Trainer(main.Trainer):
             seed: int,
             steps_per_action: int,
             tokenizer: GPT2Tokenizer,
-            urdfs: Tuple[URDF, URDF],
+            urdfs: List[Tuple[URDF, URDF]],
             **_,
         ):
             _env = Env(
@@ -140,7 +106,7 @@ class Trainer(main.Trainer):
                 random_seed=seed,
                 rank=rank,
                 steps_per_action=steps_per_action,
-                urdfs=urdfs,
+                urdfs=urdfs[rank],
             )
             _env = ImageNormalizerWrapper(_env)
             _env = TokenizerWrapper(
@@ -185,10 +151,9 @@ class Trainer(main.Trainer):
 
     # noinspection PyMethodOverriding
     @classmethod
-    def _make_vec_envs(
+    def make_vec_envs(
         cls,
         data_path: str,
-        num_envs: int,
         pretrained_model: str,
         models: Optional[str],
         names: Optional[str],
@@ -201,13 +166,8 @@ class Trainer(main.Trainer):
         test: bool,
         **kwargs,
     ):
-        assert num_envs >= num_processes
         if test:
             num_processes = cls._num_eval_processes(num_processes, num_test_envs)
-            num_envs = num_test_envs
-
-        if render:
-            num_envs = 1
 
         data_path = Path(data_path)
         if not data_path.exists():
@@ -254,27 +214,20 @@ and unzip downloaded file\
                     opposite = opposites[rng.choice(len(opposites))]
                     yield urdf, opposite
 
-        pairs = list(itertools.islice(get_pairs(), num_envs))
+        pairs = list(itertools.islice(get_pairs(), num_processes))
 
-        envs = [
-            cls.make_env(
-                longest_mission=longest_mission,
-                rank=i,
-                render=render,
-                seed=seed + i,
-                test=test,
-                tokenizer=cls.tokenizer(pretrained_model=pretrained_model),
-                urdfs=pairs[i],
-                **kwargs,
-            )
-            for i in range(num_envs)
-        ]
-
-        if len(envs) == 1 or sync_envs or render:
-            envs = DummyVecEnv(envs, num_processes)
-        else:
-            envs = SubprocVecEnv(envs, num_processes)
-        return envs
+        return super().make_vec_envs(
+            longest_mission=longest_mission,
+            num_processes=num_processes,
+            pairs=pairs,
+            render=render,
+            seed=seed,
+            sync_envs=sync_envs,
+            tokenizer=cls.tokenizer(pretrained_model),
+            test=test,
+            urdfs=pairs,
+            **kwargs,
+        )
 
 
 if __name__ == "__main__":
