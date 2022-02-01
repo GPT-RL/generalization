@@ -4,7 +4,7 @@ import logging
 import os
 import pickle
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from pprint import pformat
 from typing import List, Literal, Optional, cast
@@ -17,9 +17,9 @@ import utils
 from agent import Agent
 from envs import TimeLimitMask, TransposeImage, VecPyTorch, VecPyTorchFrameStack
 from gym.wrappers.clip_action import ClipAction
+from line_chart import spec
 from ppo import PPO
 from rollouts import Rollouts
-from spec import spec
 from stable_baselines3.common.atari_wrappers import (
     ClipRewardEnv,
     EpisodicLifeEnv,
@@ -44,21 +44,19 @@ class InvalidEnvId(RuntimeError):
     pass
 
 
+ACTION_LOSS = "action loss"
+ENTROPY = "entropy"
 EPISODE_RETURN = "episode return"
 EPISODE_LENGTH = "episode length"
-EPISODE_SUCCESS = "episode success"
+FPS = "fps"
+GRADIENT_NORM = "gradient norm"
+HOURS = "hours"
+SAVE_COUNT = "save count"
+STEP = "step"
 TEST_EPISODE_RETURN = "test episode return"
 TEST_EPISODE_LENGTH = "test episode length"
-TEST_EPISODE_SUCCESS = "test episode success"
-ACTION_LOSS = "action loss"
 VALUE_LOSS = "value loss"
-FPS = "fps"
-ENTROPY = "entropy"
-GRADIENT_NORM = "gradient norm"
 TIME = "time"
-HOURS = "hours"
-STEP = "step"
-SAVE_COUNT = "save count"
 
 
 RUN_OR_SWEEP = Literal["run", "sweep"]
@@ -135,6 +133,18 @@ class TimeSteps:
     info: List[dict]
 
 
+@dataclass
+class Counters:
+    episode_rewards: List[float] = field(default_factory=list)
+    episode_lengths: List[int] = field(default_factory=list)
+    episode_successes: List[int] = field(default_factory=list)
+
+    def reset(self):
+        self.episode_rewards = []
+        self.episode_lengths = []
+        self.episode_successes = []
+
+
 class Trainer:
     @classmethod
     def train(cls, args: Args, logger: HasuraLogger):
@@ -189,9 +199,7 @@ class Trainer:
         rollouts.obs[0].copy_(obs)
         rollouts.to(device)
 
-        episode_rewards = []
-        episode_lengths = []
-        episode_successes = []
+        counters = cls.build_counters()
 
         tick = start = time.time()
         num_steps = 0
@@ -243,11 +251,7 @@ class Trainer:
                 obs, reward, done, infos = envs.step(action)
 
                 for info in infos:
-                    if "episode" in info.keys():
-                        episode_rewards.append(info["episode"]["r"])
-                        episode_lengths.append(info["episode"]["l"])
-                    if "success" in info.keys():
-                        episode_successes.append(info["success"])
+                    cls.process_info(counters, info)
 
                 # If done then clean the history of observations.
                 masks = torch.FloatTensor([[0.0] if done_ else [1.0] for done_ in done])
@@ -297,31 +301,47 @@ class Trainer:
                     tick = time.time()
                     num_steps = total_num_steps
                     log = {
-                        EPISODE_RETURN: np.mean(episode_rewards),
-                        EPISODE_LENGTH: np.mean(episode_lengths),
-                        EPISODE_SUCCESS: np.mean(episode_successes),
                         ACTION_LOSS: action_loss,
-                        VALUE_LOSS: value_loss,
-                        FPS: fps,
-                        TIME: now * 1000000,
-                        HOURS: (now - start) / 3600,
-                        GRADIENT_NORM: gradient_norm,
-                        STEP: total_num_steps,
                         ENTROPY: dist_entropy,
+                        EPISODE_LENGTH: np.mean(counters.episode_lengths),
+                        EPISODE_RETURN: np.mean(counters.episode_rewards),
+                        FPS: fps,
+                        GRADIENT_NORM: gradient_norm,
+                        HOURS: (now - start) / 3600,
                         SAVE_COUNT: save_count,
+                        STEP: total_num_steps,
+                        TIME: now * 1000000,
+                        VALUE_LOSS: value_loss,
                     }
-
-                    episode_rewards = []
-                    episode_lengths = []
-                    episode_successes = []
 
                     logging.info(pformat(log))
                     if logger.run_id is not None:
                         log.update({"run ID": logger.run_id})
 
-                    logging.info(pformat(log))
-                    if logger.run_id is not None:
-                        logger.log(log)
+                    cls.log(logger, log, counters, total_num_steps)
+                    counters.reset()
+
+    @classmethod
+    def process_info(cls, counters: Counters, info: dict):
+        if "episode" in info.keys():
+            counters.episode_rewards.append(info["episode"]["r"])
+            counters.episode_lengths.append(info["episode"]["l"])
+
+    @classmethod
+    def build_counters(cls):
+        return Counters()
+
+    @classmethod
+    def log(
+        cls,
+        logger: HasuraLogger,
+        log: dict,
+        counters: Counters,
+        total_num_steps: int,
+    ):
+        logging.info(pformat(log))
+        if logger.run_id is not None:
+            logger.log(log)
 
     @staticmethod
     def num_eval_processes(args):
@@ -391,7 +411,6 @@ class Trainer:
                 {
                     TEST_EPISODE_RETURN: np.mean(episode_rewards),
                     TEST_EPISODE_LENGTH: np.mean(episode_lengths),
-                    TEST_EPISODE_SUCCESS: np.mean(episode_success),
                 }
             )
 
@@ -525,23 +544,7 @@ class Trainer:
         logging.getLogger().setLevel(args.log_level)
         kwargs = dict(visualizer_url=args.visualizer_url)
 
-        charts = [
-            *[
-                spec(x=HOURS, y=y, **kwargs)
-                for y in (EPISODE_RETURN, TEST_EPISODE_RETURN)
-            ],
-            *[
-                spec(x=STEP, y=y, **kwargs)
-                for y in (
-                    EPISODE_RETURN,
-                    TEST_EPISODE_RETURN,
-                    FPS,
-                    ENTROPY,
-                    GRADIENT_NORM,
-                    SAVE_COUNT,
-                )
-            ],
-        ]
+        charts = cls.charts(**kwargs)
 
         metadata = dict(reproducibility_info=args.get_reproducibility_info())
         if args.host_machine:
@@ -561,6 +564,26 @@ class Trainer:
         )
         cls.update_args(args, params)
         return cls.train(args=args, logger=logger)
+
+    @classmethod
+    def charts(cls, **kwargs):
+        return [
+            *[
+                spec(x=HOURS, y=y, **kwargs)
+                for y in (EPISODE_RETURN, TEST_EPISODE_RETURN)
+            ],
+            *[
+                spec(x=STEP, y=y, **kwargs)
+                for y in (
+                    EPISODE_RETURN,
+                    TEST_EPISODE_RETURN,
+                    FPS,
+                    ENTROPY,
+                    GRADIENT_NORM,
+                    SAVE_COUNT,
+                )
+            ],
+        ]
 
     @classmethod
     def update_args(cls, args, parameters, check_hasattr=True):

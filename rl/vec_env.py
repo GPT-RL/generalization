@@ -30,12 +30,13 @@ class SubprocVecEnv(stable_baselines3.common.vec_env.SubprocVecEnv):
         self.waiting = False
         obs, rews, dones, infos = zip(*results)
         in_use = list(self.in_use)
-        for i, (r, done, info) in enumerate(zip(in_use, dones, infos)):
+        for i, (e, done, info) in enumerate(zip(in_use, dones, infos)):
             if done:
+                info.update(env=e)
                 # if i == 0:
                 #     print(info["mission"])
                 not_in_use = self.all - set(self.in_use)
-                self.in_use[i] = self.random.choice([*not_in_use, r])
+                self.in_use[i] = self.random.choice([*not_in_use, e])
 
         return (
             _flatten_obs(obs, self.observation_space),
@@ -80,6 +81,7 @@ class DummyVecEnv(stable_baselines3.common.vec_env.DummyVecEnv):
             ) = self.envs[env_idx].step(self.actions[env_idx])
             not_in_use = self.all - set(self.in_use)
             if self.buf_dones[env_idx]:
+                self.buf_infos[env_idx].update(env=env_idx)
                 # if i == 0:
                 #     print(env_idx, self.buf_infos[env_idx]["mission"])
                 # save final observation where user can get it, then reset

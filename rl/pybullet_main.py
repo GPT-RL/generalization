@@ -1,10 +1,13 @@
 import functools
 import itertools
+from collections import defaultdict
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Literal, Optional, Set, Tuple, cast
 
 import main
 import numpy as np
+from area_chart import spec
 from envs import RenderWrapper, VecPyTorch
 from pybullet_agent import Agent
 from pybullet_env import URDF, Env, get_urdfs
@@ -17,6 +20,10 @@ from wrappers import (
     TokenizerWrapper,
     TrainTest,
 )
+
+ROUNDED_STEP = "rounded step"
+ENV = "environment ID"
+ENV_RETURN = "environment return"
 
 
 class Args(main.Args):
@@ -50,7 +57,51 @@ class ArgsType(main.ArgsType, Args):
     pass
 
 
+@dataclass
+class Counters(main.Counters):
+    episode_rewards_per_env: dict = field(default_factory=lambda: defaultdict(list))
+
+    def reset(self):
+        super().reset()
+        self.episode_rewards_per_env = defaultdict(list)
+
+
 class Trainer(main.Trainer):
+    @classmethod
+    def process_info(cls, counters: Counters, info: dict):
+        super().process_info(counters, info)
+        if "episode" in info.keys():
+            env = info["env"]
+            episode_return = info["episode"]["r"]
+            counters.episode_rewards_per_env[env].append(episode_return)
+
+    @classmethod
+    def log(
+        cls,
+        logger,
+        log: dict,
+        counters: Counters,
+        total_num_steps: int,
+    ):
+        super().log(logger, log, counters, total_num_steps)
+        rounded_step = round(total_num_steps / 100) * 100
+        if logger.run_id is not None:
+            for k, v in counters.episode_rewards_per_env.items():
+                logger.log({ROUNDED_STEP: rounded_step, ENV_RETURN: np.mean(v)})
+                for _ in v:
+                    logger.log({ROUNDED_STEP: rounded_step, ENV: k})
+
+    @classmethod
+    def build_counters(cls):
+        return Counters()
+
+    @classmethod
+    def charts(cls, **kwargs):
+        return super().charts(**kwargs) + [
+            spec(x=ROUNDED_STEP, color=ENV),
+            spec(x=ROUNDED_STEP, color=ENV_RETURN),
+        ]
+
     @classmethod
     def make_agent(cls, envs: VecPyTorch, args: ArgsType) -> Agent:
         action_space = envs.action_space
