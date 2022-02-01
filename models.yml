@@ -228,8 +228,8 @@
 "7119": Microwave
 "7120": Oven
 "7128": Microwave
-"7130": Oven
-"7138": Oven
+#"7130": Oven
+#"7138": Oven
 "7167": Microwave
 "7179": Oven
 "7187": Oven
@@ -445,7 +445,7 @@
 "12059": Refrigerator
 "12065": Dishwasher
 "12066": Refrigerator
-"12071": Dishwasher
+#"12071": Dishwasher
 "12073": Laptop
 "12085": Dishwasher
 "12092": Dishwasher
@@ -494,7 +494,7 @@
 "12597": Dishwasher
 "12605": Dishwasher
 "12606": Dishwasher
-"12612": Dishwasher
+#"12612": Dishwasher
 "12614": Dishwasher
 "12617": Dishwasher
 "12621": Dishwasher
@@ -663,7 +663,7 @@
 "32052": Table
 "32086": Table
 "32174": Table
-"32213": Table
+#"32213": Table
 "32259": Table
 "32324": Table
 "32354": Table
