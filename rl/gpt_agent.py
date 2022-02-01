@@ -3,6 +3,8 @@ from dataclasses import dataclass
 from functools import lru_cache
 from typing import cast
 
+from transformers import BertConfig, GPT2Config, GPTNeoConfig
+
 import pybullet_agent
 import torch
 from multihead_attention import MultiheadAttention
@@ -71,7 +73,41 @@ class Base(pybullet_agent.Base):
         self.randomize_parameters = randomize_parameters
         self.train_wpe = train_wpe
         self.train_ln = train_ln
-        super().__init__(*args, pretrained_model=pretrained_model, **kwargs)
+
+        if "neo" in pretrained_model:
+            config = GPTNeoConfig.from_pretrained(
+                pretrained_model,
+                use_cache=False,
+                output_attentions=False,
+                output_hidden_states=False,
+            )
+            self.embedding_size = config.hidden_size
+        elif "gpt2" in pretrained_model:
+            config = GPT2Config.from_pretrained(
+                pretrained_model,
+                use_cache=False,
+                output_attentions=False,
+                output_hidden_states=False,
+            )
+            self.embedding_size = config.n_embd
+        elif "bert" in pretrained_model:
+            config = BertConfig.from_pretrained(
+                pretrained_model,
+                use_cache=False,
+                output_attentions=False,
+                output_hidden_states=False,
+            )
+            self.embedding_size = config.hidden_size
+
+        else:
+            raise RuntimeError(f"Invalid model name: {pretrained_model}")
+
+        super().__init__(
+            *args,
+            mission_size=config.n_embd,
+            pretrained_model=pretrained_model,
+            **kwargs,
+        )
         if multihead_attention:
             self.embeddings.to(device)
             missions = missions.to(device)
@@ -113,11 +149,11 @@ class Base(pybullet_agent.Base):
             )
 
     def embed(self, inputs):
-        inputs = inputs.reshape(-1, *self.observation_spaces.mission.nvec.shape)
-        n, l, e = inputs.shape
-        flattened = inputs.reshape(n * l, e)
-        states = self.gpt_forward_pass(flattened)
-        states = states.mean(1).reshape(n, l, -1)
+        # inputs = inputs.reshape(-1, *self.observation_spaces.mission.nvec.shape)
+        # n, l, e = inputs.shape
+        # flattened = inputs.reshape(n * l, e)
+        states = self.gpt_forward_pass(inputs)
+        # states = states.mean(1).reshape(n, l, -1)
         if self.multihead_attention:
             query = states.transpose(0, 1)
             n = query.size(1)

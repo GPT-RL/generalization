@@ -52,43 +52,17 @@ class Base(NNBase):
         hidden_size: int,
         observation_space: Dict,
         recurrent: bool,
+        mission_size: int = 64,
     ):
+
         super().__init__(
             recurrent=recurrent,
-            recurrent_input_size=256 + 64,
+            recurrent_input_size=256 + mission_size,
             hidden_size=hidden_size,
         )
         self.observation_spaces = Observation(*observation_space.spaces)
 
         self.pad_token_id = GPT2Tokenizer.from_pretrained(pretrained_model).eos_token_id
-
-        if "neo" in pretrained_model:
-            config = GPTNeoConfig.from_pretrained(
-                pretrained_model,
-                use_cache=False,
-                output_attentions=False,
-                output_hidden_states=False,
-            )
-            self.embedding_size = config.hidden_size
-        elif "gpt2" in pretrained_model:
-            config = GPT2Config.from_pretrained(
-                pretrained_model,
-                use_cache=False,
-                output_attentions=False,
-                output_hidden_states=False,
-            )
-            self.embedding_size = config.n_embd
-        elif "bert" in pretrained_model:
-            config = BertConfig.from_pretrained(
-                pretrained_model,
-                use_cache=False,
-                output_attentions=False,
-                output_hidden_states=False,
-            )
-            self.embedding_size = config.hidden_size
-
-        else:
-            raise RuntimeError(f"Invalid model name: {pretrained_model}")
 
         self.embeddings = self.build_embeddings()
 
@@ -126,6 +100,9 @@ class Base(NNBase):
         num_embeddings = 1 + self.pad_token_id
         return GRUEmbed(num_embeddings)
 
+    def embed(self, inputs):
+        return self.embeddings.forward(inputs.mission.long())
+
     def forward(self, inputs, rnn_hxs, masks):
         inputs = Observation(
             *torch.split(
@@ -141,7 +118,7 @@ class Base(NNBase):
         image = self.image_conv(image)
         image = self.image_linear(image)
 
-        mission = self.embeddings.forward(inputs.mission.long())
+        mission = self.embed(inputs.mission.long())
         x = torch.cat([image, mission], dim=-1)
 
         assert self.is_recurrent
