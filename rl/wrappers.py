@@ -19,6 +19,12 @@ class TrainTest(Generic[T]):
     test: T
 
 
+class ImageNormalizerWrapper(gym.ObservationWrapper):
+    def observation(self, observation):
+        observation = Observation(*observation)
+        return astuple(replace(observation, image=observation.image / 255))
+
+
 class MissionWrapper(gym.Wrapper, abc.ABC):
     def __init__(self, env):
         self._mission = None

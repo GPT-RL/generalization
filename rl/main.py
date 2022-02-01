@@ -93,7 +93,7 @@ class Args(Tap):
     gae_lambda: float = 0.95  # GAE lambda parameter
     gamma: float = 0.99  # discount factor
     graphql_endpoint: str = os.getenv("GRAPHQL_ENDPOINT")
-    hidden_size: int = 512
+    hidden_size: int = 256
     host_machine: str = os.getenv("HOST_MACHINE")
     log_interval: int = 100  # how many updates to log between
     linear_lr_decay: bool = False  # anneal the learning rate

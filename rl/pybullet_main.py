@@ -11,12 +11,17 @@ from pybullet_env import URDF, Env, get_urdfs
 from stable_baselines3.common.monitor import Monitor
 from transformers import GPT2Tokenizer
 from vec_env import DummyVecEnv, SubprocVecEnv
-from wrappers import RolloutsWrapper, TokenizerWrapper, TrainTest
+from wrappers import (
+    ImageNormalizerWrapper,
+    RolloutsWrapper,
+    TokenizerWrapper,
+    TrainTest,
+)
 
 
 class Args(main.Args):
     data_path: str = "/root/.cache/data/dataset"
-    image_size: float = 64
+    image_size: float = 84
     names: Optional[str] = None
     max_episode_steps: int = 200
     models: Optional[str] = None
@@ -83,6 +88,7 @@ class Trainer(main.Trainer):
                 steps_per_action=steps_per_action,
                 urdfs=urdfs,
             )
+            _env = ImageNormalizerWrapper(_env)
             _env = TokenizerWrapper(
                 _env, tokenizer=tokenizer, longest_mission=longest_mission
             )

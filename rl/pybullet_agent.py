@@ -32,18 +32,17 @@ class Agent(agent.Agent):
 
 
 class GRUEmbed(nn.Module):
-    def __init__(self, num_embeddings: int, hidden_size: int, output_size: int):
+    def __init__(self, num_embeddings: int):
         super().__init__()
-        gru = nn.GRU(hidden_size, hidden_size, batch_first=True)
+        gru = nn.GRU(20, 64, batch_first=True)
         self.embed = nn.Sequential(
-            nn.Embedding(num_embeddings, hidden_size),
+            nn.Embedding(num_embeddings, 20),
             gru,
         )
-        self.projection = nn.Linear(hidden_size, output_size)
 
     def forward(self, x, **_):
-        hidden = self.embed.forward(x)[1].squeeze(0)
-        return self.projection(hidden)
+        output, _ = self.embed.forward(x)
+        return output[:, -1]
 
 
 class Base(NNBase):
@@ -56,7 +55,7 @@ class Base(NNBase):
     ):
         super().__init__(
             recurrent=recurrent,
-            recurrent_input_size=hidden_size,
+            recurrent_input_size=256 + 64,
             hidden_size=hidden_size,
         )
         self.observation_spaces = Observation(*observation_space.spaces)
@@ -100,57 +99,22 @@ class Base(NNBase):
             nn.init.calculate_gain("relu"),
         )
         image_shape = self.observation_spaces.image.shape
-        if len(image_shape) == 3:
-            h, w, d = image_shape
-            dummy_input = torch.zeros(1, d, h, w)
+        h, w, d = image_shape
+        dummy_input = torch.zeros(1, d, h, w)
 
-            # self.image_net = nn.Sequential(
-            #     init_(nn.Conv2d(d, 32, 8, stride=4)),
-            #     nn.ReLU(),
-            #     init_(nn.Conv2d(32, 64, 4, stride=2)),
-            #     nn.ReLU(),
-            #     init_(nn.Conv2d(64, 32, 3, stride=1)),
-            #     nn.ReLU(),
-            #     nn.Flatten(),
-            # )
-            # try:
-            #     output = self.image_net(dummy_input)
-            # except RuntimeError:
-            self.image_net = nn.Sequential(
-                init_(nn.Conv2d(d, 32, 3, 2)),
-                nn.ReLU(),
-                nn.Flatten(),
-            )
-            output = self.image_net(dummy_input)
-        else:
-            dummy_input = torch.zeros(image_shape)
-            self.image_net = nn.Sequential(
-                nn.Linear(int(np.prod(image_shape)), hidden_size), nn.ReLU()
-            )
-            output = self.image_net(dummy_input)
+        self.image_conv = nn.Sequential(
+            init_(nn.Conv2d(d, 16, 8, stride=4)),
+            nn.ReLU(),
+            init_(nn.Conv2d(16, 32, 4, stride=2)),
+            nn.ReLU(),
+            nn.Flatten(),
+        )
+        output = self.image_conv(dummy_input)
+        self.image_linear = nn.Linear(output.size(-1), 256)
 
         self._hidden_size = hidden_size
         self._recurrent = recurrent
         self.initial_hxs = nn.Parameter(self._initial_hxs)
-
-        assert recurrent
-        recurrent_input_size = output.size(-1)
-        self.rnn = nn.GRU(recurrent_input_size, hidden_size)
-        for name, param in self.rnn.named_parameters():
-            if "bias" in name:
-                nn.init.constant_(param, 0)
-            elif "weight" in name:
-                nn.init.orthogonal_(param)
-
-        self.merge = nn.Sequential(
-            init_(
-                nn.Linear(
-                    hidden_size + self.embedding_size,
-                    hidden_size,
-                )
-            ),
-            nn.ReLU(),
-        )
 
         init_ = lambda m: init(
             m, nn.init.orthogonal_, lambda x: nn.init.constant_(x, 0)
@@ -160,9 +124,7 @@ class Base(NNBase):
 
     def build_embeddings(self):
         num_embeddings = 1 + self.pad_token_id
-        return nn.EmbeddingBag(
-            num_embeddings, self.embedding_size, padding_idx=self.pad_token_id
-        )
+        return GRUEmbed(num_embeddings)
 
     def forward(self, inputs, rnn_hxs, masks):
         inputs = Observation(
@@ -176,15 +138,12 @@ class Base(NNBase):
         image = inputs.image.reshape(-1, *self.observation_spaces.image.shape)
         if len(image.shape) == 4:
             image = image.permute(0, 3, 1, 2)
-        image = self.image_net(image)
+        image = self.image_conv(image)
+        image = self.image_linear(image)
 
-        mission = self.embed(inputs.mission.long())
+        mission = self.embeddings.forward(inputs.mission.long())
+        x = torch.cat([image, mission], dim=-1)
 
         assert self.is_recurrent
-        image, rnn_hxs = self._forward_gru(image, rnn_hxs, masks)
-        x = torch.cat([image, mission], dim=-1)
-        x = self.merge(x)
+        x, rnn_hxs = self._forward_gru(x, rnn_hxs, masks)
         return self.critic_linear(x), x, rnn_hxs
-
-    def embed(self, inputs):
-        return self.embeddings.forward(inputs)
