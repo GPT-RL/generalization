@@ -117,6 +117,7 @@ class Env(gym.Env):
     is_render: bool = False
     metadata = {"render.modes": ["human", "rgb_array"], "video.frames_per_second": 60}
     model_name: str = "gpt2"
+    rank: int = 0
     random_seed: int = 0
 
     def __post_init__(self):
@@ -191,8 +192,9 @@ class Env(gym.Env):
         self.objects = objects = []
 
         print()
-        for u in self.urdfs:
-            print(u.name, u.path.parent.name)
+        print(
+            f"Env {self.rank}: {', '.join([f'{u.name} {u.path.parent.name}' for u in self.urdfs])}",
+        )
         for base_position, urdf in zip(
             [
                 [-self.env_bounds / 3, self.env_bounds / 3, 0],

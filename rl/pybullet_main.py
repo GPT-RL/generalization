@@ -26,7 +26,8 @@ class Args(main.Args):
     max_episode_steps: int = 200
     models: Optional[str] = None
     num_envs: int = 8
-    num_test: int = 2
+    num_test_envs: int = 8
+    num_test_names: int = 2
     pretrained_model: Literal[
         "gpt2",
         "gpt2-medium",
@@ -74,6 +75,7 @@ class Trainer(main.Trainer):
             image_size: float,
             longest_mission: str,
             max_episode_steps: int,
+            rank: int,
             seed: int,
             steps_per_action: int,
             tokenizer: GPT2Tokenizer,
@@ -85,6 +87,7 @@ class Trainer(main.Trainer):
                 is_render=render,
                 max_episode_steps=max_episode_steps,
                 random_seed=seed,
+                rank=rank,
                 steps_per_action=steps_per_action,
                 urdfs=urdfs,
             )
@@ -102,6 +105,14 @@ class Trainer(main.Trainer):
             return _env
 
         return functools.partial(_thunk, env_id=env, **kwargs)
+
+    @staticmethod
+    def _num_eval_processes(num_processes: int, num_test_envs):
+        return min(num_processes, num_test_envs)
+
+    @classmethod
+    def num_eval_processes(cls, args: Args):
+        return cls._num_eval_processes(args.num_processes, args.num_test_envs)
 
     @staticmethod
     @functools.lru_cache(maxsize=1)
@@ -127,13 +138,18 @@ class Trainer(main.Trainer):
         models: Optional[str],
         names: Optional[str],
         num_processes: int,
-        num_test: int,
+        num_test_envs: int,
+        num_test_names: int,
         render: bool,
         seed: int,
         sync_envs: bool,
         test: bool,
         **kwargs,
     ):
+        assert num_envs >= num_processes
+        if test:
+            num_processes = cls._num_eval_processes(num_processes, num_test_envs)
+            num_envs = num_test_envs
 
         if render:
             num_envs = 1
@@ -168,7 +184,9 @@ and unzip downloaded file\
         names: List[str] = [urdf.name for urdf in urdfs]
         longest_mission = max(names, key=len)
         rng = np.random.default_rng(seed=seed)
-        names: TrainTest[Set[str]] = cls.train_test_split(tuple(names), num_test, rng)
+        names: TrainTest[Set[str]] = cls.train_test_split(
+            tuple(names), num_test_names, rng
+        )
         names: Set[str] = names.test if test else names.train
         assert len(names) > 1
         urdfs = [u for u in urdfs if u.name in names]
@@ -186,6 +204,7 @@ and unzip downloaded file\
         envs = [
             cls.make_env(
                 longest_mission=longest_mission,
+                rank=i,
                 render=render,
                 seed=seed + i,
                 test=test,

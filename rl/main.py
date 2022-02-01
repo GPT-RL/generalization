@@ -202,7 +202,7 @@ class Trainer:
                 cls.evaluate(
                     agent=agent,
                     envs=cls.make_vec_envs(device=device, test=True, **args.as_dict()),
-                    num_processes=args.num_processes,
+                    num_processes=cls.num_eval_processes(args),
                     device=device,
                     start=start,
                     total_num_steps=cls.total_num_steps(j, args),
@@ -322,6 +322,10 @@ class Trainer:
                     logging.info(pformat(log))
                     if logger.run_id is not None:
                         logger.log(log)
+
+    @staticmethod
+    def num_eval_processes(args):
+        return args.num_processes
 
     @classmethod
     def cuda(cls, args):
