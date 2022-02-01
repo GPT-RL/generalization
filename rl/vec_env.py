@@ -17,8 +17,7 @@ class SubprocVecEnv(stable_baselines3.common.vec_env.SubprocVecEnv):
     ):
         super().__init__(env_fns, start_method)
         self.in_use = list(range(num_envs))
-        self.all = set(range(len(env_fns)))
-        self.random = np.random.default_rng()
+        self.next_choice = num_envs
 
     def step_async(self, actions: np.ndarray) -> None:
         for r, action in zip(self.in_use, actions):
@@ -35,8 +34,9 @@ class SubprocVecEnv(stable_baselines3.common.vec_env.SubprocVecEnv):
                 info.update(env=e)
                 # if i == 0:
                 #     print(info["mission"])
-                not_in_use = self.all - set(self.in_use)
-                self.in_use[i] = self.random.choice([*not_in_use, e])
+                self.in_use[i] = self.next_choice
+                self.next_choice += 1
+                self.next_choice = self.next_choice % self.num_envs
 
         return (
             _flatten_obs(obs, self.observation_space),
@@ -60,8 +60,7 @@ class DummyVecEnv(stable_baselines3.common.vec_env.DummyVecEnv):
     ):
         super().__init__(env_fns)
         self.in_use = list(range(num_envs))
-        self.all = set(range(len(env_fns)))
-        self.random = np.random.default_rng()
+        self.next_choice = num_envs
 
     def step_async(self, actions: np.ndarray) -> None:
         if self.actions is None:
@@ -79,7 +78,6 @@ class DummyVecEnv(stable_baselines3.common.vec_env.DummyVecEnv):
                 self.buf_dones[env_idx],
                 self.buf_infos[env_idx],
             ) = self.envs[env_idx].step(self.actions[env_idx])
-            not_in_use = self.all - set(self.in_use)
             if self.buf_dones[env_idx]:
                 self.buf_infos[env_idx].update(env=env_idx)
                 # if i == 0:
@@ -87,7 +85,9 @@ class DummyVecEnv(stable_baselines3.common.vec_env.DummyVecEnv):
                 # save final observation where user can get it, then reset
                 self.buf_infos[env_idx]["terminal_observation"] = obs
                 obs = self.envs[env_idx].reset()
-                self.in_use[i] = self.random.choice([*not_in_use, env_idx])
+                self.in_use[i] = self.next_choice
+                self.next_choice += 1
+                self.next_choice = self.next_choice % self.num_envs
             self._save_obs(env_idx, obs)
 
         return (
