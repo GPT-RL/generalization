@@ -124,7 +124,11 @@ class Trainer(main.Trainer):
     def train_test_split(
         names: Tuple[str], num_test: int, rng: np.random.Generator
     ) -> TrainTest[Set[str]]:
-        test_set = set(rng.choice(list(names), size=num_test, replace=False))
+        test_set = (
+            set(rng.choice(list(names), size=num_test, replace=False))
+            if num_test
+            else set()
+        )
         train_set = set(names) - test_set
         return TrainTest(train=train_set, test=test_set)
 
