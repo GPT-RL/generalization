@@ -349,7 +349,7 @@ class Env(gym.Env):
 
         return "\n".join(rows())
 
-    def render(self, mode="human"):
+    def render(self, mode="human", pause=True):
         if mode == "human":
             self.is_render = True
 
@@ -368,7 +368,8 @@ class Env(gym.Env):
             if self._a is not None:
                 subtitle = f"{subtitle}, {self._a.name}"
             print(text2art(subtitle, font="com_sen"))
-            return input("Press enter to continue.")
+            if pause:
+                input("Press enter to continue.")
 
     def close(self):
         self._p.disconnect()
@@ -393,52 +394,32 @@ def main(args: Args):
     env.render(mode="human")
     t = True
     r = None
-    printed_mission = False
-
-    last_action = None
 
     mapping = {
-        p.B3G_RIGHT_ARROW: Actions.RIGHT,
-        p.B3G_LEFT_ARROW: Actions.LEFT,
-        p.B3G_UP_ARROW: Actions.FORWARD,
-        p.B3G_DOWN_ARROW: Actions.BACKWARD,
-        p.B3G_RETURN: DebugActions.PICTURE,
-        p.B3G_SPACE: Actions.DONE,
+        "d": Actions.RIGHT,
+        "a": Actions.LEFT,
+        "w": Actions.FORWARD,
+        "s": Actions.BACKWARD,
+        "p": DebugActions.PICTURE,
+        "x": Actions.DONE,
     }
 
     while True:
         try:
             if t:
                 env.reset()
-                printed_mission = False
                 if r is not None:
                     print("Reward:", r)
 
-            # env.render()
-            key = env.render("ascii")
-            try:
-                action = int(key)
-                action = ACTIONS[action]
-            except ValueError:
-                action = None
-            if action is None:
-                action = DebugActions.NO_OP
-                keys = p.getKeyboardEvents()
-                for k, v in keys.items():
-                    if v & p.KEY_WAS_TRIGGERED:
-                        action = mapping.get(k, DebugActions.NO_OP)
-                for k, v in keys.items():
-                    if v & p.KEY_WAS_RELEASED and k in mapping:
-                        action = DebugActions.NO_OP
+            env.render("ascii", pause=False)
+            action = None
+            while action is None:
+                key = input("enter action key:")
+                if key in mapping:
+                    action = mapping[key]
 
-            if action != last_action:
-                print(action)
-            last_action = action
             action_index = ACTIONS.index(action)
             o, r, t, i = env.step(action_index)
-            if not printed_mission:
-                print(Observation(*o).mission)
-                printed_mission = True
 
             time.sleep(0.05)
 
