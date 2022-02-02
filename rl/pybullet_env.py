@@ -146,10 +146,7 @@ class Env(gym.Env):
         colSphereId = self._p.createVisualShape(
             self._p.GEOM_SPHERE, radius=sphereRadius, rgbaColor=[0, 0, 0, 1]
         )
-        self.mass_start_pos = [-3, -3, 0]
-        self.mass = self._p.createMultiBody(
-            mass, colSphereId, visualShapeId, self.mass_start_pos
-        )
+        self.mass = self._p.createMultiBody(mass, colSphereId, visualShapeId, [0, 0, 0])
 
         relativeChildPosition = [0, 0, 0]
         relativeChildOrientation = [0, 0, 0, 1]
@@ -262,9 +259,10 @@ class Env(gym.Env):
 
         i = dict(mission=mission)
 
-        self._p.resetBasePositionAndOrientation(
-            self.mass, self.mass_start_pos, [0, 0, 0, 1]
-        )
+        mass_start_pos = self.random.uniform(-self.env_bounds, self.env_bounds, size=3)
+        mass_start_pos[2] = 0
+
+        self._p.resetBasePositionAndOrientation(self.mass, mass_start_pos, [0, 0, 0, 1])
         self._camera_yaw = self.camera_yaw
         action = yield self.get_observation(self._camera_yaw, mission)
 
