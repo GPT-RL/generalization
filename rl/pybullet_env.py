@@ -280,13 +280,9 @@ class Env(gym.Env):
         i = dict(mission=mission)
 
         z = 1
-        start_states = [
-            ([1, 1, z], 135),
-            ([-1, -1, z], 315),
-        ]
-        mass_start_pos, self._camera_yaw = start_states[
-            self.random.choice(len(start_states))
-        ]
+        self._camera_yaw = self.random.choice(360)
+        mass_start_pos = self.random.uniform(low=-np.ones(3), high=np.ones(3))
+        mass_start_pos[-1] = z
 
         self._p.resetBasePositionAndOrientation(self.mass, mass_start_pos, [0, 0, 0, 1])
         action = yield self.get_observation(self._camera_yaw, mission)
