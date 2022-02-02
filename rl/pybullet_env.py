@@ -14,6 +14,7 @@ import gym.utils.seeding
 import numpy as np
 import PIL.Image
 import pybullet as p
+import pybullet_data
 from art import text2art
 from colors import color
 from gym.spaces import Box, MultiDiscrete
@@ -148,6 +149,23 @@ class Env(gym.Env):
         else:
             self._p = bullet_client.BulletClient(connection_mode=p.DIRECT)
 
+        self._p.setAdditionalSearchPath(pybullet_data.getDataPath())
+
+        self._p.setGravity(0, 0, -10)
+        camTargetPos = [0, 0, 0]
+
+        pitch = -10.0
+
+        roll = 0
+        upAxisIndex = 2
+        camDistance = 4
+        pixelWidth = 128
+        pixelHeight = 128
+        nearPlane = 0.01
+        farPlane = 100
+
+        fov = 60
+
         sphereRadius = 0.02
         mass = 1
         visualShapeId = 2
@@ -228,6 +246,37 @@ class Env(gym.Env):
                 relativeChildPosition,
                 relativeChildOrientation,
             )
+        while 1:
+            for yaw in range(0, 360, 10):
+                self._p.stepSimulation()
+                viewMatrix = self._p.computeViewMatrixFromYawPitchRoll(
+                    camTargetPos, camDistance, yaw, pitch, roll, upAxisIndex
+                )
+                aspect = pixelWidth / pixelHeight
+                projectionMatrix = self._p.computeProjectionMatrixFOV(
+                    fov, aspect, nearPlane, farPlane
+                )
+                img_arr = self._p.getCameraImage(
+                    pixelWidth,
+                    pixelHeight,
+                    viewMatrix,
+                    projectionMatrix,
+                    shadow=1,
+                    lightDirection=[1, 1, 1],
+                    renderer=self._p.ER_BULLET_HARDWARE_OPENGL,
+                )
+                (
+                    _,
+                    _,
+                    rgbaPixels,
+                    _,
+                    _,
+                ) = img_arr
+                for row in rgbaPixels:
+                    for rgb in row:
+                        print(color("$$", tuple(rgb.astype(int))), end="")
+                    print()
+                input("Press enter to continue.")
 
     def get_observation(
         self,
