@@ -18,7 +18,7 @@ from gym.spaces import Box, MultiDiscrete
 from pybullet_utils import bullet_client
 
 CAMERA_DISTANCE = 0.2
-CAMERA_PITCH = -1
+CAMERA_PITCH = -20
 CAMERA_YAW = 315
 
 M = TypeVar("M")
@@ -106,7 +106,7 @@ class Env(gym.Env):
     steps_per_action: int
     urdfs: Tuple[URDF, URDF]
     camera_yaw: float = CAMERA_YAW
-    env_bounds: float = 2
+    env_bounds: float = 1
     is_render: bool = False
     metadata = {"render.modes": ["human", "rgb_array"], "video.frames_per_second": 60}
     model_name: str = "gpt2"
@@ -186,12 +186,11 @@ class Env(gym.Env):
         )
         for base_position, urdf in zip(
             [
-                [-self.env_bounds / 3, self.env_bounds / 3, 0],
-                [self.env_bounds / 3, -self.env_bounds / 3, 0],
+                [-self.env_bounds / 1, self.env_bounds / 1, 0],
+                [self.env_bounds / 1, -self.env_bounds / 1, 0],
             ],
             self.urdfs,
         ):
-            base_position[-1] = 0  # urdf.z
 
             try:
                 with suppress_stdout():
@@ -260,11 +259,14 @@ class Env(gym.Env):
 
         i = dict(mission=mission)
 
-        mass_start_pos = [-3, -3, 0]
-        mass_start_pos[2] = 0
+        z = 1
+        start_states = [
+            ([1, 1, z], 135),
+            ([-1, -1, z], 315),
+        ]
+        mass_start_pos, self._camera_yaw = start_states[1]
 
         self._p.resetBasePositionAndOrientation(self.mass, mass_start_pos, [0, 0, 0, 1])
-        self._camera_yaw = self.camera_yaw
         action = yield self.get_observation(self._camera_yaw, mission)
 
         for global_step in range(self.max_episode_steps):
@@ -278,7 +280,7 @@ class Env(gym.Env):
             x, y, *_ = self._p.getBasePositionAndOrientation(self.mass)[0]
             new_x = np.clip(x + x_shift, -self.env_bounds, self.env_bounds)
             new_y = np.clip(y + y_shift, -self.env_bounds, self.env_bounds)
-            self._p.changeConstraint(self.mass_cid, [new_x, new_y, -0.1], maxForce=100)
+            self._p.changeConstraint(self.mass_cid, [new_x, new_y, z], maxForce=100)
             for _ in range(self.steps_per_action):
                 self._p.stepSimulation()
 
@@ -389,7 +391,7 @@ def main():
             if action == DebugActions.PICTURE:
                 action = DebugActions.NO_OP
 
-            time.sleep(0.5)
+            time.sleep(0.05)
 
         except KeyboardInterrupt:
             print("Received keyboard interrupt. Exiting.")
