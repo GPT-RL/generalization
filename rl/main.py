@@ -209,7 +209,9 @@ class Trainer:
             if args.test_interval is not None and j % args.test_interval == 0:
                 cls.evaluate(
                     agent=agent,
-                    envs=cls.make_vec_envs(device=device, test=True, **args.as_dict()),
+                    envs=cls.make_vec_envs(
+                        device=device, run_id=logger.run_id, test=True, **args.as_dict()
+                    ),
                     num_processes=cls.num_eval_processes(args),
                     device=device,
                     start=start,
@@ -519,23 +521,13 @@ class Trainer:
 
         return envs
 
-    @classmethod
-    def _make_vec_envs(cls, num_processes, render, seed, sync_envs, test, **kwargs):
-
-        envs = [
-            cls.make_env(seed=seed + i, render=render, test=test, **kwargs)
-            for i in range(num_processes)
-        ]
-
-        if len(envs) > 1 and not sync_envs:
-            envs = SubprocVecEnv(envs)
-        else:
-            envs = DummyVecEnv(envs)
-        return envs
-
     @staticmethod
-    def save_path(run_id: int):
-        return Path("/tmp/logs", str(run_id), "checkpoint.pkl")
+    def save_dir(run_id: Optional[int] = None):
+        return Path("/tmp/logs", str(run_id))
+
+    @classmethod
+    def save_path(cls, run_id: Optional[int] = None):
+        return Path(cls.save_dir(run_id), "checkpoint.pkl")
 
     @staticmethod
     def save(agent, save_path: Path, args: Args):

@@ -7,7 +7,8 @@ from typing import List, Literal, Optional, Set, Tuple, cast
 
 import main
 import numpy as np
-from envs import RenderWrapper, VecPyTorch
+from envs import VecPyTorch
+from gym.wrappers.monitoring.video_recorder import VideoRecorder
 from pybullet_agent import Agent
 from pybullet_env import URDF, Env, get_urdfs
 from stable_baselines3.common.monitor import Monitor
@@ -92,12 +93,15 @@ class Trainer(main.Trainer):
             longest_mission: str,
             max_episode_steps: int,
             rank: int,
+            run_id: Optional[int],
             seed: int,
             steps_per_action: int,
             tokenizer: GPT2Tokenizer,
             urdfs: List[Tuple[URDF, URDF]],
             **_,
         ):
+            video_path = cls.save_path(run_id)
+
             _env = Env(
                 image_size=image_size,
                 is_render=render,
@@ -116,7 +120,7 @@ class Trainer(main.Trainer):
 
             _env = Monitor(_env, allow_early_resets=allow_early_resets)
             if render:
-                _env = RenderWrapper(_env)
+                _env = VideoRecorder(_env, path=video_path)
 
             return _env
 
