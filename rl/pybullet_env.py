@@ -178,8 +178,7 @@ class Env(gym.Env):
             baseMass=0, baseVisualShapeIndex=floor_visual, basePosition=[0, 0, -1]
         )
 
-        self.choice = choice = self.random.choice(2)
-        self.mission = names[choice]
+        self.names = names
         self.objects = objects = []
 
         print()
@@ -256,13 +255,17 @@ class Env(gym.Env):
         return obs
 
     def generator(self):
-        i = dict(mission=self.mission)
+
+        goal = self.random.choice(2)
+        mission = self.names[goal]
+
+        i = dict(mission=mission)
 
         self._p.resetBasePositionAndOrientation(
             self.mass, self.mass_start_pos, [0, 0, 0, 1]
         )
         self._camera_yaw = self.camera_yaw
-        action = yield self.get_observation(self._camera_yaw, self.mission)
+        action = yield self.get_observation(self._camera_yaw, mission)
 
         for global_step in range(self.max_episode_steps):
             a = ACTIONS[action].value
@@ -280,7 +283,7 @@ class Env(gym.Env):
             for _ in range(self.steps_per_action):
                 self._p.stepSimulation()
 
-            s = self.get_observation(self._camera_yaw, self.mission)
+            s = self.get_observation(self._camera_yaw, mission)
             if ACTIONS[action].value.take_picture:
                 PIL.Image.fromarray(np.uint8(Observation(*s).image)).show()
             t = ACTIONS[action].value.done
@@ -292,12 +295,12 @@ class Env(gym.Env):
                     ]
                 )
                 dists = [np.linalg.norm(np.array(pos) - np.array(g)) for g in goal_poss]
-                r = float(np.argmin(dists) == self.choice)
+                r = float(np.argmin(dists) == goal)
             else:
                 r = 0
             action = yield s, r, t, i
 
-        s = self.get_observation(self._camera_yaw, self.mission)
+        s = self.get_observation(self._camera_yaw, mission)
         r = 0
         t = True
         yield s, r, t, i
