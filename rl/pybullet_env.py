@@ -22,8 +22,15 @@ from pybullet_utils import bullet_client
 from tap import Tap
 
 CAMERA_DISTANCE = 0.2
-CAMERA_PITCH = -20
+CAMERA_PITCH = -10
 CAMERA_YAW = 315
+
+ROLL = 0
+UP_AXIS_INDEX = 2
+NEAR_PLANE = 0.01
+FAR_PLANE = 100
+
+FOV = 60
 
 M = TypeVar("M")
 I = TypeVar("I")
@@ -151,21 +158,6 @@ class Env(gym.Env):
 
         self._p.setAdditionalSearchPath(pybullet_data.getDataPath())
 
-        self._p.setGravity(0, 0, -10)
-        camTargetPos = [0, 0, 0]
-
-        pitch = -10.0
-
-        roll = 0
-        upAxisIndex = 2
-        camDistance = 4
-        pixelWidth = 128
-        pixelHeight = 128
-        nearPlane = 0.01
-        farPlane = 100
-
-        fov = 60
-
         sphereRadius = 0.02
         mass = 1
         visualShapeId = 2
@@ -246,37 +238,6 @@ class Env(gym.Env):
                 relativeChildPosition,
                 relativeChildOrientation,
             )
-        while 1:
-            for yaw in range(0, 360, 10):
-                self._p.stepSimulation()
-                viewMatrix = self._p.computeViewMatrixFromYawPitchRoll(
-                    camTargetPos, camDistance, yaw, pitch, roll, upAxisIndex
-                )
-                aspect = pixelWidth / pixelHeight
-                projectionMatrix = self._p.computeProjectionMatrixFOV(
-                    fov, aspect, nearPlane, farPlane
-                )
-                img_arr = self._p.getCameraImage(
-                    pixelWidth,
-                    pixelHeight,
-                    viewMatrix,
-                    projectionMatrix,
-                    shadow=1,
-                    lightDirection=[1, 1, 1],
-                    renderer=self._p.ER_BULLET_HARDWARE_OPENGL,
-                )
-                (
-                    _,
-                    _,
-                    rgbaPixels,
-                    _,
-                    _,
-                ) = img_arr
-                for row in rgbaPixels:
-                    for rgb in row:
-                        print(color("$$", tuple(rgb.astype(int))), end="")
-                    print()
-                input("Press enter to continue.")
 
     def get_observation(
         self,
@@ -284,21 +245,22 @@ class Env(gym.Env):
         mission,
     ) -> Tuple[np.ndarray, np.ndarray]:
         pos, _ = self._p.getBasePositionAndOrientation(self.mass)
+
         viewMatrix = self._p.computeViewMatrixFromYawPitchRoll(
-            cameraTargetPosition=pos,
-            distance=CAMERA_DISTANCE,
-            yaw=camera_yaw,
-            pitch=CAMERA_PITCH,
-            roll=0,
-            upAxisIndex=2,
+            pos, CAMERA_DISTANCE, camera_yaw, CAMERA_PITCH, ROLL, UP_AXIS_INDEX
+        )
+        aspect = 1
+        projectionMatrix = self._p.computeProjectionMatrixFOV(
+            FOV, aspect, NEAR_PLANE, FAR_PLANE
         )
         (_, _, rgbaPixels, _, _,) = self._p.getCameraImage(
             self.image_size,
             self.image_size,
-            viewMatrix=viewMatrix,
-            shadow=0,
-            flags=self._p.ER_NO_SEGMENTATION_MASK,
-            renderer=self._p.ER_TINY_RENDERER,
+            viewMatrix,
+            projectionMatrix,
+            shadow=1,
+            lightDirection=[1, 1, 1],
+            renderer=self._p.ER_BULLET_HARDWARE_OPENGL,
         )
         rgbaPixels = rgbaPixels[..., :-1].astype(np.float32)
         obs = Observation(
@@ -477,9 +439,6 @@ def main(args: Args):
             if not printed_mission:
                 print(Observation(*o).mission)
                 printed_mission = True
-
-            if action == DebugActions.PICTURE:
-                action = DebugActions.NO_OP
 
             time.sleep(0.05)
 
