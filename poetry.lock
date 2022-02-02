@@ -15,6 +15,17 @@ optional = false
 python-versions = "*"
 
 [[package]]
+name = "art"
+version = "5.4"
+description = "ASCII Art Library For Python"
+category = "main"
+optional = false
+python-versions = ">=2.7"
+
+[package.extras]
+dev = ["coverage (>=4.1)", "codecov (>=2.0.15)", "vulture (>=1.0)", "bandit (>=1.5.1)", "pydocstyle (>=3.0.0)"]
+
+[[package]]
 name = "atari-py"
 version = "0.2.9"
 description = "Python bindings to Atari games"
@@ -1127,7 +1138,7 @@ python-versions = "*"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.8"
-content-hash = "7ffd6b3fb8ca007ec864aabad50fbc1a05663008df2cc48a7e8665f2f0b893a3"
+content-hash = "d185e4f359593b5f5612312ebb22ded063ff84e19dd293d6c85d6b591a69de59"
 
 [metadata.files]
 ansicolors = [
@@ -1137,6 +1148,10 @@ ansicolors = [
 appnope = [
     {file = "appnope-0.1.2-py2.py3-none-any.whl", hash = "sha256:93aa393e9d6c54c5cd570ccadd8edad61ea0c4b9ea7a01409020c9aa019eb442"},
     {file = "appnope-0.1.2.tar.gz", hash = "sha256:dd83cd4b5b460958838f6eb3000c660b1f9caf2a5b1de4264e941512f603258a"},
+]
+art = [
+    {file = "art-5.4-py2.py3-none-any.whl", hash = "sha256:b745544b09a7ae9747e6ef852f59c2316a9605e4d7f51ed806c294d00cfb7154"},
+    {file = "art-5.4.tar.gz", hash = "sha256:50969b793501b706d8ac7dacacc74b80083d3550137bfe3f7388a2c20b35dc1c"},
 ]
 atari-py = [
     {file = "atari-py-0.2.9.tar.gz", hash = "sha256:cb1b4355e3e4b628e272de8317e8dceeadeeabb821b33800409e17ffc3095e20"},

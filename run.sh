@@ -6,6 +6,7 @@ docker run --rm -it \
 	--env-file .env \
 	--gpus "$1" \
 	-e HOST_MACHINE="$(hostname -s)" \
+	-e TERM=xterm-256color \
 	-v "$(pwd)/logs:/tmp/logs" \
 	-v "$HOME/.cache/GPT/:/root/.cache/GPT" \
 	-v "$HOME/.cache/data/:/root/.cache/data" \

@@ -27,6 +27,7 @@ torch = [
     {platform = 'linux', url = "https://download.pytorch.org/whl/cu111/torch-1.9.0%2Bcu111-cp38-cp38-linux_x86_64.whl"}
 ]
 babyai = {git = "https://github.com/GPT-RL/babyai.git"}
+art = "^5.4"
 
 
 [tool.poetry.dev-dependencies]

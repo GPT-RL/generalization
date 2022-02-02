@@ -14,6 +14,8 @@ import gym.utils.seeding
 import numpy as np
 import PIL.Image
 import pybullet as p
+from art import text2art
+from colors import color
 from gym.spaces import Box, MultiDiscrete
 from pybullet_utils import bullet_client
 
@@ -108,7 +110,10 @@ class Env(gym.Env):
     camera_yaw: float = CAMERA_YAW
     env_bounds: float = 1
     is_render: bool = False
-    metadata = {"render.modes": ["human", "rgb_array"], "video.frames_per_second": 60}
+    metadata = {
+        "render.modes": ["human", "rgb_array", "ascii"],
+        "video.frames_per_second": 60,
+    }
     model_name: str = "gpt2"
     rank: int = 0
     random_seed: int = 0
@@ -130,6 +135,8 @@ class Env(gym.Env):
         self.action_space = spaces.Discrete(len(Actions))
 
         self.iterator = None
+        self._s = None
+        self._a = None
 
         # initialize simulator
 
@@ -140,6 +147,7 @@ class Env(gym.Env):
         else:
             with suppress_stdout():
                 self._p = bullet_client.BulletClient(connection_mode=p.DIRECT)
+            self._p.configureDebugVisualizer(self._p.COV_ENABLE_SHADOWS, 0)
 
         sphereRadius = 0.02
         mass = 1
@@ -228,26 +236,30 @@ class Env(gym.Env):
         mission,
     ) -> Tuple[np.ndarray, np.ndarray]:
         pos, _ = self._p.getBasePositionAndOrientation(self.mass)
+        viewMatrix = self._p.computeViewMatrixFromYawPitchRoll(
+            cameraTargetPosition=pos,
+            distance=CAMERA_DISTANCE,
+            yaw=camera_yaw,
+            pitch=CAMERA_PITCH,
+            roll=0,
+            upAxisIndex=2,
+        )
         (_, _, rgbaPixels, _, _,) = self._p.getCameraImage(
             self.image_size,
             self.image_size,
-            viewMatrix=self._p.computeViewMatrixFromYawPitchRoll(
-                cameraTargetPosition=pos,
-                distance=CAMERA_DISTANCE,
-                yaw=camera_yaw,
-                pitch=CAMERA_PITCH,
-                roll=0,
-                upAxisIndex=2,
-            ),
+            viewMatrix=viewMatrix,
             shadow=0,
             flags=self._p.ER_NO_SEGMENTATION_MASK,
-            renderer=self._p.ER_BULLET_HARDWARE_OPENGL,
+            renderer=self._p.ER_BULLET_HARDWARE_OPENGL
+            if self.is_render
+            else self._p.ER_TINY_RENDERER,
         )
         rgbaPixels = rgbaPixels[..., :-1].astype(np.float32)
         obs = Observation(
             image=rgbaPixels,
             mission=mission,
         )
+        self._s = obs
         obs = astuple(obs)
         assert self.observation_space.contains(obs)
         return obs
@@ -274,6 +286,7 @@ class Env(gym.Env):
         for global_step in range(self.max_episode_steps):
 
             self._camera_yaw += action.turn
+
             x, y, _, _ = self._p.getQuaternionFromEuler(
                 [np.pi, 0, np.deg2rad(2 * self._camera_yaw) + np.pi]
             )
@@ -288,7 +301,7 @@ class Env(gym.Env):
 
             s = self.get_observation(self._camera_yaw, mission)
             if action.take_picture:
-                PIL.Image.fromarray(np.uint8(Observation(*s).image)).show()
+                PIL.Image.fromarray(self.render(mode="rgb_array")).show()
             if action.done:
                 (*goal_poss, pos), _ = zip(
                     *[
@@ -311,13 +324,22 @@ class Env(gym.Env):
         if isinstance(action, np.ndarray):
             action = action.item()
         if isinstance(action, int):
-            action = ACTIONS[action].value
+            self._a = ACTIONS[action]
+            action = self._a.value
         assert isinstance(action, Action)
         return self.iterator.send(action)
 
     def reset(self):
         self.iterator = self.generator()
         return next(self.iterator)
+
+    @staticmethod
+    def ascii_of_image(image: np.ndarray):
+        def rows():
+            for row in image:
+                yield "".join([(color("$$", tuple(rgb.astype(int)))) for rgb in row])
+
+        return "\n".join(rows())
 
     def render(self, mode="human"):
         if mode == "human":
@@ -330,7 +352,15 @@ class Env(gym.Env):
             )
             return np.array([])
         if mode == "rgb_array":
-            raise NotImplementedError
+            return np.uint8(self._s.image)
+        if mode == "ascii":
+            print(self.ascii_of_image(self._s.image))
+            print()
+            subtitle = self._s.mission.upper()
+            if self._a is not None:
+                subtitle = f"{subtitle}, {self._a.name}"
+            print(text2art(subtitle, font="com_sen"))
+            return input("Press enter to continue.")
 
     def close(self):
         self._p.disconnect()
@@ -372,14 +402,21 @@ def main():
                     print("Reward:", r)
 
             env.render()
-
-            keys = p.getKeyboardEvents()
-            for k, v in keys.items():
-                if v & p.KEY_WAS_TRIGGERED:
-                    action = mapping.get(k, DebugActions.NO_OP)
-            for k, v in keys.items():
-                if v & p.KEY_WAS_RELEASED and k in mapping:
-                    action = DebugActions.NO_OP
+            key = env.render("ascii")
+            try:
+                action = int(key)
+            except ValueError:
+                action = None
+            if action is not None:
+                action = ACTIONS[action]
+            else:
+                keys = p.getKeyboardEvents()
+                for k, v in keys.items():
+                    if v & p.KEY_WAS_TRIGGERED:
+                        action = mapping.get(k, DebugActions.NO_OP)
+                for k, v in keys.items():
+                    if v & p.KEY_WAS_RELEASED and k in mapping:
+                        action = DebugActions.NO_OP
 
             if action != last_action:
                 print(action)

@@ -19,6 +19,16 @@ ENV PYTHONBREAKPOINT=ipdb.set_trace
 RUN apt-get update -q \
  && DEBIAN_FRONTEND="noninteractive" \
     apt-get install -yq \
+      # video recording
+      ffmpeg \
+
+      # git-state
+      git \
+
+      # for opencv-python
+      libgl1-mesa-glx \
+      libglib2.0-0 \
+
       # primary interpreter
       python3.8 \
 
@@ -28,15 +38,8 @@ RUN apt-get update -q \
       # redis-python
       redis \
 
-      # git-state
-      git \
-
       # for Atari Roms and redis
       wget \
-
-      # for opencv-python
-      libgl1-mesa-glx \
-      libglib2.0-0 \
 
  && apt-get clean
 

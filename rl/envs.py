@@ -130,11 +130,15 @@ class MaskGoal(gym.ObservationWrapper):
 
 
 class RenderWrapper(gym.Wrapper):
+    def __init__(self, env, mode="human"):
+        self.mode = mode
+        super().__init__(env)
+
     def step(self, action):
-        self.render(mode="human")
+        self.render(mode=self.mode)
         s, r, t, i = super().step(action)
         if t:
-            self.render(mode="human")
+            self.render(mode=self.mode)
         return s, r, t, i
 
 

@@ -166,162 +166,174 @@ class Trainer:
         torch.set_num_threads(1)
         device = cls.device(cuda)
 
-        envs = cls.make_vec_envs(device=device, test=False, **args.as_dict())
-
-        agent = cls.make_agent(envs=envs, args=args)
-        if args.load_id is not None:
-            load_path = cls.save_path(args.load_id)
-            logging.info(f"Loading checkpoint from {load_path}...")
-            cls.load(agent, load_path)
-        agent.to(device)
-
-        ppo = PPO(
-            agent=agent,
-            clip_param=args.clip_param,
-            ppo_epoch=args.ppo_epoch,
-            num_mini_batch=args.num_mini_batch,
-            value_coef=args.value_coef,
-            entropy_coef=args.entropy_coef,
-            lr=args.lr,
-            eps=args.eps,
-            max_grad_norm=args.max_grad_norm,
+        envs = cls.make_vec_envs(
+            device=device, run_id=logger.run_id, test=False, **args.as_dict()
         )
+        try:
 
-        rollouts = Rollouts(
-            num_steps=args.num_steps,
-            num_processes=args.num_processes,
-            obs_shape=envs.observation_space.shape,
-            action_space=envs.action_space,
-            recurrent_hidden_state_size=agent.recurrent_hidden_state_size,
-        )
+            agent = cls.make_agent(envs=envs, args=args)
+            if args.load_id is not None:
+                load_path = cls.save_path(args.load_id)
+                logging.info(f"Loading checkpoint from {load_path}...")
+                cls.load(agent, load_path)
+            agent.to(device)
 
-        obs = envs.reset()
-        rollouts.obs[0].copy_(obs)
-        rollouts.to(device)
-
-        counters = cls.build_counters()
-
-        tick = start = time.time()
-        num_steps = 0
-        save_count = 0
-        num_updates = int(args.num_env_steps) // args.num_steps // args.num_processes
-        for j in range(num_updates):
-            if args.test_interval is not None and j % args.test_interval == 0:
-                cls.evaluate(
-                    agent=agent,
-                    envs=cls.make_vec_envs(
-                        device=device, run_id=logger.run_id, test=True, **args.as_dict()
-                    ),
-                    num_processes=cls.num_eval_processes(args),
-                    device=device,
-                    start=start,
-                    total_num_steps=cls.total_num_steps(j, args),
-                    logger=logger,
-                    test=True,
-                )
-            # save for every interval-th episode or for the last epoch
-            if (
-                args.save_interval is not None
-                and logger.run_id is not None
-                and (j % args.save_interval == 0 or j == num_updates - 1)
-                and not render
-            ):
-                save_path = cls.save_path(logger.run_id)
-                save_path.parent.mkdir(parents=True, exist_ok=True)
-                cls.save(agent, save_path, args)
-                save_count += 1
-
-            if args.linear_lr_decay:
-                # decrease learning rate linearly
-                utils.update_linear_schedule(ppo.optimizer, j, num_updates, args.lr)
-
-            for step in range(args.num_steps):
-                # Sample actions
-                with torch.no_grad():
-                    (
-                        value,
-                        action,
-                        action_log_prob,
-                        recurrent_hidden_states,
-                    ) = agent.forward(
-                        inputs=rollouts.obs[step],
-                        rnn_hxs=rollouts.recurrent_hidden_states[step],
-                        masks=rollouts.masks[step],
-                    )
-
-                # Observe reward and next obs
-                obs, reward, done, infos = envs.step(action)
-
-                for info in infos:
-                    cls.process_info(counters, info)
-
-                # If done then clean the history of observations.
-                masks = torch.FloatTensor([[0.0] if done_ else [1.0] for done_ in done])
-                bad_masks = torch.FloatTensor(
-                    [
-                        [0.0] if "bad_transition" in info.keys() else [1.0]
-                        for info in infos
-                    ]
-                )
-                rollouts.insert(
-                    obs=obs,
-                    recurrent_hidden_states=recurrent_hidden_states,
-                    actions=action,
-                    action_log_probs=action_log_prob,
-                    value_preds=value,
-                    rewards=reward,
-                    masks=masks,
-                    bad_masks=bad_masks,
-                )
-
-            with torch.no_grad():
-                next_value = agent.get_value(
-                    inputs=rollouts.obs[-1],
-                    rnn_hxs=rollouts.recurrent_hidden_states[-1],
-                    masks=rollouts.masks[-1],
-                ).detach()
-
-            rollouts.compute_returns(
-                next_value=next_value,
-                use_gae=args.gae,
-                gamma=args.gamma,
-                gae_lambda=args.gae_lambda,
-                use_proper_time_limits=args.use_proper_time_limits,
+            ppo = PPO(
+                agent=agent,
+                clip_param=args.clip_param,
+                ppo_epoch=args.ppo_epoch,
+                num_mini_batch=args.num_mini_batch,
+                value_coef=args.value_coef,
+                entropy_coef=args.entropy_coef,
+                lr=args.lr,
+                eps=args.eps,
+                max_grad_norm=args.max_grad_norm,
             )
 
-            total_num_steps = cls.total_num_steps(j + 1, args)
-            if not render:
-                value_loss, action_loss, dist_entropy, gradient_norm = ppo.update(
-                    rollouts
+            rollouts = Rollouts(
+                num_steps=args.num_steps,
+                num_processes=args.num_processes,
+                obs_shape=envs.observation_space.shape,
+                action_space=envs.action_space,
+                recurrent_hidden_state_size=agent.recurrent_hidden_state_size,
+            )
+
+            obs = envs.reset()
+            rollouts.obs[0].copy_(obs)
+            rollouts.to(device)
+
+            counters = cls.build_counters()
+
+            tick = start = time.time()
+            num_steps = 0
+            save_count = 0
+            num_updates = (
+                int(args.num_env_steps) // args.num_steps // args.num_processes
+            )
+            for j in range(num_updates):
+                if args.test_interval is not None and j % args.test_interval == 0:
+                    cls.evaluate(
+                        agent=agent,
+                        envs=cls.make_vec_envs(
+                            device=device,
+                            run_id=logger.run_id,
+                            test=True,
+                            **args.as_dict(),
+                        ),
+                        num_processes=cls.num_eval_processes(args),
+                        device=device,
+                        start=start,
+                        total_num_steps=cls.total_num_steps(j, args),
+                        logger=logger,
+                        test=True,
+                    )
+                # save for every interval-th episode or for the last epoch
+                if (
+                    args.save_interval is not None
+                    and logger.run_id is not None
+                    and (j % args.save_interval == 0 or j == num_updates - 1)
+                    and not render
+                ):
+                    save_path = cls.save_path(logger.run_id)
+                    save_path.parent.mkdir(parents=True, exist_ok=True)
+                    cls.save(agent, save_path, args)
+                    save_count += 1
+
+                if args.linear_lr_decay:
+                    # decrease learning rate linearly
+                    utils.update_linear_schedule(ppo.optimizer, j, num_updates, args.lr)
+
+                for step in range(args.num_steps):
+                    # Sample actions
+                    with torch.no_grad():
+                        (
+                            value,
+                            action,
+                            action_log_prob,
+                            recurrent_hidden_states,
+                        ) = agent.forward(
+                            inputs=rollouts.obs[step],
+                            rnn_hxs=rollouts.recurrent_hidden_states[step],
+                            masks=rollouts.masks[step],
+                        )
+
+                    # Observe reward and next obs
+                    obs, reward, done, infos = envs.step(action)
+
+                    for info in infos:
+                        cls.process_info(counters, info)
+
+                    # If done then clean the history of observations.
+                    masks = torch.FloatTensor(
+                        [[0.0] if done_ else [1.0] for done_ in done]
+                    )
+                    bad_masks = torch.FloatTensor(
+                        [
+                            [0.0] if "bad_transition" in info.keys() else [1.0]
+                            for info in infos
+                        ]
+                    )
+                    rollouts.insert(
+                        obs=obs,
+                        recurrent_hidden_states=recurrent_hidden_states,
+                        actions=action,
+                        action_log_probs=action_log_prob,
+                        value_preds=value,
+                        rewards=reward,
+                        masks=masks,
+                        bad_masks=bad_masks,
+                    )
+
+                with torch.no_grad():
+                    next_value = agent.get_value(
+                        inputs=rollouts.obs[-1],
+                        rnn_hxs=rollouts.recurrent_hidden_states[-1],
+                        masks=rollouts.masks[-1],
+                    ).detach()
+
+                rollouts.compute_returns(
+                    next_value=next_value,
+                    use_gae=args.gae,
+                    gamma=args.gamma,
+                    gae_lambda=args.gae_lambda,
+                    use_proper_time_limits=args.use_proper_time_limits,
                 )
 
-                rollouts.after_update()
+                total_num_steps = cls.total_num_steps(j + 1, args)
+                if not render:
+                    value_loss, action_loss, dist_entropy, gradient_norm = ppo.update(
+                        rollouts
+                    )
 
-                if j % args.log_interval == 0:
-                    now = time.time()
-                    fps = (total_num_steps - num_steps) / (now - tick)
-                    tick = time.time()
-                    num_steps = total_num_steps
-                    log = {
-                        ACTION_LOSS: action_loss,
-                        ENTROPY: dist_entropy,
-                        EPISODE_LENGTH: np.mean(counters.episode_lengths),
-                        EPISODE_RETURN: np.mean(counters.episode_rewards),
-                        FPS: fps,
-                        GRADIENT_NORM: gradient_norm,
-                        HOURS: (now - start) / 3600,
-                        SAVE_COUNT: save_count,
-                        STEP: total_num_steps,
-                        TIME: now * 1000000,
-                        VALUE_LOSS: value_loss,
-                    }
+                    rollouts.after_update()
 
-                    logging.info(pformat(log))
-                    if logger.run_id is not None:
-                        log.update({"run ID": logger.run_id})
+                    if j % args.log_interval == 0:
+                        now = time.time()
+                        fps = (total_num_steps - num_steps) / (now - tick)
+                        tick = time.time()
+                        num_steps = total_num_steps
+                        log = {
+                            ACTION_LOSS: action_loss,
+                            ENTROPY: dist_entropy,
+                            EPISODE_LENGTH: np.mean(counters.episode_lengths),
+                            EPISODE_RETURN: np.mean(counters.episode_rewards),
+                            FPS: fps,
+                            GRADIENT_NORM: gradient_norm,
+                            HOURS: (now - start) / 3600,
+                            SAVE_COUNT: save_count,
+                            STEP: total_num_steps,
+                            TIME: now * 1000000,
+                            VALUE_LOSS: value_loss,
+                        }
 
-                    cls.log(logger, log, counters, total_num_steps)
-                    counters.reset()
+                        logging.info(pformat(log))
+                        if logger.run_id is not None:
+                            log.update({"run ID": logger.run_id})
+
+                        cls.log(logger, log, counters, total_num_steps)
+                        counters.reset()
+        finally:
+            envs.close()
 
     @classmethod
     def process_info(cls, counters: Counters, info: dict):
@@ -523,7 +535,10 @@ class Trainer:
 
     @staticmethod
     def save_dir(run_id: Optional[int] = None):
-        return Path("/tmp/logs", str(run_id))
+        path = Path("/tmp/logs")
+        if run_id is not None:
+            return Path(path, str(run_id))
+        return path
 
     @classmethod
     def save_path(cls, run_id: Optional[int] = None):

@@ -7,8 +7,7 @@ from typing import List, Literal, Optional, Set, Tuple, cast
 
 import main
 import numpy as np
-from envs import VecPyTorch
-from gym.wrappers.monitoring.video_recorder import VideoRecorder
+from envs import RenderWrapper, VecPyTorch
 from pybullet_agent import Agent
 from pybullet_env import URDF, Env, get_urdfs
 from stable_baselines3.common.monitor import Monitor
@@ -18,6 +17,7 @@ from wrappers import (
     RolloutsWrapper,
     TokenizerWrapper,
     TrainTest,
+    VideoRecorderWrapper,
 )
 
 ROUNDED_STEP = "rounded step"
@@ -43,6 +43,7 @@ class Args(main.Args):
         "EleutherAI/gpt-neo-2.7B",
     ] = "gpt2-large"  # what size of pretrained GPT to use
     prefix_length: int = 0
+    record: bool = False
     steps_per_action: int = 5
 
     def configure(self) -> None:
@@ -93,6 +94,7 @@ class Trainer(main.Trainer):
             longest_mission: str,
             max_episode_steps: int,
             rank: int,
+            record: bool,
             run_id: Optional[int],
             seed: int,
             steps_per_action: int,
@@ -100,17 +102,20 @@ class Trainer(main.Trainer):
             urdfs: List[Tuple[URDF, URDF]],
             **_,
         ):
-            video_path = cls.save_path(run_id)
 
             _env = Env(
                 image_size=image_size,
-                is_render=render,
                 max_episode_steps=max_episode_steps,
                 random_seed=seed,
                 rank=rank,
                 steps_per_action=steps_per_action,
                 urdfs=urdfs[rank],
             )
+            if record:
+                video_path = Path(cls.save_dir(run_id), "video.mp4")
+                _env = VideoRecorderWrapper(_env, path=video_path)
+            if render:
+                _env = RenderWrapper(_env, mode="ascii")
             _env = ImageNormalizerWrapper(_env)
             _env = TokenizerWrapper(
                 _env, tokenizer=tokenizer, longest_mission=longest_mission
@@ -119,8 +124,6 @@ class Trainer(main.Trainer):
             _env = RolloutsWrapper(_env)
 
             _env = Monitor(_env, allow_early_resets=allow_early_resets)
-            if render:
-                _env = VideoRecorder(_env, path=video_path)
 
             return _env
 

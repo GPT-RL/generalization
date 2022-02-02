@@ -2,11 +2,13 @@ import abc
 from dataclasses import astuple, dataclass, replace
 from functools import lru_cache
 from itertools import chain, cycle, islice
+from pathlib import Path
 from typing import Generic, TypeVar
 
 import gym
 import numpy as np
 from gym.spaces import Box, Discrete, MultiDiscrete, Tuple
+from gym.wrappers.monitoring.video_recorder import VideoRecorder
 from pybullet_env import Observation
 from transformers import GPT2Tokenizer
 
@@ -17,6 +19,27 @@ T = TypeVar("T")  # Declare type variable
 class TrainTest(Generic[T]):
     train: T
     test: T
+
+
+class VideoRecorderWrapper(gym.Wrapper):
+    def __init__(self, env: gym.Env, path: Path):
+        super().__init__(env)
+        self.rec = VideoRecorder(env, path=str(path))
+
+    def reset(self, **kwargs):
+        s = super().reset()
+        self.rec.capture_frame()
+        print(Observation(*s).mission)
+        return s
+
+    def step(self, action):
+        s, r, t, i = super().step(action)
+        self.rec.capture_frame()
+        return s, r, t, i
+
+    def close(self):
+        super().close()
+        self.rec.close()
 
 
 class ImageNormalizerWrapper(gym.ObservationWrapper):
