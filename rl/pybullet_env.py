@@ -254,7 +254,7 @@ class Env(gym.Env):
 
     def generator(self):
 
-        goal = 0  # self.random.choice(2)
+        goal = self.random.choice(2)
         mission = self.names[goal]
 
         i = dict(mission=mission)
