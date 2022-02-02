@@ -25,11 +25,10 @@ ENV_RETURN = "environment return"
 
 
 class Args(main.Args):
-    data_path: str = "/root/.cache/data/dataset"
+    data_path: str = "/root/.cache/data/pybullet-URDF-models/urdf_models/models"
     image_size: float = 84
     names: Optional[str] = None
     max_episode_steps: int = 200
-    models: Optional[str] = None
     num_test_envs: int = 8
     num_test_names: int = 2
     pretrained_model: Literal[
@@ -43,7 +42,7 @@ class Args(main.Args):
         "EleutherAI/gpt-neo-2.7B",
     ] = "gpt2-large"  # what size of pretrained GPT to use
     prefix_length: int = 0
-    steps_per_action: int = 5
+    steps_per_action: int = 1
 
     def configure(self) -> None:
         self.add_subparsers(dest="logger_args")
@@ -155,7 +154,6 @@ class Trainer(main.Trainer):
         cls,
         data_path: str,
         pretrained_model: str,
-        models: Optional[str],
         names: Optional[str],
         num_processes: int,
         num_test_envs: int,
@@ -174,28 +172,13 @@ class Trainer(main.Trainer):
             raise RuntimeError(
                 f"""\
 {data_path} does not exist.
-Download dataset using:
-wget 'https://sapien.ucsd.edu/api/download/partnet-mobility-v0.zip\
-?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImV0aGFuYn\
-JvQHVtaWNoLmVkdSIsImlwIjoiMTcyLjIwLjAuMSIsInByaXZpbGVnZSI6MSwiaWF0\
-IjoxNjQzNDkyNzc3LCJleHAiOjE2NDM1NzkxNzd9.R3y0kIb11_85VHBdVgU0xRP15\
-zM_ZGMrpH3vL4ECpsw'
-and unzip downloaded file\
+Download dataset using: git clone git@github.com:GPT-RL/pybullet-URDF-models.git
 """
             )
 
-        # mapping = {}
-        # for subdir in data_path.iterdir():
-        #     with Path(subdir, "meta.json").open() as f:
-        #         meta = json.load(f)
-        #     name = meta["model_cat"]
-        #     mapping[subdir.name] = name
-
         if names:
             names: Set[str] = set(names.split(","))
-        if models:
-            models: Set[str] = set(models.split(","))
-        urdfs = list(get_urdfs(data_path, models, names))
+        urdfs = list(get_urdfs(data_path, names))
         names: List[str] = [urdf.name for urdf in urdfs]
         longest_mission = max(names, key=len)
         rng = np.random.default_rng(seed=seed)

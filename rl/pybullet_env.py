@@ -1,5 +1,5 @@
-import json
 import os
+import re
 import string
 import sys
 from contextlib import contextmanager
@@ -13,12 +13,11 @@ import gym.utils.seeding
 import numpy as np
 import PIL.Image
 import pybullet as p
-import yaml
 from gym.spaces import Box, MultiDiscrete
 from pybullet_utils import bullet_client
 
-CAMERA_DISTANCE = 0.2
-CAMERA_PITCH = -1
+CAMERA_DISTANCE = 0.1
+CAMERA_PITCH = -40
 CAMERA_YAW = 315
 
 M = TypeVar("M")
@@ -34,15 +33,18 @@ class Observation(Generic[M, I]):
 class Action(NamedTuple):
     turn: float = 0
     forward: float = 0
+    pitch: float = 0
     done: bool = False
     take_picture: bool = False
 
 
 class Actions(Enum):
-    LEFT = Action(3, 0)
-    RIGHT = Action(-3, 0)
-    FORWARD = Action(0, 0.18)
-    BACKWARD = Action(0, -0.18)
+    LEFT = Action(3, 0, 0)
+    RIGHT = Action(-3, 0, 0)
+    FORWARD = Action(0, 0.18, 0)
+    BACKWARD = Action(0, -0.18, 0)
+    UP = Action(0, 0, 3)
+    DOWN = Action(0, 0, -3)
     DONE = Action(done=True)
     PICTURE = Action(take_picture=True)
     NO_OP = Action()
@@ -54,7 +56,7 @@ ACTIONS = [*Actions]
 class URDF(NamedTuple):
     name: str
     path: Path
-    z: float
+    # z: float
 
 
 @contextmanager
@@ -78,24 +80,14 @@ def suppress_stdout():
             # CLOEXEC may be different
 
 
-def get_urdfs(path: Path, models: Set[str] = None, names: Set[str] = None):
-    with Path("models.yml").open() as f:
-        _models = set(yaml.load(f, Loader=yaml.FullLoader))
-        models = _models if models is None else _models & models
+def get_urdfs(path: Path, names: Set[str] = None):
     for subdir in path.iterdir():
-        with Path(subdir, "meta.json").open() as f:
-            meta = json.load(f)
-        name = meta["model_cat"]
-        if names is not None and name not in names:
-            continue
-        if subdir.name not in models:
-            continue
-        urdf = Path(subdir, "mobility.urdf")
-        assert urdf.exists()
-        with Path(subdir, "bounding_box.json").open() as f:
-            box = json.load(f)
-        _, _, z_min = box["min"]
-        yield URDF(name=name, path=urdf, z=-z_min)
+        path = Path(subdir, "model.urdf")
+        if path.exists():
+            name = subdir.name.replace("_", " ")
+            name = re.sub(r" \d", "", name)
+            if names is None or name in names:
+                yield URDF(name=name, path=path)  # , z=-z_min)
 
 
 class String(gym.Space):
@@ -112,8 +104,9 @@ class Env(gym.Env):
     max_episode_steps: int
     steps_per_action: int
     urdfs: Tuple[URDF, URDF]
+    camera_pitch: float = CAMERA_PITCH
     camera_yaw: float = CAMERA_YAW
-    env_bounds: float = 2
+    env_bounds: float = 0.4
     is_render: bool = False
     metadata = {"render.modes": ["human", "rgb_array"], "video.frames_per_second": 60}
     model_name: str = "gpt2"
@@ -122,6 +115,7 @@ class Env(gym.Env):
 
     def __post_init__(self):
         self._camera_yaw = self.camera_yaw
+        self._camera_pitch = self.camera_pitch
         names = [urdf.name for urdf in self.urdfs]
         assert len(set(names)) == 2, names
         self.random = np.random.default_rng(self.random_seed)
@@ -134,7 +128,9 @@ class Env(gym.Env):
             ),
         )
         self.observation_space = spaces.Tuple(astuple(obs_spaces))
-        self.action_space = spaces.Discrete(5)
+        self.action_space = spaces.Discrete(
+            len(Actions) - 2
+        )  # -2 to prohibit no_op and camera
 
         self.iterator = None
 
@@ -154,7 +150,7 @@ class Env(gym.Env):
         colSphereId = self._p.createVisualShape(
             self._p.GEOM_SPHERE, radius=sphereRadius, rgbaColor=[0, 0, 0, 1]
         )
-        self.mass_start_pos = [-3, -3, 0]
+        self.mass_start_pos = [0, 0, 0]
         self.mass = self._p.createMultiBody(
             mass, colSphereId, visualShapeId, self.mass_start_pos
         )
@@ -181,10 +177,10 @@ class Env(gym.Env):
         #     self._p.GEOM_BOX, halfExtents=halfExtents
         # )
         floor_visual = self._p.createVisualShape(
-            self._p.GEOM_BOX, halfExtents=halfExtents, rgbaColor=[1, 1, 1, 0.5]
+            self._p.GEOM_BOX, halfExtents=halfExtents, rgbaColor=[1, 1, 1, 0.2]
         )
         self._p.createMultiBody(
-            baseMass=0, baseVisualShapeIndex=floor_visual, basePosition=[0, 0, -1]
+            baseMass=0, baseVisualShapeIndex=floor_visual, basePosition=[0, 0, -0.4]
         )
 
         self.choice = choice = self.random.choice(2)
@@ -193,7 +189,7 @@ class Env(gym.Env):
 
         print()
         print(
-            f"Env {self.rank}: {', '.join([f'{u.name} {u.path.parent.name}' for u in self.urdfs])}",
+            f"Env {self.rank}: {', '.join([u.name for u in self.urdfs])}",
         )
         for base_position, urdf in zip(
             [
@@ -202,15 +198,17 @@ class Env(gym.Env):
             ],
             self.urdfs,
         ):
-            base_position[-1] = 0  # urdf.z
+            base_position[-1] = -0.2  # urdf.z
 
             try:
                 with suppress_stdout():
                     goal = self._p.loadURDF(
-                        str(urdf.path), basePosition=base_position, useFixedBase=True
+                        str(urdf.path),
+                        basePosition=base_position,
+                        globalScaling=2,
+                        useFixedBase=True,
                     )
             except self._p.error:
-                print(self._p.error)
                 raise RuntimeError(f"Error while loading {urdf.path}")
             objects.append(goal)
 
@@ -268,12 +266,16 @@ class Env(gym.Env):
             self.mass, self.mass_start_pos, [0, 0, 0, 1]
         )
         self._camera_yaw = self.camera_yaw
+        self._camera_pitch = self.camera_pitch
         action = yield self.get_observation(self._camera_yaw, self.mission)
 
         for global_step in range(self.max_episode_steps):
             a = ACTIONS[action].value
 
             self._camera_yaw += a.turn
+            self._camera_pitch += a.pitch
+            self._camera_pitch = int(np.clip(self._camera_pitch, -45, 45 / 2))
+
             x, y, _, _ = self._p.getQuaternionFromEuler(
                 [np.pi, 0, np.deg2rad(2 * self._camera_yaw) + np.pi]
             )
@@ -282,7 +284,7 @@ class Env(gym.Env):
             x, y, *_ = self._p.getBasePositionAndOrientation(self.mass)[0]
             new_x = np.clip(x + x_shift, -self.env_bounds, self.env_bounds)
             new_y = np.clip(y + y_shift, -self.env_bounds, self.env_bounds)
-            self._p.changeConstraint(self.mass_cid, [new_x, new_y, -0.1], maxForce=10)
+            self._p.changeConstraint(self.mass_cid, [new_x, new_y, -0.1], maxForce=100)
             for _ in range(self.steps_per_action):
                 self._p.stepSimulation()
 
@@ -328,7 +330,10 @@ class Env(gym.Env):
             cameraTargetPosition, orn = p.getBasePositionAndOrientation(self.mass)
 
             self._p.resetDebugVisualizerCamera(
-                CAMERA_DISTANCE, self._camera_yaw, CAMERA_PITCH, cameraTargetPosition
+                CAMERA_DISTANCE,
+                self._camera_yaw,
+                self._camera_pitch,
+                cameraTargetPosition,
             )
             return np.array([])
         if mode == "rgb_array":
@@ -339,14 +344,14 @@ class Env(gym.Env):
 
 
 def main():
-    path = Path(Path.home(), ".cache/data/dataset")
+    path = Path(Path.home(), "pybullet-URDF-models/urdf_models/models")
     urdf1, urdf2, *_ = get_urdfs(path)
     env = Env(
         urdfs=(urdf1, urdf2),
         image_size=64,
         is_render=True,
         max_episode_steps=10000000,
-        steps_per_action=5,
+        steps_per_action=1,
     )
     env.render(mode="human")
     t = True
@@ -360,6 +365,8 @@ def main():
         p.B3G_LEFT_ARROW: Actions.LEFT,
         p.B3G_UP_ARROW: Actions.FORWARD,
         p.B3G_DOWN_ARROW: Actions.BACKWARD,
+        p.B3G_PAGE_UP: Actions.UP,
+        p.B3G_PAGE_DOWN: Actions.DOWN,
         p.B3G_RETURN: Actions.PICTURE,
         p.B3G_SPACE: Actions.DONE,
     }
