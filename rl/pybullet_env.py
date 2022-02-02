@@ -43,11 +43,14 @@ class Actions(Enum):
     FORWARD = Action(0, 0.18)
     BACKWARD = Action(0, -0.18)
     DONE = Action(done=True)
+
+
+class DebugActions(Enum):
     PICTURE = Action(take_picture=True)
     NO_OP = Action()
 
 
-ACTIONS = [*Actions]
+ACTIONS = [*Actions, *DebugActions]
 
 
 class URDF(NamedTuple):
@@ -123,9 +126,7 @@ class Env(gym.Env):
             ),
         )
         self.observation_space = spaces.Tuple(astuple(obs_spaces))
-        self.action_space = spaces.Discrete(
-            len(Actions) - 2
-        )  # -2 to prohibit no_op and camera
+        self.action_space = spaces.Discrete(len(Actions))
 
         self.iterator = None
 
@@ -268,14 +269,13 @@ class Env(gym.Env):
         action = yield self.get_observation(self._camera_yaw, mission)
 
         for global_step in range(self.max_episode_steps):
-            a = ACTIONS[action].value
 
-            self._camera_yaw += a.turn
+            self._camera_yaw += action.turn
             x, y, _, _ = self._p.getQuaternionFromEuler(
                 [np.pi, 0, np.deg2rad(2 * self._camera_yaw) + np.pi]
             )
-            x_shift = a.forward * x
-            y_shift = a.forward * y
+            x_shift = action.forward * x
+            y_shift = action.forward * y
             x, y, *_ = self._p.getBasePositionAndOrientation(self.mass)[0]
             new_x = np.clip(x + x_shift, -self.env_bounds, self.env_bounds)
             new_y = np.clip(y + y_shift, -self.env_bounds, self.env_bounds)
@@ -284,10 +284,9 @@ class Env(gym.Env):
                 self._p.stepSimulation()
 
             s = self.get_observation(self._camera_yaw, mission)
-            if ACTIONS[action].value.take_picture:
+            if action.take_picture:
                 PIL.Image.fromarray(np.uint8(Observation(*s).image)).show()
-            t = ACTIONS[action].value.done
-            if t:
+            if action.done:
                 (*goal_poss, pos), _ = zip(
                     *[
                         self._p.getBasePositionAndOrientation(g)
@@ -298,21 +297,20 @@ class Env(gym.Env):
                 r = float(np.argmin(dists) == goal)
             else:
                 r = 0
-            action = yield s, r, t, i
+            action = yield s, r, action.done, i
 
         s = self.get_observation(self._camera_yaw, mission)
         r = 0
         t = True
         yield s, r, t, i
 
-    def step(self, action: Union[np.ndarray, int]):
+    def step(self, action: Union[Actions, DebugActions, np.ndarray, int]):
         if isinstance(action, np.ndarray):
             action = action.item()
-        s, r, t, i = self.iterator.send(action)
-        # if t:
-        #     for goal in i["goals"]:
-        #         self._p.removeBody(goal)
-        return s, r, t, i
+        if isinstance(action, int):
+            action = ACTIONS[action].value
+        assert isinstance(action, Action)
+        return self.iterator.send(action)
 
     def reset(self):
         self.iterator = self.generator()
@@ -350,14 +348,14 @@ def main():
     r = None
     printed_mission = False
 
-    action = Actions.NO_OP
+    action = DebugActions.NO_OP
 
     mapping = {
         p.B3G_RIGHT_ARROW: Actions.RIGHT,
         p.B3G_LEFT_ARROW: Actions.LEFT,
         p.B3G_UP_ARROW: Actions.FORWARD,
         p.B3G_DOWN_ARROW: Actions.BACKWARD,
-        p.B3G_RETURN: Actions.PICTURE,
+        p.B3G_RETURN: DebugActions.PICTURE,
         p.B3G_SPACE: Actions.DONE,
     }
 
@@ -374,10 +372,10 @@ def main():
             keys = p.getKeyboardEvents()
             for k, v in keys.items():
                 if v & p.KEY_WAS_RELEASED and k in mapping:
-                    action = Actions.NO_OP
+                    action = DebugActions.NO_OP
             for k, v in keys.items():
                 if v & p.KEY_WAS_TRIGGERED:
-                    action = mapping.get(k, Actions.NO_OP)
+                    action = mapping.get(k, DebugActions.NO_OP)
 
             action_index = ACTIONS.index(action)
             o, r, t, i = env.step(action_index)
@@ -385,8 +383,8 @@ def main():
                 print(Observation(*o).mission)
                 printed_mission = True
 
-            if action == Actions.PICTURE:
-                action = Actions.NO_OP
+            if action == DebugActions.PICTURE:
+                action = DebugActions.NO_OP
 
         except KeyboardInterrupt:
             print("Received keyboard interrupt. Exiting.")
