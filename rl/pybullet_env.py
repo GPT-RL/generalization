@@ -255,12 +255,12 @@ class Env(gym.Env):
 
     def generator(self):
 
-        goal = self.random.choice(2)
+        goal = 0  # self.random.choice(2)
         mission = self.names[goal]
 
         i = dict(mission=mission)
 
-        mass_start_pos = self.random.uniform(-self.env_bounds, self.env_bounds, size=3)
+        mass_start_pos = [-3, -3, 0]
         mass_start_pos[2] = 0
 
         self._p.resetBasePositionAndOrientation(self.mass, mass_start_pos, [0, 0, 0, 1])
