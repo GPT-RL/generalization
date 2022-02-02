@@ -42,7 +42,7 @@ class Args(main.Args):
         "EleutherAI/gpt-neo-2.7B",
     ] = "gpt2-large"  # what size of pretrained GPT to use
     prefix_length: int = 0
-    steps_per_action: int = 1
+    steps_per_action: int = 5
 
     def configure(self) -> None:
         self.add_subparsers(dest="logger_args")
