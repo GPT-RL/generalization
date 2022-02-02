@@ -101,7 +101,7 @@ class Base(NNBase):
         return GRUEmbed(num_embeddings)
 
     def embed(self, inputs):
-        return self.embeddings.forward(inputs.mission.long())
+        return self.embeddings.forward(inputs)
 
     def forward(self, inputs, rnn_hxs, masks):
         inputs = Observation(
