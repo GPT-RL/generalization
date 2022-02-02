@@ -3,13 +3,12 @@ from dataclasses import dataclass
 from functools import lru_cache
 from typing import cast
 
-from transformers import BertConfig, GPT2Config, GPTNeoConfig
-
 import pybullet_agent
 import torch
 from multihead_attention import MultiheadAttention
 from torch import Tensor, nn
 from torch.nn import Parameter
+from transformers import BertConfig, GPT2Config, GPTNeoConfig
 from utils import build_gpt
 
 

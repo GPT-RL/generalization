@@ -2,6 +2,7 @@ import os
 import re
 import string
 import sys
+import time
 from contextlib import contextmanager
 from dataclasses import astuple, dataclass
 from enum import Enum
@@ -38,10 +39,10 @@ class Action(NamedTuple):
 
 
 class Actions(Enum):
-    LEFT = Action(3, 0)
-    RIGHT = Action(-3, 0)
-    FORWARD = Action(0, 0.18)
-    BACKWARD = Action(0, -0.18)
+    LEFT = Action(45, 0)
+    RIGHT = Action(-45, 0)
+    FORWARD = Action(0, 1)
+    BACKWARD = Action(0, -1)
     DONE = Action(done=True)
 
 
@@ -277,7 +278,7 @@ class Env(gym.Env):
             x, y, *_ = self._p.getBasePositionAndOrientation(self.mass)[0]
             new_x = np.clip(x + x_shift, -self.env_bounds, self.env_bounds)
             new_y = np.clip(y + y_shift, -self.env_bounds, self.env_bounds)
-            self._p.changeConstraint(self.mass_cid, [new_x, new_y, -0.1], maxForce=10)
+            self._p.changeConstraint(self.mass_cid, [new_x, new_y, -0.1], maxForce=100)
             for _ in range(self.steps_per_action):
                 self._p.stepSimulation()
 
@@ -339,7 +340,7 @@ def main():
         image_size=64,
         is_render=True,
         max_episode_steps=10000000,
-        steps_per_action=5,
+        steps_per_action=100,
     )
     env.render(mode="human")
     t = True
@@ -347,6 +348,7 @@ def main():
     printed_mission = False
 
     action = DebugActions.NO_OP
+    last_action = None
 
     mapping = {
         p.B3G_RIGHT_ARROW: Actions.RIGHT,
@@ -369,12 +371,15 @@ def main():
 
             keys = p.getKeyboardEvents()
             for k, v in keys.items():
-                if v & p.KEY_WAS_RELEASED and k in mapping:
-                    action = DebugActions.NO_OP
-            for k, v in keys.items():
                 if v & p.KEY_WAS_TRIGGERED:
                     action = mapping.get(k, DebugActions.NO_OP)
+            for k, v in keys.items():
+                if v & p.KEY_WAS_RELEASED and k in mapping:
+                    action = DebugActions.NO_OP
 
+            if action != last_action:
+                print(action)
+            last_action = action
             action_index = ACTIONS.index(action)
             o, r, t, i = env.step(action_index)
             if not printed_mission:
@@ -383,6 +388,8 @@ def main():
 
             if action == DebugActions.PICTURE:
                 action = DebugActions.NO_OP
+
+            time.sleep(0.5)
 
         except KeyboardInterrupt:
             print("Received keyboard interrupt. Exiting.")
