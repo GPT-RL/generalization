@@ -18,6 +18,7 @@ from art import text2art
 from colors import color
 from gym.spaces import Box, MultiDiscrete
 from pybullet_utils import bullet_client
+from tap import Tap
 
 CAMERA_DISTANCE = 0.2
 CAMERA_PITCH = -20
@@ -145,9 +146,7 @@ class Env(gym.Env):
                 self._p = bullet_client.BulletClient(connection_mode=p.GUI)
             self._p.configureDebugVisualizer(self._p.COV_ENABLE_SHADOWS, 0)
         else:
-            with suppress_stdout():
-                self._p = bullet_client.BulletClient(connection_mode=p.DIRECT)
-            self._p.configureDebugVisualizer(self._p.COV_ENABLE_SHADOWS, 0)
+            self._p = bullet_client.BulletClient(connection_mode=p.DIRECT)
 
         sphereRadius = 0.02
         mass = 1
@@ -250,9 +249,7 @@ class Env(gym.Env):
             viewMatrix=viewMatrix,
             shadow=0,
             flags=self._p.ER_NO_SEGMENTATION_MASK,
-            renderer=self._p.ER_BULLET_HARDWARE_OPENGL
-            if self.is_render
-            else self._p.ER_TINY_RENDERER,
+            renderer=self._p.ER_TINY_RENDERER,
         )
         rgbaPixels = rgbaPixels[..., :-1].astype(np.float32)
         obs = Observation(
@@ -366,13 +363,19 @@ class Env(gym.Env):
         self._p.disconnect()
 
 
-def main():
-    path = Path(Path.home(), "pybullet-URDF-models/urdf_models/models")
+class Args(Tap):
+    data_path: str = str(
+        Path(Path.home(), ".cache/data/pybullet-URDF-models/urdf_models/models")
+    )
+
+
+def main(args: Args):
+    path = Path(args.data_path)
     urdf1, urdf2, *_ = get_urdfs(path)
     env = Env(
         urdfs=(urdf1, urdf2),
         image_size=64,
-        is_render=True,
+        is_render=False,
         max_episode_steps=10000000,
         steps_per_action=100,
     )
@@ -381,7 +384,6 @@ def main():
     r = None
     printed_mission = False
 
-    action = DebugActions.NO_OP
     last_action = None
 
     mapping = {
@@ -401,15 +403,15 @@ def main():
                 if r is not None:
                     print("Reward:", r)
 
-            env.render()
+            # env.render()
             key = env.render("ascii")
             try:
                 action = int(key)
+                action = ACTIONS[action]
             except ValueError:
                 action = None
-            if action is not None:
-                action = ACTIONS[action]
-            else:
+            if action is None:
+                action = DebugActions.NO_OP
                 keys = p.getKeyboardEvents()
                 for k, v in keys.items():
                     if v & p.KEY_WAS_TRIGGERED:
@@ -438,4 +440,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main(Args().parse_args())
