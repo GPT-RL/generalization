@@ -112,12 +112,14 @@ class String(gym.Space):
 
 @dataclass
 class Env(gym.Env):
-    image_size: float
+    env_bounds: float
+    image_size: int
     max_episode_steps: int
+    step_size: float
     steps_per_action: int
     urdfs: Tuple[URDF, URDF]
+
     camera_yaw: float = CAMERA_YAW
-    env_bounds: float = 1
     is_render: bool = False
     metadata = {
         "render.modes": ["human", "rgb_array", "ascii"],
@@ -286,7 +288,9 @@ class Env(gym.Env):
         mass_start_pos[-1] = z
 
         self._p.resetBasePositionAndOrientation(self.mass, mass_start_pos, [0, 0, 0, 1])
-        action = yield self.get_observation(self._camera_yaw, mission)
+        action = yield self.get_observation(
+            camera_yaw=self._camera_yaw, mission=mission
+        )
 
         for global_step in range(self.max_episode_steps):
 
@@ -295,8 +299,8 @@ class Env(gym.Env):
             x, y, _, _ = self._p.getQuaternionFromEuler(
                 [np.pi, 0, np.deg2rad(2 * self._camera_yaw) + np.pi]
             )
-            x_shift = action.forward * x
-            y_shift = action.forward * y
+            x_shift = self.step_size * action.forward * x
+            y_shift = self.step_size * action.forward * y
             x, y, *_ = self._p.getBasePositionAndOrientation(self.mass)[0]
             new_x = np.clip(x + x_shift, -self.env_bounds, self.env_bounds)
             new_y = np.clip(y + y_shift, -self.env_bounds, self.env_bounds)
@@ -377,17 +381,28 @@ class Args(Tap):
     data_path: str = str(
         Path(Path.home(), ".cache/data/pybullet-URDF-models/urdf_models/models")
     )
+    env_bounds: float = 1
+    image_size: int = 84
+    max_episode_steps: int = 200
+    step_size: float = 1
+    steps_per_action: int = 4
 
 
-def main(args: Args):
+class DebugArgs(Args):
+    urdf_index: int = 0
+
+
+def main(args: DebugArgs):
     path = Path(args.data_path)
-    urdf1, urdf2, *_ = get_urdfs(path)
+    urdf1, urdf2 = list(get_urdfs(path))[args.urdf_index : args.urdf_index + 2]
     env = Env(
-        urdfs=(urdf1, urdf2),
-        image_size=64,
+        env_bounds=args.env_bounds,
+        image_size=args.image_size,
         is_render=False,
-        max_episode_steps=10000000,
-        steps_per_action=100,
+        max_episode_steps=args.max_episode_steps,
+        step_size=args.step_size,
+        steps_per_action=args.steps_per_action,
+        urdfs=(urdf1, urdf2),
     )
     env.render(mode="human")
     t = True
@@ -427,4 +442,4 @@ def main(args: Args):
 
 
 if __name__ == "__main__":
-    main(Args().parse_args())
+    main(DebugArgs().parse_args())

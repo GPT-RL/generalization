@@ -7,6 +7,7 @@ from typing import List, Literal, Optional, Set, Tuple, cast
 
 import main
 import numpy as np
+import pybullet_env
 from envs import RenderWrapper, VecPyTorch
 from pybullet_agent import Agent
 from pybullet_env import URDF, Env, get_urdfs
@@ -25,11 +26,9 @@ ENV = "environment ID"
 ENV_RETURN = "environment return"
 
 
-class Args(main.Args):
+class Args(main.Args, pybullet_env.Args):
     data_path: str = "/root/.cache/data/pybullet-URDF-models/urdf_models/models"
-    image_size: float = 84
     names: Optional[str] = None
-    max_episode_steps: int = 200
     num_test_envs: int = 8
     num_test_names: int = 2
     pretrained_model: Literal[
@@ -44,7 +43,6 @@ class Args(main.Args):
     ] = "gpt2-large"  # what size of pretrained GPT to use
     prefix_length: int = 0
     record: bool = False
-    steps_per_action: int = 5
 
     def configure(self) -> None:
         self.add_subparsers(dest="logger_args")
@@ -90,13 +88,15 @@ class Trainer(main.Trainer):
     @classmethod
     def make_env(cls, env, allow_early_resets, render: bool = False, *args, **kwargs):
         def _thunk(
-            image_size: float,
+            env_bounds: float,
+            image_size: int,
             longest_mission: str,
             max_episode_steps: int,
             rank: int,
             record: bool,
             run_id: Optional[int],
             seed: int,
+            step_size: float,
             steps_per_action: int,
             tokenizer: GPT2Tokenizer,
             urdfs: List[Tuple[URDF, URDF]],
@@ -104,10 +104,12 @@ class Trainer(main.Trainer):
         ):
 
             _env = Env(
+                env_bounds=env_bounds,
                 image_size=image_size,
                 max_episode_steps=max_episode_steps,
                 random_seed=seed,
                 rank=rank,
+                step_size=step_size,
                 steps_per_action=steps_per_action,
                 urdfs=urdfs[rank],
             )
