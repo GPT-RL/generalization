@@ -406,6 +406,7 @@ class Args(Tap):
 
 
 class DebugArgs(Args):
+    mode: str = "ascii"
     urdf_index: int = 0
 
 
@@ -415,43 +416,75 @@ def main(args: DebugArgs):
     env = Env(
         env_bounds=args.env_bounds,
         image_size=args.image_size,
-        is_render=False,
+        is_render=args.mode == "human",
         max_episode_steps=args.max_episode_steps,
         step_size=args.step_size,
         steps_per_action=args.steps_per_action,
         urdfs=(urdf1, urdf2),
     )
-    env.render(mode="human")
+
+    def render():
+        env.render(mode=args.mode, pause=False)
+
     t = True
     r = None
 
-    mapping = {
-        "d": Actions.RIGHT,
-        "a": Actions.LEFT,
-        "w": Actions.FORWARD,
-        "s": Actions.BACKWARD,
-        "p": DebugActions.PICTURE,
-        "x": Actions.DONE,
-    }
+    if args.mode == "human":
+        render()
+        mapping = {
+            p.B3G_RIGHT_ARROW: Actions.RIGHT,
+            p.B3G_LEFT_ARROW: Actions.LEFT,
+            p.B3G_UP_ARROW: Actions.FORWARD,
+            p.B3G_DOWN_ARROW: Actions.BACKWARD,
+            p.B3G_RETURN: DebugActions.PICTURE,
+            p.B3G_SPACE: Actions.DONE,
+        }
+    elif args.mode == "ascii":
+        mapping = {
+            "d": Actions.RIGHT,
+            "a": Actions.LEFT,
+            "w": Actions.FORWARD,
+            "s": Actions.BACKWARD,
+            "p": DebugActions.PICTURE,
+            "x": Actions.DONE,
+        }
+    else:
+        raise RuntimeError()
 
     while True:
         try:
             if t:
-                env.reset()
-                if r is not None:
-                    print("Reward:", r)
+                o = env.reset()
+                if args.mode == "human":
+                    if r is not None:
+                        print("Reward:", r)
+                    print(Observation(*o).mission)
 
-            env.render("ascii", pause=False)
+            render()
+
             action = None
-            while action is None:
-                key = input("enter action key:")
-                if key in mapping:
-                    action = mapping[key]
+
+            if args.mode == "human":
+                keys = p.getKeyboardEvents()
+                for k, v in keys.items():
+                    if v & p.KEY_WAS_RELEASED and k in mapping:
+                        action = mapping.get(k, None)
+                if action is None:
+                    action = DebugActions.NO_OP
+                else:
+                    print("Action:", action)
+
+            elif args.mode == "ascii":
+                while action is None:
+                    key = input("enter action key:")
+                    if key in mapping:
+                        action = mapping[key]
 
             action_index = ACTIONS.index(action)
             o, r, t, i = env.step(action_index)
 
-            time.sleep(0.05)
+            if args.mode == "human":
+                time.sleep(0.05)
 
         except KeyboardInterrupt:
             print("Received keyboard interrupt. Exiting.")
