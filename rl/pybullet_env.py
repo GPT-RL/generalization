@@ -146,6 +146,7 @@ class Env(gym.Env):
         self.iterator = None
         self._s = None
         self._a = None
+        self._r = None
 
         # initialize simulator
 
@@ -317,6 +318,7 @@ class Env(gym.Env):
                 r = float(np.argmin(dists) == goal)
             else:
                 r = 0
+            self._r = r
             action = yield s, r, action.done, i
 
         s = self.get_observation(self._camera_yaw, mission)
@@ -362,7 +364,7 @@ class Env(gym.Env):
             print()
             subtitle = self._s.mission.upper()
             if self._a is not None:
-                subtitle = f"{subtitle}, {self._a.name}"
+                subtitle = f"{subtitle}, {self._a.name}, r={self._r}"
             print(text2art(subtitle, font="com_sen"))
             if pause:
                 input("Press enter to continue.")
