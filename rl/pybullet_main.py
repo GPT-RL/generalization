@@ -1,9 +1,10 @@
+import csv
 import functools
 import itertools
 from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Literal, Optional, Set, Tuple, cast
+from typing import Dict, List, Literal, Optional, Set, Tuple, cast
 
 import main
 import numpy as np
@@ -14,6 +15,7 @@ from pybullet_env import URDF, Env, get_urdfs
 from stable_baselines3.common.monitor import Monitor
 from transformers import GPT2Tokenizer
 from wrappers import (
+    FeatureWrapper,
     ImageNormalizerWrapper,
     RolloutsWrapper,
     TokenizerWrapper,
@@ -43,6 +45,7 @@ class Args(main.Args, pybullet_env.Args):
     ] = "gpt2-large"  # what size of pretrained GPT to use
     prefix_length: int = 0
     record: bool = False
+    use_features: bool = False
 
     def configure(self) -> None:
         self.add_subparsers(dest="logger_args")
@@ -82,9 +85,10 @@ class Trainer(main.Trainer):
     @classmethod
     def make_env(cls, env, allow_early_resets, render: bool = False, *args, **kwargs):
         def _thunk(
+            all_missions: list,
             env_bounds: float,
+            features: Dict[str, List[str]],
             image_size: int,
-            longest_mission: str,
             max_episode_steps: int,
             rank: int,
             record: bool,
@@ -113,8 +117,12 @@ class Trainer(main.Trainer):
             if render:
                 _env = RenderWrapper(_env, mode="ascii")
             _env = ImageNormalizerWrapper(_env)
+            if features:
+                _env = FeatureWrapper(_env, features)
             _env = TokenizerWrapper(
-                _env, tokenizer=tokenizer, longest_mission=longest_mission
+                _env,
+                tokenizer=tokenizer,
+                all_missions=all_missions,
             )
 
             _env = RolloutsWrapper(_env)
@@ -139,6 +147,7 @@ class Trainer(main.Trainer):
         seed: int,
         sync_envs: bool,
         test: bool,
+        use_features: bool,
         **kwargs,
     ):
         if test:
@@ -157,7 +166,23 @@ Download dataset using: git clone git@github.com:GPT-RL/pybullet-URDF-models.git
             names: Set[str] = set(names.split(","))
         urdfs = list(get_urdfs(data_path, names))
         names: List[str] = [urdf.name for urdf in urdfs]
-        longest_mission = max(names, key=len)
+
+        if use_features:
+            with Path("features.csv").open() as f:
+
+                def get_features():
+                    for k, *vs in csv.reader(f):
+                        vs = [v for v in vs if v]
+                        if vs:
+                            yield k, tuple(vs)
+
+                features = dict(get_features())
+            urdfs = [u for u in urdfs if u.name in features]
+            all_missions = list(features.values())
+        else:
+            features = None
+            all_missions = names
+
         rng = np.random.default_rng(seed=seed)
         names: TrainTest[Set[str]] = cls.train_test_split(
             tuple(names), num_test_names, rng
@@ -177,7 +202,8 @@ Download dataset using: git clone git@github.com:GPT-RL/pybullet-URDF-models.git
         pairs = list(itertools.islice(get_pairs(), num_processes))
 
         return super().make_vec_envs(
-            longest_mission=longest_mission,
+            all_missions=all_missions,
+            features=features,
             num_processes=num_processes,
             pairs=pairs,
             render=render,

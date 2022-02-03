@@ -64,6 +64,24 @@ class Observation(Generic[M, I]):
     mission: M
     image: I
 
+    def to_obs(
+        self,
+        obs_space: Union["Observation", gym.spaces.Tuple] = None,
+        check_obs: bool = True,
+    ):
+        obs = astuple(self)
+        if obs_space is not None and check_obs:
+            if isinstance(obs_space, Observation):
+                obs_space = obs_space.to_space()
+            if not obs_space.contains(obs):
+                for s, o in zip(obs_space.spaces, obs):
+                    if not s.contains(o):
+                        breakpoint()
+        return obs
+
+    def to_space(self) -> gym.spaces.Tuple:
+        return gym.spaces.Tuple(astuple(self))
+
 
 class String(gym.Space):
     def sample(self):
@@ -134,7 +152,8 @@ class Env(gym.Env):
         names = [urdf.name for urdf in self.urdfs]
         assert len(set(names)) == 2, names
         self.random = np.random.default_rng(self.random_seed)
-        obs_spaces: Observation[MultiDiscrete, Box] = Observation(
+        obs_spaces: Observation[MultiDiscrete, Box]
+        self.obs_spaces = obs_spaces = Observation(
             mission=String(),
             image=Box(
                 low=0,
@@ -142,7 +161,7 @@ class Env(gym.Env):
                 shape=[self.image_size, self.image_size, 3],
             ),
         )
-        self.observation_space = spaces.Tuple(astuple(obs_spaces))
+        self.observation_space = obs_spaces.to_space()
         self.action_space = spaces.Discrete(len(Actions))
 
         self.iterator = None
@@ -337,9 +356,7 @@ class Env(gym.Env):
             mission=mission,
         )
         self._s = obs
-        obs = astuple(obs)
-        assert self.observation_space.contains(obs)
-        return obs
+        return obs.to_obs(self.observation_space)
 
     def render(self, mode="human", pause=True):
         if mode == "human":

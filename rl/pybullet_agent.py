@@ -87,7 +87,15 @@ class Base(NNBase):
         return GRUEmbed(num_embeddings)
 
     def embed(self, inputs):
-        return self.embeddings.forward(inputs)
+        *shape_, _ = inputs.shape
+        inputs = inputs.reshape(-1, inputs.size(-1))
+        outputs = self.embeddings.forward(inputs)
+        outputs = outputs.reshape(*shape_, -1)
+        if outputs.size(1) > 1:
+            outputs = outputs.mean(1)
+        else:
+            outputs = outputs.squeeze(1)
+        return outputs
 
     def forward(self, inputs, rnn_hxs, masks):
         inputs = Observation(
@@ -104,7 +112,8 @@ class Base(NNBase):
         image = self.image_conv(image)
         image = self.image_linear(image)
 
-        mission = self.embed(inputs.mission.long())
+        mission = inputs.mission.reshape(-1, *self.observation_spaces.mission.shape)
+        mission = self.embed(mission.long())
         x = torch.cat([image, mission], dim=-1)
 
         assert self.is_recurrent

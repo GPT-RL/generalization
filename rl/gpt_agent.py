@@ -110,11 +110,12 @@ class Base(pybullet_agent.Base):
             return self.uncached_gpt_forward_pass(inputs.tensor)
 
     def embed(self, inputs):
-        # inputs = inputs.reshape(-1, *self.observation_spaces.mission.nvec.shape)
-        # n, l, e = inputs.shape
-        # flattened = inputs.reshape(n * l, e)
+        shape = *shape_, _ = inputs.shape
+        breakpoint()
+        if len(shape) == 3:
+            inputs = inputs.reshape(-1, inputs.size(-1))
         states = self.gpt_forward_pass(inputs)
-        # states = states.mean(1).reshape(n, l, -1)
+        states = states.reshape(*shape_, -1)
         if self.multihead_attention:
             query = states.transpose(0, 1)
             n = query.size(1)
