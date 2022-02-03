@@ -36,12 +36,6 @@ M = TypeVar("M")
 I = TypeVar("I")
 
 
-@dataclass
-class Observation(Generic[M, I]):
-    mission: M
-    image: I
-
-
 class Action(NamedTuple):
     turn: float = 0
     forward: float = 0
@@ -63,6 +57,20 @@ class DebugActions(Enum):
 
 
 ACTIONS = [*Actions, *DebugActions]
+
+
+@dataclass
+class Observation(Generic[M, I]):
+    mission: M
+    image: I
+
+
+class String(gym.Space):
+    def sample(self):
+        return "".join(self.np_random.choice(string.ascii_letters) for _ in range(10))
+
+    def contains(self, x):
+        return isinstance(x, str)
 
 
 class URDF(NamedTuple):
@@ -100,14 +108,6 @@ def get_urdfs(path: Path, names: Set[str] = None):
             name = re.sub(r" \d", "", name)
             if names is None or name in names:
                 yield URDF(name=name, path=path)  # , z=-z_min)
-
-
-class String(gym.Space):
-    def sample(self):
-        return "".join(self.np_random.choice(string.ascii_letters) for _ in range(10))
-
-    def contains(self, x):
-        return isinstance(x, str)
 
 
 @dataclass
@@ -242,38 +242,16 @@ class Env(gym.Env):
                 relativeChildOrientation,
             )
 
-    def get_observation(
-        self,
-        camera_yaw,
-        mission,
-    ) -> Tuple[np.ndarray, np.ndarray]:
-        pos, _ = self._p.getBasePositionAndOrientation(self.mass)
+    @staticmethod
+    def ascii_of_image(image: np.ndarray):
+        def rows():
+            for row in image:
+                yield "".join([(color("$$", tuple(rgb.astype(int)))) for rgb in row])
 
-        viewMatrix = self._p.computeViewMatrixFromYawPitchRoll(
-            pos, CAMERA_DISTANCE, camera_yaw, CAMERA_PITCH, ROLL, UP_AXIS_INDEX
-        )
-        aspect = 1
-        projectionMatrix = self._p.computeProjectionMatrixFOV(
-            FOV, aspect, NEAR_PLANE, FAR_PLANE
-        )
-        (_, _, rgbaPixels, _, _,) = self._p.getCameraImage(
-            self.image_size,
-            self.image_size,
-            viewMatrix,
-            projectionMatrix,
-            shadow=1,
-            lightDirection=[1, 1, 1],
-            renderer=self._p.ER_BULLET_HARDWARE_OPENGL,
-        )
-        rgbaPixels = rgbaPixels[..., :-1].astype(np.float32)
-        obs = Observation(
-            image=rgbaPixels,
-            mission=mission,
-        )
-        self._s = obs
-        obs = astuple(obs)
-        assert self.observation_space.contains(obs)
-        return obs
+        return "\n".join(rows())
+
+    def close(self):
+        self._p.disconnect()
 
     def generator(self):
 
@@ -330,26 +308,38 @@ class Env(gym.Env):
         t = True
         yield s, r, t, i
 
-    def step(self, action: Union[Actions, DebugActions, np.ndarray, int]):
-        if isinstance(action, np.ndarray):
-            action = action.item()
-        if isinstance(action, int):
-            self._a = ACTIONS[action]
-            action = self._a.value
-        assert isinstance(action, Action)
-        return self.iterator.send(action)
+    def get_observation(
+        self,
+        camera_yaw,
+        mission,
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        pos, _ = self._p.getBasePositionAndOrientation(self.mass)
 
-    def reset(self):
-        self.iterator = self.generator()
-        return next(self.iterator)
-
-    @staticmethod
-    def ascii_of_image(image: np.ndarray):
-        def rows():
-            for row in image:
-                yield "".join([(color("$$", tuple(rgb.astype(int)))) for rgb in row])
-
-        return "\n".join(rows())
+        viewMatrix = self._p.computeViewMatrixFromYawPitchRoll(
+            pos, CAMERA_DISTANCE, camera_yaw, CAMERA_PITCH, ROLL, UP_AXIS_INDEX
+        )
+        aspect = 1
+        projectionMatrix = self._p.computeProjectionMatrixFOV(
+            FOV, aspect, NEAR_PLANE, FAR_PLANE
+        )
+        (_, _, rgbaPixels, _, _,) = self._p.getCameraImage(
+            self.image_size,
+            self.image_size,
+            viewMatrix,
+            projectionMatrix,
+            shadow=1,
+            lightDirection=[1, 1, 1],
+            renderer=self._p.ER_BULLET_HARDWARE_OPENGL,
+        )
+        rgbaPixels = rgbaPixels[..., :-1].astype(np.float32)
+        obs = Observation(
+            image=rgbaPixels,
+            mission=mission,
+        )
+        self._s = obs
+        obs = astuple(obs)
+        assert self.observation_space.contains(obs)
+        return obs
 
     def render(self, mode="human", pause=True):
         if mode == "human":
@@ -373,8 +363,18 @@ class Env(gym.Env):
             if pause:
                 input("Press enter to continue.")
 
-    def close(self):
-        self._p.disconnect()
+    def reset(self):
+        self.iterator = self.generator()
+        return next(self.iterator)
+
+    def step(self, action: Union[Actions, DebugActions, np.ndarray, int]):
+        if isinstance(action, np.ndarray):
+            action = action.item()
+        if isinstance(action, int):
+            self._a = ACTIONS[action]
+            action = self._a.value
+        assert isinstance(action, Action)
+        return self.iterator.send(action)
 
 
 class Args(Tap):

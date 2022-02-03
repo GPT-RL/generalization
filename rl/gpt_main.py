@@ -24,6 +24,22 @@ class ArgsType(Args, pybullet_main.ArgsType):
 
 
 class Trainer(pybullet_main.Trainer):
+    @staticmethod
+    def load(agent, load_path):
+        loaded = torch.load(load_path)
+        for name, module in agent.named_modules():
+            name_ = f"{name}."
+            parameters = {}
+            for k, v in loaded.items():
+                if k.startswith(name_):
+                    parameters[k[len(name_) :]] = v
+            if parameters:
+                try:
+                    module.load_state_dict(parameters)
+                    logging.info(f"Loaded parameters into {name}.")
+                except RuntimeError:
+                    pass
+
     @classmethod
     def make_agent(cls, envs: VecPyTorch, args: ArgsType) -> Agent:
         action_space = envs.action_space
@@ -73,22 +89,6 @@ class Trainer(pybullet_main.Trainer):
         logging.info(f"Saved the following modules to {save_path}:")
         for p in trainable_params:
             logging.info(p)
-
-    @staticmethod
-    def load(agent, load_path):
-        loaded = torch.load(load_path)
-        for name, module in agent.named_modules():
-            name_ = f"{name}."
-            parameters = {}
-            for k, v in loaded.items():
-                if k.startswith(name_):
-                    parameters[k[len(name_) :]] = v
-            if parameters:
-                try:
-                    module.load_state_dict(parameters)
-                    logging.info(f"Loaded parameters into {name}.")
-                except RuntimeError:
-                    pass
 
     @classmethod
     def train(cls, args: Args, **kwargs):

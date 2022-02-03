@@ -31,20 +31,6 @@ class Agent(agent.Agent):
         return Base(**kwargs)
 
 
-class GRUEmbed(nn.Module):
-    def __init__(self, num_embeddings: int):
-        super().__init__()
-        gru = nn.GRU(20, 64, batch_first=True)
-        self.embed = nn.Sequential(
-            nn.Embedding(num_embeddings, 20),
-            gru,
-        )
-
-    def forward(self, x, **_):
-        output, _ = self.embed.forward(x)
-        return output[:, -1]
-
-
 class Base(NNBase):
     def __init__(
         self,
@@ -124,3 +110,17 @@ class Base(NNBase):
         assert self.is_recurrent
         x, rnn_hxs = self._forward_gru(x, rnn_hxs, masks)
         return self.critic_linear(x), x, rnn_hxs
+
+
+class GRUEmbed(nn.Module):
+    def __init__(self, num_embeddings: int):
+        super().__init__()
+        gru = nn.GRU(20, 64, batch_first=True)
+        self.embed = nn.Sequential(
+            nn.Embedding(num_embeddings, 20),
+            gru,
+        )
+
+    def forward(self, x, **_):
+        output, _ = self.embed.forward(x)
+        return output[:, -1]

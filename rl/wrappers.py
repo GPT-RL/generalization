@@ -21,27 +21,6 @@ class TrainTest(Generic[T]):
     test: T
 
 
-class VideoRecorderWrapper(gym.Wrapper):
-    def __init__(self, env: gym.Env, path: Path):
-        super().__init__(env)
-        self.rec = VideoRecorder(env, path=str(path))
-
-    def reset(self, **kwargs):
-        s = super().reset()
-        self.rec.capture_frame()
-        print(Observation(*s).mission)
-        return s
-
-    def step(self, action):
-        s, r, t, i = super().step(action)
-        self.rec.capture_frame()
-        return s, r, t, i
-
-    def close(self):
-        super().close()
-        self.rec.close()
-
-
 class ImageNormalizerWrapper(gym.ObservationWrapper):
     def observation(self, observation):
         observation = Observation(*observation)
@@ -132,3 +111,24 @@ class TokenizerWrapper(gym.ObservationWrapper):
         eos = tokenizer.eos_token_id
         mission = np.array([*islice(chain(mission, cycle([eos])), length)])
         return mission
+
+
+class VideoRecorderWrapper(gym.Wrapper):
+    def __init__(self, env: gym.Env, path: Path):
+        super().__init__(env)
+        self.rec = VideoRecorder(env, path=str(path))
+
+    def reset(self, **kwargs):
+        s = super().reset()
+        self.rec.capture_frame()
+        print(Observation(*s).mission)
+        return s
+
+    def step(self, action):
+        s, r, t, i = super().step(action)
+        self.rec.capture_frame()
+        return s, r, t, i
+
+    def close(self):
+        super().close()
+        self.rec.close()

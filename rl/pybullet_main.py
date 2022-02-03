@@ -79,12 +79,6 @@ class Trainer(main.Trainer):
             recurrent=cls.recurrent(args),
         )
 
-    @staticmethod
-    def recurrent(args: Args):
-        if "sequence" in args.env:
-            assert args.recurrent
-        return args.recurrent
-
     @classmethod
     def make_env(cls, env, allow_early_resets, render: bool = False, *args, **kwargs):
         def _thunk(
@@ -130,32 +124,6 @@ class Trainer(main.Trainer):
             return _env
 
         return functools.partial(_thunk, env_id=env, **kwargs)
-
-    @staticmethod
-    def _num_eval_processes(num_processes: int, num_test_envs):
-        return min(num_processes, num_test_envs)
-
-    @classmethod
-    def num_eval_processes(cls, args: Args):
-        return cls._num_eval_processes(args.num_processes, args.num_test_envs)
-
-    @staticmethod
-    @functools.lru_cache(maxsize=1)
-    def tokenizer(pretrained_model):
-        return GPT2Tokenizer.from_pretrained(pretrained_model)
-
-    @staticmethod
-    @functools.lru_cache(maxsize=1)
-    def train_test_split(
-        names: Tuple[str], num_test: int, rng: np.random.Generator
-    ) -> TrainTest[Set[str]]:
-        test_set = (
-            set(rng.choice(list(names), size=num_test, replace=False))
-            if num_test
-            else set()
-        )
-        train_set = set(names) - test_set
-        return TrainTest(train=train_set, test=test_set)
 
     # noinspection PyMethodOverriding
     @classmethod
@@ -220,6 +188,38 @@ Download dataset using: git clone git@github.com:GPT-RL/pybullet-URDF-models.git
             urdfs=pairs,
             **kwargs,
         )
+
+    @staticmethod
+    def _num_eval_processes(num_processes: int, num_test_envs):
+        return min(num_processes, num_test_envs)
+
+    @classmethod
+    def num_eval_processes(cls, args: Args):
+        return cls._num_eval_processes(args.num_processes, args.num_test_envs)
+
+    @staticmethod
+    def recurrent(args: Args):
+        if "sequence" in args.env:
+            assert args.recurrent
+        return args.recurrent
+
+    @staticmethod
+    @functools.lru_cache(maxsize=1)
+    def tokenizer(pretrained_model):
+        return GPT2Tokenizer.from_pretrained(pretrained_model)
+
+    @staticmethod
+    @functools.lru_cache(maxsize=1)
+    def train_test_split(
+        names: Tuple[str], num_test: int, rng: np.random.Generator
+    ) -> TrainTest[Set[str]]:
+        test_set = (
+            set(rng.choice(list(names), size=num_test, replace=False))
+            if num_test
+            else set()
+        )
+        train_set = set(names) - test_set
+        return TrainTest(train=train_set, test=test_set)
 
 
 if __name__ == "__main__":

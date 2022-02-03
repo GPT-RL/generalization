@@ -125,15 +125,6 @@ class ArgsType(Args):
 
 
 @dataclass
-class TimeSteps:
-    action: np.ndarray
-    observation: np.ndarray
-    reward: np.ndarray
-    done: np.ndarray
-    info: List[dict]
-
-
-@dataclass
 class Counters:
     episode_rewards: List[float] = field(default_factory=list)
     episode_lengths: List[int] = field(default_factory=list)
@@ -145,7 +136,282 @@ class Counters:
         self.episode_successes = []
 
 
+@dataclass
+class TimeSteps:
+    action: np.ndarray
+    observation: np.ndarray
+    reward: np.ndarray
+    done: np.ndarray
+    info: List[dict]
+
+
 class Trainer:
+    @classmethod
+    def build_counters(cls):
+        return Counters()
+
+    @classmethod
+    def charts(cls, **kwargs):
+        return [
+            *[
+                spec(x=HOURS, y=y, **kwargs)
+                for y in (EPISODE_RETURN, TEST_EPISODE_RETURN)
+            ],
+            *[
+                spec(x=STEP, y=y, **kwargs)
+                for y in (
+                    EPISODE_RETURN,
+                    TEST_EPISODE_RETURN,
+                    FPS,
+                    ENTROPY,
+                    GRADIENT_NORM,
+                    SAVE_COUNT,
+                )
+            ],
+        ]
+
+    @classmethod
+    def cuda(cls, args):
+        return args.cuda and torch.cuda.is_available()
+
+    @classmethod
+    def device(cls, cuda):
+        return torch.device("cuda:0" if cuda else "cpu")
+
+    @classmethod
+    def evaluate(
+        cls, agent, envs, num_processes, device, start, total_num_steps, logger, test
+    ):
+
+        episode_rewards = []
+        episode_lengths = []
+        episode_success = []
+
+        obs = envs.reset()
+        recurrent_hidden_states = torch.zeros(
+            num_processes, agent.recurrent_hidden_state_size, device=device
+        )
+        masks = torch.zeros(num_processes, 1, device=device)
+
+        while len(episode_rewards) < 100:
+            with torch.no_grad():
+                _, action, _, recurrent_hidden_states = agent.forward(
+                    obs, recurrent_hidden_states, masks
+                )
+
+            # Observe reward and next obs
+            obs, rewards, done, infos = envs.step(action)
+            masks = torch.tensor(
+                [[0.0] if done_ else [1.0] for done_ in done],
+                dtype=torch.float32,
+                device=device,
+            )
+
+            for info in infos:
+                if "episode" in info.keys():
+                    episode_rewards.append(info["episode"]["r"])
+                    episode_lengths.append(info["episode"]["l"])
+                if "success" in info.keys():
+                    episode_success.append(info["success"])
+
+        envs.close()
+        now = time.time()
+        log = {
+            TIME: now * 1000000,
+            HOURS: (now - start) / 3600,
+            STEP: total_num_steps,
+        }
+        if test:
+            log.update(
+                {
+                    TEST_EPISODE_RETURN: np.mean(episode_rewards),
+                    TEST_EPISODE_LENGTH: np.mean(episode_lengths),
+                }
+            )
+
+        logging.info(pformat(log))
+        if logger.run_id is not None:
+            log.update({"run ID": logger.run_id})
+        logging.info(pformat(log))
+        if logger.run_id is not None:
+            logger.log(log)
+
+        logging.info(
+            " Evaluation using {} episodes: mean reward {:.5f}\n".format(
+                len(episode_rewards), np.mean(episode_rewards)
+            )
+        )
+
+    @classmethod
+    def excluded(cls):
+        return {
+            "config",
+            "host_machine",
+            "load_id",
+            "logger_args",
+            "name",
+            "render",
+            "render_test",
+            "subcommand",
+            "sweep_id",
+            "sync_envs",
+        }
+
+    @staticmethod
+    def load(agent, load_path):
+        agent.load_state_dict(torch.load(load_path))
+
+    @classmethod
+    def log(
+        cls,
+        logger: HasuraLogger,
+        log: dict,
+        counters: Counters,
+        total_num_steps: int,
+    ):
+        logging.info(pformat(log))
+        if logger.run_id is not None:
+            logger.log(log)
+
+    @staticmethod
+    def num_eval_processes(args):
+        return args.num_processes
+
+    @classmethod
+    def process_info(cls, counters: Counters, info: dict):
+        if "episode" in info.keys():
+            counters.episode_rewards.append(info["episode"]["r"])
+            counters.episode_lengths.append(info["episode"]["l"])
+
+    @staticmethod
+    def total_num_steps(j, args):
+        return j * args.num_processes * args.num_steps
+
+    @staticmethod
+    def blob(logger: HasuraLogger, blob, metadata: dict):
+        tick = time.time()
+
+        # https://stackoverflow.com/a/30469744/4176597
+        pickled = codecs.encode(pickle.dumps(blob), "base64").decode()
+
+        logger.blob(blob=pickled, metadata=metadata)
+        logging.info(f"Sending blob took {time.time() - tick} seconds.")
+
+    @staticmethod
+    def make_env(env, seed, allow_early_resets, render: bool = False, **kwargs):
+        def _thunk(env_id):
+            if env_id.startswith("dm"):
+                _, domain, task = env_id.split(".")
+                env = dmc2gym.make(domain_name=domain, task_name=task)
+                env = ClipAction(env)
+            else:
+                env = gym.make(env_id)
+
+            is_atari = hasattr(gym.envs, "atari") and isinstance(
+                env.unwrapped, gym.envs.atari.atari_env.AtariEnv
+            )
+            if is_atari:
+                env = NoopResetEnv(env, noop_max=30)
+                env = MaxAndSkipEnv(env, skip=4)
+
+            env.seed(seed)
+
+            if str(env.__class__.__name__).find("TimeLimit") >= 0:
+                env = TimeLimitMask(env)
+
+            env = Monitor(env, allow_early_resets=allow_early_resets)
+
+            if is_atari:
+                if len(env.observation_space.shape) == 3:
+                    env = EpisodicLifeEnv(env)
+                    if "FIRE" in env.unwrapped.get_action_meanings():
+                        env = FireResetEnv(env)
+                    env = WarpFrame(env, width=84, height=84)
+                    env = ClipRewardEnv(env)
+            elif len(env.observation_space.shape) == 3:
+                raise NotImplementedError(
+                    "CNN models work only for atari,\n"
+                    "please use a custom wrapper for a custom pixel input env.\n"
+                    "See wrap_deepmind for an example."
+                )
+
+            # If the input has shape (W,H,3), wrap for PyTorch convolutions
+            obs_shape = env.observation_space.shape
+            if len(obs_shape) == 3 and obs_shape[2] in [1, 3]:
+                env = TransposeImage(env, op=[2, 0, 1])
+
+            return env
+
+        return functools.partial(_thunk, env_id=env)
+
+    @staticmethod
+    def make_agent(envs: VecPyTorch, args) -> Agent:
+        obs_shape = envs.observation_space.shape
+        action_space = envs.action_space
+        return Agent(
+            obs_shape=obs_shape,
+            action_space=action_space,
+            recurrent=args.recurrent,
+        )
+
+    @classmethod
+    def make_vec_envs(
+        cls,
+        device: torch.device,
+        num_processes: int,
+        render: bool,
+        render_test: bool,
+        seed: int,
+        sync_envs: bool,
+        test: bool,
+        num_frame_stack: int = None,
+        **kwargs,
+    ):
+        if test:
+            render = render_test
+
+        envs = [
+            cls.make_env(rank=i, render=render, seed=seed + i, test=test, **kwargs)
+            for i in range(num_processes)
+        ]
+
+        if len(envs) > 1 and not sync_envs:
+            envs = SubprocVecEnv(envs)
+        else:
+            envs = DummyVecEnv(envs)
+
+        envs = VecPyTorch(envs, device)
+
+        if num_frame_stack is not None:
+            envs = VecPyTorchFrameStack(envs, num_frame_stack, device)
+        elif len(envs.observation_space.shape) == 3:
+            envs = VecPyTorchFrameStack(envs, 4, device)
+
+        return envs
+
+    @staticmethod
+    def save(agent, save_path: Path, args: Args):
+        torch.save(agent.state_dict(), save_path)
+
+    @staticmethod
+    def save_dir(run_id: Optional[int] = None):
+        path = Path("/tmp/logs")
+        if run_id is not None:
+            return Path(path, str(run_id))
+        return path
+
+    @classmethod
+    def save_path(cls, run_id: Optional[int] = None):
+        return Path(cls.save_dir(run_id), "checkpoint.pkl")
+
+    @classmethod
+    def update_args(cls, args, parameters, check_hasattr=True):
+        for k, v in parameters.items():
+            if k not in cls.excluded():
+                if check_hasattr:
+                    assert hasattr(args, k), k
+                setattr(args, k, v)
+
     @classmethod
     def train(cls, args: Args, logger: HasuraLogger):
         logging.info(pformat(args.as_dict()))
@@ -336,229 +602,6 @@ class Trainer:
             envs.close()
 
     @classmethod
-    def process_info(cls, counters: Counters, info: dict):
-        if "episode" in info.keys():
-            counters.episode_rewards.append(info["episode"]["r"])
-            counters.episode_lengths.append(info["episode"]["l"])
-
-    @classmethod
-    def build_counters(cls):
-        return Counters()
-
-    @classmethod
-    def log(
-        cls,
-        logger: HasuraLogger,
-        log: dict,
-        counters: Counters,
-        total_num_steps: int,
-    ):
-        logging.info(pformat(log))
-        if logger.run_id is not None:
-            logger.log(log)
-
-    @staticmethod
-    def num_eval_processes(args):
-        return args.num_processes
-
-    @classmethod
-    def cuda(cls, args):
-        return args.cuda and torch.cuda.is_available()
-
-    @classmethod
-    def device(cls, cuda):
-        return torch.device("cuda:0" if cuda else "cpu")
-
-    @staticmethod
-    def load(agent, load_path):
-        agent.load_state_dict(torch.load(load_path))
-
-    @staticmethod
-    def total_num_steps(j, args):
-        return j * args.num_processes * args.num_steps
-
-    @classmethod
-    def evaluate(
-        cls, agent, envs, num_processes, device, start, total_num_steps, logger, test
-    ):
-
-        episode_rewards = []
-        episode_lengths = []
-        episode_success = []
-
-        obs = envs.reset()
-        recurrent_hidden_states = torch.zeros(
-            num_processes, agent.recurrent_hidden_state_size, device=device
-        )
-        masks = torch.zeros(num_processes, 1, device=device)
-
-        while len(episode_rewards) < 100:
-            with torch.no_grad():
-                _, action, _, recurrent_hidden_states = agent.forward(
-                    obs, recurrent_hidden_states, masks
-                )
-
-            # Observe reward and next obs
-            obs, rewards, done, infos = envs.step(action)
-            masks = torch.tensor(
-                [[0.0] if done_ else [1.0] for done_ in done],
-                dtype=torch.float32,
-                device=device,
-            )
-
-            for info in infos:
-                if "episode" in info.keys():
-                    episode_rewards.append(info["episode"]["r"])
-                    episode_lengths.append(info["episode"]["l"])
-                if "success" in info.keys():
-                    episode_success.append(info["success"])
-
-        envs.close()
-        now = time.time()
-        log = {
-            TIME: now * 1000000,
-            HOURS: (now - start) / 3600,
-            STEP: total_num_steps,
-        }
-        if test:
-            log.update(
-                {
-                    TEST_EPISODE_RETURN: np.mean(episode_rewards),
-                    TEST_EPISODE_LENGTH: np.mean(episode_lengths),
-                }
-            )
-
-        logging.info(pformat(log))
-        if logger.run_id is not None:
-            log.update({"run ID": logger.run_id})
-        logging.info(pformat(log))
-        if logger.run_id is not None:
-            logger.log(log)
-
-        logging.info(
-            " Evaluation using {} episodes: mean reward {:.5f}\n".format(
-                len(episode_rewards), np.mean(episode_rewards)
-            )
-        )
-
-    @staticmethod
-    def blob(logger: HasuraLogger, blob, metadata: dict):
-        tick = time.time()
-
-        # https://stackoverflow.com/a/30469744/4176597
-        pickled = codecs.encode(pickle.dumps(blob), "base64").decode()
-
-        logger.blob(blob=pickled, metadata=metadata)
-        logging.info(f"Sending blob took {time.time() - tick} seconds.")
-
-    @staticmethod
-    def make_env(env, seed, allow_early_resets, render: bool = False, **kwargs):
-        def _thunk(env_id):
-            if env_id.startswith("dm"):
-                _, domain, task = env_id.split(".")
-                env = dmc2gym.make(domain_name=domain, task_name=task)
-                env = ClipAction(env)
-            else:
-                env = gym.make(env_id)
-
-            is_atari = hasattr(gym.envs, "atari") and isinstance(
-                env.unwrapped, gym.envs.atari.atari_env.AtariEnv
-            )
-            if is_atari:
-                env = NoopResetEnv(env, noop_max=30)
-                env = MaxAndSkipEnv(env, skip=4)
-
-            env.seed(seed)
-
-            if str(env.__class__.__name__).find("TimeLimit") >= 0:
-                env = TimeLimitMask(env)
-
-            env = Monitor(env, allow_early_resets=allow_early_resets)
-
-            if is_atari:
-                if len(env.observation_space.shape) == 3:
-                    env = EpisodicLifeEnv(env)
-                    if "FIRE" in env.unwrapped.get_action_meanings():
-                        env = FireResetEnv(env)
-                    env = WarpFrame(env, width=84, height=84)
-                    env = ClipRewardEnv(env)
-            elif len(env.observation_space.shape) == 3:
-                raise NotImplementedError(
-                    "CNN models work only for atari,\n"
-                    "please use a custom wrapper for a custom pixel input env.\n"
-                    "See wrap_deepmind for an example."
-                )
-
-            # If the input has shape (W,H,3), wrap for PyTorch convolutions
-            obs_shape = env.observation_space.shape
-            if len(obs_shape) == 3 and obs_shape[2] in [1, 3]:
-                env = TransposeImage(env, op=[2, 0, 1])
-
-            return env
-
-        return functools.partial(_thunk, env_id=env)
-
-    @classmethod
-    def make_vec_envs(
-        cls,
-        device: torch.device,
-        num_processes: int,
-        render: bool,
-        render_test: bool,
-        seed: int,
-        sync_envs: bool,
-        test: bool,
-        num_frame_stack: int = None,
-        **kwargs,
-    ):
-        if test:
-            render = render_test
-
-        envs = [
-            cls.make_env(rank=i, render=render, seed=seed + i, test=test, **kwargs)
-            for i in range(num_processes)
-        ]
-
-        if len(envs) > 1 and not sync_envs:
-            envs = SubprocVecEnv(envs)
-        else:
-            envs = DummyVecEnv(envs)
-
-        envs = VecPyTorch(envs, device)
-
-        if num_frame_stack is not None:
-            envs = VecPyTorchFrameStack(envs, num_frame_stack, device)
-        elif len(envs.observation_space.shape) == 3:
-            envs = VecPyTorchFrameStack(envs, 4, device)
-
-        return envs
-
-    @staticmethod
-    def save_dir(run_id: Optional[int] = None):
-        path = Path("/tmp/logs")
-        if run_id is not None:
-            return Path(path, str(run_id))
-        return path
-
-    @classmethod
-    def save_path(cls, run_id: Optional[int] = None):
-        return Path(cls.save_dir(run_id), "checkpoint.pkl")
-
-    @staticmethod
-    def save(agent, save_path: Path, args: Args):
-        torch.save(agent.state_dict(), save_path)
-
-    @staticmethod
-    def make_agent(envs: VecPyTorch, args) -> Agent:
-        obs_shape = envs.observation_space.shape
-        action_space = envs.action_space
-        return Agent(
-            obs_shape=obs_shape,
-            action_space=action_space,
-            recurrent=args.recurrent,
-        )
-
-    @classmethod
     def main(cls, args: ArgsType):
         logging.getLogger().setLevel(args.log_level)
         kwargs = dict(visualizer_url=args.visualizer_url)
@@ -583,49 +626,6 @@ class Trainer:
         )
         cls.update_args(args, params)
         return cls.train(args=args, logger=logger)
-
-    @classmethod
-    def charts(cls, **kwargs):
-        return [
-            *[
-                spec(x=HOURS, y=y, **kwargs)
-                for y in (EPISODE_RETURN, TEST_EPISODE_RETURN)
-            ],
-            *[
-                spec(x=STEP, y=y, **kwargs)
-                for y in (
-                    EPISODE_RETURN,
-                    TEST_EPISODE_RETURN,
-                    FPS,
-                    ENTROPY,
-                    GRADIENT_NORM,
-                    SAVE_COUNT,
-                )
-            ],
-        ]
-
-    @classmethod
-    def update_args(cls, args, parameters, check_hasattr=True):
-        for k, v in parameters.items():
-            if k not in cls.excluded():
-                if check_hasattr:
-                    assert hasattr(args, k), k
-                setattr(args, k, v)
-
-    @classmethod
-    def excluded(cls):
-        return {
-            "config",
-            "host_machine",
-            "load_id",
-            "logger_args",
-            "name",
-            "render",
-            "render_test",
-            "subcommand",
-            "sweep_id",
-            "sync_envs",
-        }
 
 
 if __name__ == "__main__":
