@@ -37,21 +37,24 @@ I = TypeVar("I")
 
 
 class Action(NamedTuple):
-    turn: float = 0
+    yaw: float = 0
     forward: float = 0
+    pitch: float = 0
     done: bool = False
     take_picture: bool = False
 
 
 class Actions(Enum):
-    LEFT = Action(45, 0)
-    RIGHT = Action(-45, 0)
-    FORWARD = Action(0, 1)
-    BACKWARD = Action(0, -1)
+    LEFT = Action(yaw=45)
+    RIGHT = Action(yaw=-45)
+    FORWARD = Action(forward=1)
+    BACKWARD = Action(forward=-1)
     DONE = Action(done=True)
 
 
 class DebugActions(Enum):
+    UP = Action(pitch=45)
+    DOWN = Action(pitch=-45)
     PICTURE = Action(take_picture=True)
     NO_OP = Action()
 
@@ -137,7 +140,6 @@ class Env(gym.Env):
     steps_per_action: int
     urdfs: Tuple[URDF, URDF]
 
-    camera_yaw: float = CAMERA_YAW
     is_render: bool = False
     metadata = {
         "render.modes": ["human", "rgb_array", "ascii"],
@@ -146,9 +148,11 @@ class Env(gym.Env):
     model_name: str = "gpt2"
     rank: int = 0
     random_seed: int = 0
+    starting_camera_pitch: float = CAMERA_PITCH
 
     def __post_init__(self):
-        self._camera_yaw = self.camera_yaw
+        self._camera_pitch = self.starting_camera_pitch
+        self._camera_yaw = 0
         names = [urdf.name for urdf in self.urdfs]
         assert len(set(names)) == 2, names
         self.random = np.random.default_rng(self.random_seed)
@@ -224,7 +228,9 @@ class Env(gym.Env):
             self._p.GEOM_BOX, halfExtents=halfExtents, rgbaColor=[1, 1, 1, 0.5]
         )
         self._p.createMultiBody(
-            baseMass=0, baseVisualShapeIndex=floor_visual, basePosition=[0, 0, -1]
+            baseMass=0,
+            baseVisualShapeIndex=floor_visual,
+            basePosition=[0, 0, -1],
         )
 
         self.names = names
@@ -292,17 +298,21 @@ class Env(gym.Env):
 
         z = 1
         self._camera_yaw = self.random.choice(360)
+        self._camera_pitch = self.starting_camera_pitch
         mass_start_pos = self.random.uniform(low=-np.ones(3), high=np.ones(3))
         mass_start_pos[-1] = z
 
         self._p.resetBasePositionAndOrientation(self.mass, mass_start_pos, [0, 0, 0, 1])
         action = yield self.get_observation(
-            camera_yaw=self._camera_yaw, mission=mission
+            camera_yaw=self._camera_yaw,
+            camera_pitch=self._camera_pitch,
+            mission=mission,
         )
 
         for global_step in range(self.max_episode_steps):
 
-            self._camera_yaw += action.turn
+            self._camera_yaw += action.yaw
+            self._camera_pitch += action.pitch
 
             x, y, _, _ = self._p.getQuaternionFromEuler(
                 [np.pi, 0, np.deg2rad(2 * self._camera_yaw) + np.pi]
@@ -316,7 +326,11 @@ class Env(gym.Env):
             for _ in range(self.steps_per_action):
                 self._p.stepSimulation()
 
-            s = self.get_observation(self._camera_yaw, mission)
+            s = self.get_observation(
+                camera_yaw=self._camera_yaw,
+                camera_pitch=self._camera_pitch,
+                mission=mission,
+            )
             if action.take_picture:
                 PIL.Image.fromarray(self.render(mode="rgb_array")).show()
             if action.done:
@@ -333,20 +347,25 @@ class Env(gym.Env):
             self._r = r
             action = yield s, r, action.done, i
 
-        s = self.get_observation(self._camera_yaw, mission)
+        s = self.get_observation(
+            camera_yaw=self._camera_yaw,
+            camera_pitch=self._camera_pitch,
+            mission=mission,
+        )
         r = 0
         t = True
         yield s, r, t, i
 
     def get_observation(
         self,
-        camera_yaw,
-        mission,
+        camera_yaw: float,
+        camera_pitch: float,
+        mission: str,
     ) -> Tuple[np.ndarray, np.ndarray]:
         pos, _ = self._p.getBasePositionAndOrientation(self.mass)
 
         viewMatrix = self._p.computeViewMatrixFromYawPitchRoll(
-            pos, CAMERA_DISTANCE, camera_yaw, CAMERA_PITCH, ROLL, UP_AXIS_INDEX
+            pos, CAMERA_DISTANCE, camera_yaw, camera_pitch, ROLL, UP_AXIS_INDEX
         )
         aspect = 1
         projectionMatrix = self._p.computeProjectionMatrixFOV(
@@ -376,7 +395,10 @@ class Env(gym.Env):
             cameraTargetPosition, orn = p.getBasePositionAndOrientation(self.mass)
 
             self._p.resetDebugVisualizerCamera(
-                CAMERA_DISTANCE, self._camera_yaw, CAMERA_PITCH, cameraTargetPosition
+                CAMERA_DISTANCE,
+                self._camera_yaw,
+                self._camera_pitch,
+                cameraTargetPosition,
             )
             return np.array([])
         if mode == "rgb_array":
@@ -447,6 +469,8 @@ def main(args: DebugArgs):
             p.B3G_LEFT_ARROW: Actions.LEFT,
             p.B3G_UP_ARROW: Actions.FORWARD,
             p.B3G_DOWN_ARROW: Actions.BACKWARD,
+            p.B3G_PAGE_UP: DebugActions.UP,
+            p.B3G_PAGE_DOWN: DebugActions.DOWN,
             p.B3G_RETURN: DebugActions.PICTURE,
             p.B3G_SPACE: Actions.DONE,
         }
@@ -456,6 +480,8 @@ def main(args: DebugArgs):
             "a": Actions.LEFT,
             "w": Actions.FORWARD,
             "s": Actions.BACKWARD,
+            "e": DebugActions.UP,
+            "c": DebugActions.DOWN,
             "p": DebugActions.PICTURE,
             "x": Actions.DONE,
         }
