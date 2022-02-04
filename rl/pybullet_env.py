@@ -1,7 +1,9 @@
 import os
+import pkgutil
 import re
 import string
 import sys
+import tempfile
 import time
 from contextlib import contextmanager
 from dataclasses import astuple, dataclass
@@ -14,7 +16,6 @@ import gym.utils.seeding
 import numpy as np
 import PIL.Image
 import pybullet as p
-import pybullet_data
 from art import text2art
 from colors import color
 from gym.spaces import Box, MultiDiscrete
@@ -138,6 +139,7 @@ class Env(gym.Env):
     urdfs: Tuple[URDF, URDF]
 
     camera_yaw: float = CAMERA_YAW
+    hz: int = 240
     is_render: bool = False
     metadata = {
         "render.modes": ["human", "rgb_array", "ascii"],
@@ -177,8 +179,41 @@ class Env(gym.Env):
             self._p.configureDebugVisualizer(self._p.COV_ENABLE_SHADOWS, 0)
         else:
             self._p = bullet_client.BulletClient(connection_mode=p.DIRECT)
+        # adapted from https://github.com/google-research/ravens/blob/d11b3e6d35be0bd9811cfb5c222695ebaf17d28a/ravens/environments/environment.py#L112
+        file_io = self._p.loadPlugin("fileIOPlugin")
+        if file_io < 0:
+            raise RuntimeError("pybullet: cannot load FileIO!")
 
-        self._p.setAdditionalSearchPath(pybullet_data.getDataPath())
+        assets_root = str(
+            Path(
+                Path.home(),
+                ".cache/data/pybullet-URDF-models/urdf_models/models",
+            )
+        )
+        if file_io >= 0:
+            self._p.executePluginCommand(
+                file_io,
+                textArgument=assets_root,
+                intArgs=[p.AddFileIOAction],
+                # physicsClientId=self._p,
+            )
+
+        self._egl_plugin = None
+        if sys.platform == "linux":
+            egl = pkgutil.get_loader("eglRenderer")
+            if egl:
+                self._egl_plugin = self._p.loadPlugin(
+                    egl.get_filename(), "_eglRendererPlugin"
+                )
+            else:
+                self._egl_plugin = self._p.loadPlugin("eglRendererPlugin")
+            print("EGL renderering enabled.")
+
+        self._p.configureDebugVisualizer(p.COV_ENABLE_GUI, 0)
+        self._p.setPhysicsEngineParameter(enableFileCaching=0)
+        self._p.setAdditionalSearchPath(assets_root)
+        self._p.setAdditionalSearchPath(tempfile.gettempdir())
+        self._p.setTimeStep(1.0 / self.hz)
 
         sphereRadius = 0.02
         mass = 1

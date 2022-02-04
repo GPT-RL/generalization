@@ -1,9 +1,5 @@
 # inspired by https://sourcery.ai/blog/python-docker/
-FROM nvidia/cuda:11.2.1-cudnn8-devel-ubuntu20.04 as base
-ARG CUDA_SHORT=112
-
-# Setup locale
-ENV LANG C.UTF-8
+FROM nvidia/cudagl:11.3.1-runtime-ubuntu18.04 as base
 ENV LC_ALL C.UTF-8
 
 # no .pyc files
@@ -25,9 +21,8 @@ RUN apt-get update -q \
       # git-state
       git \
 
-      # for opencv-python
-      libgl1-mesa-glx \
-      libglib2.0-0 \
+      # EGL for rendering
+      libegl-mesa0 \
 
       # primary interpreter
       python3.8 \
@@ -37,9 +32,6 @@ RUN apt-get update -q \
 
       # redis-python
       redis \
-
-      # for Atari Roms and redis
-      wget \
 
  && apt-get clean
 
@@ -51,27 +43,24 @@ RUN apt-get update -q \
     apt-get install -yq \
 
       # required by poetry
-      python \
       python3-pip \
 
       # required for redis
       gcc \
-
-      # required for Arari Roms
-      unrar \
-      unzip \
 
  && apt-get clean
 
 WORKDIR "/deps"
 
 COPY pyproject.toml poetry.lock /deps/
-RUN pip install poetry \
- && poetry install
- #&& wget "http://www.atarimania.com/roms/Roms.rar" \
- #&& unrar e Roms.rar \
- #&& unzip ROMS.zip \
- #&& /root/.cache/pypoetry/virtualenvs/ppo-K3BlsyQa-py3.8/bin/python -m atari_py.import_roms ROMS/
+RUN pip3 install poetry && poetry install
+
+#RUN pip3 install poetry \
+ #&& poetry install
+ ##&& wget "http://www.atarimania.com/roms/Roms.rar" \
+ ##&& unrar e Roms.rar \
+ ##&& unzip ROMS.zip \
+ ##&& /root/.cache/pypoetry/virtualenvs/ppo-K3BlsyQa-py3.8/bin/python -m atari_py.import_roms ROMS/
 
 FROM base AS runtime
 
@@ -80,5 +69,6 @@ ENV VIRTUAL_ENV=/root/.cache/pypoetry/virtualenvs/generalization-K3BlsyQa-py3.8/
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 COPY --from=python-deps $VIRTUAL_ENV $VIRTUAL_ENV
 COPY . .
+
 
 ENTRYPOINT ["python"]
