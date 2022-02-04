@@ -14,7 +14,6 @@ stable-baselines3 = "^1.1.0"
 h5py = "^3.3.0"
 typed-argument-parser = "^1.7.0"
 transformers = "^4.11.3"
-pybullet = "^3.1.7"
 sweep-logger = {git = "https://github.com/ethanabrooks/sweep-logger.git", rev = "main"}
 gym = {version = "^0.18.3", extras = ["atari"]}
 setuptools = "^57.2.0"
@@ -28,6 +27,7 @@ torch = [
 ]
 babyai = {git = "https://github.com/GPT-RL/babyai.git"}
 art = "^5.4"
+gym-miniworld = "^2020.1.9"
 
 
 [tool.poetry.dev-dependencies]
