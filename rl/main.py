@@ -176,7 +176,7 @@ class Trainer:
 
     @classmethod
     def device(cls, cuda):
-        return torch.device("cuda:0" if cuda else "cpu")
+        return torch.device(torch.cuda.device_count() - 1 if cuda else "cpu")
 
     @classmethod
     def evaluate(
