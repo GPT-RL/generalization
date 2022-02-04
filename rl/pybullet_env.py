@@ -21,6 +21,7 @@ from colors import color
 from gym.spaces import Box, MultiDiscrete
 from pybullet_utils import bullet_client
 from tap import Tap
+from tqdm import tqdm
 
 CAMERA_DISTANCE = 0.2
 CAMERA_PITCH = -10
@@ -191,6 +192,7 @@ class Env(gym.Env):
         if sys.platform == "linux":
             egl = pkgutil.get_loader("eglRenderer")
             if egl:
+                # noinspection PyUnresolvedReferences
                 self._egl_plugin = self._p.loadPlugin(
                     egl.get_filename(), "_eglRendererPlugin"
                 )
@@ -222,16 +224,28 @@ class Env(gym.Env):
         self._p.configureDebugVisualizer(self._p.COV_ENABLE_GUI, False)
 
         # self._p.setGravity(0, 0, -10)
-        halfExtents = [1.5 * self.env_bounds, 1.5 * self.env_bounds, 0.1]
+        halfExtents = [3 * self.env_bounds, 3 * self.env_bounds, 0.1]
         # floor_collision = self._p.createCollisionShape(
         #     self._p.GEOM_BOX, halfExtents=halfExtents
         # )
         floor_visual = self._p.createVisualShape(
-            self._p.GEOM_BOX, halfExtents=halfExtents, rgbaColor=[1, 1, 1, 0.5]
+            self._p.GEOM_BOX, halfExtents=halfExtents, rgbaColor=[1, 1, 1, 1]
         )
-        self._p.createMultiBody(
-            baseMass=0, baseVisualShapeIndex=floor_visual, basePosition=[0, 0, -1]
-        )
+        self.level_height = 4
+        for i in range(len(self.names_to_urdfs) + 1):
+            self._p.createMultiBody(
+                baseMass=0,
+                baseVisualShapeIndex=floor_visual,
+                basePosition=[0, 0, self.level_height * i - 1],
+            )
+
+        names = list(self.names_to_urdfs)
+        self.random.shuffle(names)
+        first, *rest = names
+        self.pairs: List[Tuple[str, str]] = list(zip(names, [*rest, first]))
+        self._p.configureDebugVisualizer(p.COV_ENABLE_RENDERING, 0)
+        self.objects: List[Tuple[int, int]] = list(self.reset_objects())
+        self._p.configureDebugVisualizer(p.COV_ENABLE_RENDERING, 1)
 
     @staticmethod
     def ascii_of_image(image: np.ndarray):
@@ -246,9 +260,10 @@ class Env(gym.Env):
 
     def generator(self):
         goal = self.random.choice(2)
-        names = self.random.choice(list(self.names_to_urdfs), size=2, replace=False)
+        level = self.random.choice(len(self.names_to_urdfs))
+        names = self.pairs[level]
         mission = names[goal]
-        objects = self.reset_objects(names)
+        objects = self.objects[level]
 
         i = dict(mission=mission)
 
@@ -256,6 +271,7 @@ class Env(gym.Env):
         self._camera_yaw = self.random.choice(360)
         self._camera_pitch = self.starting_camera_pitch
         mass_start_pos = self.random.uniform(low=-np.ones(3), high=np.ones(3))
+        z += self.level_height * level
         mass_start_pos[-1] = z
 
         self._p.resetBasePositionAndOrientation(self.mass, mass_start_pos, [0, 0, 0, 1])
@@ -301,9 +317,6 @@ class Env(gym.Env):
             else:
                 r = 0
             self._r = r
-            if action.done:
-                for obj in objects:
-                    self._p.removeBody(obj)
             action = yield s, r, action.done, i
 
         s = self.get_observation(
@@ -315,49 +328,58 @@ class Env(gym.Env):
         t = True
         yield s, r, t, i
 
-    def reset_objects(self, names: List[str]):
-        self._p.configureDebugVisualizer(p.COV_ENABLE_RENDERING, 0)
-        urdfs = [self.names_to_urdfs[u] for u in names]
-        urdfs = [u[self.random.choice(len(u))] for u in urdfs]
-        objects = []
-        for base_position, urdf in zip(
-            [
-                [-self.env_bounds / 1, self.env_bounds / 1, 0],
-                [self.env_bounds / 1, -self.env_bounds / 1, 0],
-            ],
-            urdfs,
-        ):
+    def reset_objects(self):
 
-            try:
-                goal = self._p.loadURDF(
-                    str(urdf.path),
-                    basePosition=base_position,
-                    globalScaling=10,
-                    useFixedBase=True,
+        for i, names in enumerate(tqdm(self.pairs, position=self.rank)):
+            objects: List[int] = []
+            for base_position, name in zip(
+                [
+                    [-self.env_bounds / 1, self.env_bounds / 1, self.level_height * i],
+                    [self.env_bounds / 1, -self.env_bounds / 1, self.level_height * i],
+                ],
+                names,
+            ):
+                urdfs = self.names_to_urdfs[name]
+                urdf = urdfs[self.random.choice(len(urdfs))]
+
+                try:
+                    goal: int = self._p.loadURDF(
+                        str(urdf.path),
+                        basePosition=base_position,
+                        globalScaling=10,
+                        useFixedBase=True,
+                    )
+                except self._p.error:
+                    print(self._p.error)
+                    raise RuntimeError(f"Error while loading {urdf.path}")
+
+                collisionFilterGroup = 0x2
+                collisionFilterMask = 0x2
+                for j in range(p.getNumJoints(goal)):
+                    p.setCollisionFilterGroupMask(
+                        goal, j, collisionFilterGroup, collisionFilterMask
+                    )
+
+                objects.append(goal)
+
+                collisionFilterGroup = 0
+                collisionFilterMask = 0
+                self._p.setCollisionFilterGroupMask(
+                    goal, -1, collisionFilterGroup, collisionFilterMask
                 )
-            except self._p.error:
-                print(self._p.error)
-                raise RuntimeError(f"Error while loading {urdf.path}")
-            objects.append(goal)
-
-            collisionFilterGroup = 0
-            collisionFilterMask = 0
-            self._p.setCollisionFilterGroupMask(
-                goal, -1, collisionFilterGroup, collisionFilterMask
-            )
-            self._p.createConstraint(
-                goal,
-                -1,
-                -1,
-                -1,
-                self._p.JOINT_FIXED,
-                [1, 1, 1.4],
-                [0, 0, 0],
-                [0, 0, 0],
-                [0, 0, 0, 1],
-            )
-        self._p.configureDebugVisualizer(p.COV_ENABLE_RENDERING, 1)
-        return objects
+                self._p.createConstraint(
+                    goal,
+                    -1,
+                    -1,
+                    -1,
+                    self._p.JOINT_FIXED,
+                    [1, 1, 1.4],
+                    [0, 0, 0],
+                    [0, 0, 0],
+                    [0, 0, 0, 1],
+                )
+            o1, o2 = objects
+            yield o1, o2
 
     def get_observation(
         self,
@@ -443,12 +465,17 @@ class Args(Tap):
 
 class DebugArgs(Args):
     mode: str = "ascii"
+    names: str = None
     urdf_index: int = 0
 
 
 def main(args: DebugArgs):
     path = Path(args.data_path)
-    urdfs = list(get_urdfs(path))
+    if args.names is None:
+        names = args.names
+    else:
+        names = set(args.names.split(","))
+    urdfs = list(get_urdfs(path, names))
     env = Env(
         env_bounds=args.env_bounds,
         image_size=args.image_size,
