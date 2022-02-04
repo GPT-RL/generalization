@@ -1,6 +1,5 @@
 import csv
 import functools
-import itertools
 from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -97,7 +96,7 @@ class Trainer(main.Trainer):
             step_size: float,
             steps_per_action: int,
             tokenizer: GPT2Tokenizer,
-            urdfs: List[Tuple[URDF, URDF]],
+            urdfs: List[URDF],
             **_,
         ):
 
@@ -109,7 +108,7 @@ class Trainer(main.Trainer):
                 rank=rank,
                 step_size=step_size,
                 steps_per_action=steps_per_action,
-                urdfs=urdfs[rank],
+                urdfs=urdfs,
             )
             if record:
                 video_path = Path(cls.save_dir(run_id), "video.mp4")
@@ -191,27 +190,16 @@ Download dataset using: git clone git@github.com:GPT-RL/pybullet-URDF-models.git
         assert len(names) > 1
         urdfs = [u for u in urdfs if u.name in names]
 
-        def get_pairs():
-            while True:
-                rng.shuffle(urdfs)
-                for urdf in urdfs:
-                    opposites = [u for u in urdfs if u.name != urdf.name]
-                    opposite = opposites[rng.choice(len(opposites))]
-                    yield urdf, opposite
-
-        pairs = list(itertools.islice(get_pairs(), num_processes))
-
         return super().make_vec_envs(
             all_missions=all_missions,
             features=features,
             num_processes=num_processes,
-            pairs=pairs,
             render=render,
             seed=seed,
             sync_envs=sync_envs,
             tokenizer=cls.tokenizer(pretrained_model),
             test=test,
-            urdfs=pairs,
+            urdfs=urdfs,
             **kwargs,
         )
 

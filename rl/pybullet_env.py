@@ -4,11 +4,12 @@ import re
 import string
 import sys
 import time
+from collections import defaultdict
 from contextlib import contextmanager
 from dataclasses import astuple, dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Generic, NamedTuple, Set, Tuple, TypeVar, Union
+from typing import Generic, List, NamedTuple, Set, Tuple, TypeVar, Union
 
 import gym.spaces as spaces
 import gym.utils.seeding
@@ -138,7 +139,7 @@ class Env(gym.Env):
     max_episode_steps: int
     step_size: float
     steps_per_action: int
-    urdfs: Tuple[URDF, URDF]
+    urdfs: List[URDF]
 
     is_render: bool = False
     metadata = {
@@ -153,8 +154,6 @@ class Env(gym.Env):
     def __post_init__(self):
         self._camera_pitch = self.starting_camera_pitch
         self._camera_yaw = 0
-        names = [urdf.name for urdf in self.urdfs]
-        assert len(set(names)) == 2, names
         self.random = np.random.default_rng(self.random_seed)
         obs_spaces: Observation[MultiDiscrete, Box]
         self.obs_spaces = obs_spaces = Observation(
@@ -168,6 +167,12 @@ class Env(gym.Env):
         self.observation_space = obs_spaces.to_space()
         self.action_space = spaces.Discrete(len(Actions))
 
+        self.names_to_urdfs = defaultdict(list)
+        for urdf in self.urdfs:
+            self.names_to_urdfs[urdf.name].append(urdf)
+
+        self.objects = None
+        self.names = None
         self.iterator = None
         self._s = None
         self._a = None
@@ -203,9 +208,6 @@ class Env(gym.Env):
         )
         self.mass = self._p.createMultiBody(mass, colSphereId, visualShapeId, [0, 0, 0])
 
-        relativeChildPosition = [0, 0, 0]
-        relativeChildOrientation = [0, 0, 0, 1]
-
         self.mass_cid = self._p.createConstraint(
             self.mass,
             -1,
@@ -214,8 +216,8 @@ class Env(gym.Env):
             self._p.JOINT_FIXED,
             [0, 0, 0],
             [0, 0, 0],
-            relativeChildPosition,
-            relativeChildOrientation,
+            [0, 0, 0],
+            [0, 0, 0, 1],
         )
         self._p.configureDebugVisualizer(self._p.COV_ENABLE_GUI, False)
 
@@ -228,55 +230,8 @@ class Env(gym.Env):
             self._p.GEOM_BOX, halfExtents=halfExtents, rgbaColor=[1, 1, 1, 0.5]
         )
         self._p.createMultiBody(
-            baseMass=0,
-            baseVisualShapeIndex=floor_visual,
-            basePosition=[0, 0, -1],
+            baseMass=0, baseVisualShapeIndex=floor_visual, basePosition=[0, 0, -1]
         )
-
-        self.names = names
-        self.objects = objects = []
-
-        print()
-        print(
-            f"Env {self.rank}: {', '.join([u.name for u in self.urdfs])}",
-        )
-        for base_position, urdf in zip(
-            [
-                [-self.env_bounds / 1, self.env_bounds / 1, 0],
-                [self.env_bounds / 1, -self.env_bounds / 1, 0],
-            ],
-            self.urdfs,
-        ):
-
-            try:
-                with suppress_stdout():
-                    goal = self._p.loadURDF(
-                        str(urdf.path),
-                        basePosition=base_position,
-                        globalScaling=10,
-                        useFixedBase=True,
-                    )
-            except self._p.error:
-                print(self._p.error)
-                raise RuntimeError(f"Error while loading {urdf.path}")
-            objects.append(goal)
-
-            collisionFilterGroup = 0
-            collisionFilterMask = 0
-            self._p.setCollisionFilterGroupMask(
-                goal, -1, collisionFilterGroup, collisionFilterMask
-            )
-            self._p.createConstraint(
-                goal,
-                -1,
-                -1,
-                -1,
-                self._p.JOINT_FIXED,
-                [1, 1, 1.4],
-                [0, 0, 0],
-                relativeChildPosition,
-                relativeChildOrientation,
-            )
 
     @staticmethod
     def ascii_of_image(image: np.ndarray):
@@ -290,9 +245,10 @@ class Env(gym.Env):
         self._p.disconnect()
 
     def generator(self):
-
         goal = self.random.choice(2)
-        mission = self.names[goal]
+        names = self.random.choice(list(self.names_to_urdfs), size=2, replace=False)
+        mission = names[goal]
+        objects = self.reset_objects(names)
 
         i = dict(mission=mission)
 
@@ -337,7 +293,7 @@ class Env(gym.Env):
                 (*goal_poss, pos), _ = zip(
                     *[
                         self._p.getBasePositionAndOrientation(g)
-                        for g in (*self.objects, self.mass)
+                        for g in (*objects, self.mass)
                     ]
                 )
                 dists = [np.linalg.norm(np.array(pos) - np.array(g)) for g in goal_poss]
@@ -345,6 +301,9 @@ class Env(gym.Env):
             else:
                 r = 0
             self._r = r
+            if action.done:
+                for obj in objects:
+                    self._p.removeBody(obj)
             action = yield s, r, action.done, i
 
         s = self.get_observation(
@@ -355,6 +314,50 @@ class Env(gym.Env):
         r = 0
         t = True
         yield s, r, t, i
+
+    def reset_objects(self, names: List[str]):
+        self._p.configureDebugVisualizer(p.COV_ENABLE_RENDERING, 0)
+        urdfs = [self.names_to_urdfs[u] for u in names]
+        urdfs = [u[self.random.choice(len(u))] for u in urdfs]
+        objects = []
+        for base_position, urdf in zip(
+            [
+                [-self.env_bounds / 1, self.env_bounds / 1, 0],
+                [self.env_bounds / 1, -self.env_bounds / 1, 0],
+            ],
+            urdfs,
+        ):
+
+            try:
+                goal = self._p.loadURDF(
+                    str(urdf.path),
+                    basePosition=base_position,
+                    globalScaling=10,
+                    useFixedBase=True,
+                )
+            except self._p.error:
+                print(self._p.error)
+                raise RuntimeError(f"Error while loading {urdf.path}")
+            objects.append(goal)
+
+            collisionFilterGroup = 0
+            collisionFilterMask = 0
+            self._p.setCollisionFilterGroupMask(
+                goal, -1, collisionFilterGroup, collisionFilterMask
+            )
+            self._p.createConstraint(
+                goal,
+                -1,
+                -1,
+                -1,
+                self._p.JOINT_FIXED,
+                [1, 1, 1.4],
+                [0, 0, 0],
+                [0, 0, 0],
+                [0, 0, 0, 1],
+            )
+        self._p.configureDebugVisualizer(p.COV_ENABLE_RENDERING, 1)
+        return objects
 
     def get_observation(
         self,
@@ -445,7 +448,7 @@ class DebugArgs(Args):
 
 def main(args: DebugArgs):
     path = Path(args.data_path)
-    urdf1, urdf2 = list(get_urdfs(path))[args.urdf_index : args.urdf_index + 2]
+    urdfs = list(get_urdfs(path))
     env = Env(
         env_bounds=args.env_bounds,
         image_size=args.image_size,
@@ -453,7 +456,7 @@ def main(args: DebugArgs):
         max_episode_steps=args.max_episode_steps,
         step_size=args.step_size,
         steps_per_action=args.steps_per_action,
-        urdfs=(urdf1, urdf2),
+        urdfs=urdfs,
     )
 
     def render():
