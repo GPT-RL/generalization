@@ -1,15 +1,15 @@
 import logging
 from typing import cast
 
-import pybullet_main
 import torch
 from envs import VecPyTorch
 from gpt_agent import Agent
-from pybullet_env import Observation
+from my import main
+from my.env import Obs
 from wrappers import TokenizerWrapper
 
 
-class Args(pybullet_main.Args):
+class Args(main.Args):
     multihead_attention: bool = False
     freeze_keys: bool = False
     randomize_parameters: bool = False
@@ -19,11 +19,11 @@ class Args(pybullet_main.Args):
     gpt: bool = False
 
 
-class ArgsType(Args, pybullet_main.ArgsType):
+class ArgsType(Args, main.ArgsType):
     pass
 
 
-class Trainer(pybullet_main.Trainer):
+class Trainer(main.Trainer):
     @staticmethod
     def load(agent, load_path):
         loaded = torch.load(load_path)
@@ -50,9 +50,7 @@ class Trainer(pybullet_main.Trainer):
         if args.multihead_attention:
             tokenizer = cls.tokenizer(args.pretrained_model)
             missions, *_ = envs.get_attr("missions")
-            mission_shape = tuple(
-                Observation(*observation_space.spaces).mission.nvec.shape
-            )
+            mission_shape = tuple(Obs(*observation_space.spaces).mission.nvec.shape)
             tokens = [
                 TokenizerWrapper.new_mission(tokenizer, mission, mission_shape)
                 for mission in missions
@@ -95,7 +93,7 @@ class Trainer(pybullet_main.Trainer):
         return (
             super().train(args, **kwargs)
             if args.gpt
-            else pybullet_main.Trainer().train(args, **kwargs)
+            else main.Trainer().train(args, **kwargs)
         )
 
 

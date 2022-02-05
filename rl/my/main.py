@@ -1,17 +1,20 @@
 import csv
 import functools
+import re
 from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Literal, Optional, Set, Tuple, cast
 
-import main
+import base_main
 import numpy as np
-import pybullet_env
 from envs import RenderWrapper, VecPyTorch
-from pybullet_agent import Agent
-from pybullet_env import URDF, Env, get_urdfs
+from gym_miniworld.objmesh import ObjMesh
+from my import env
+from my.agent import Agent
+from my.env import Env, Mesh
 from stable_baselines3.common.monitor import Monitor
+from tqdm import tqdm
 from transformers import GPT2Tokenizer
 from wrappers import (
     FeatureWrapper,
@@ -19,7 +22,6 @@ from wrappers import (
     RolloutsWrapper,
     TokenizerWrapper,
     TrainTest,
-    VideoRecorderWrapper,
 )
 
 ROUNDED_STEP = "rounded step"
@@ -27,8 +29,7 @@ ENV = "environment ID"
 ENV_RETURN = "environment return"
 
 
-class Args(main.Args, pybullet_env.Args):
-    data_path: str = "/root/.cache/data/pybullet-URDF-models/urdf_models/models"
+class Args(base_main.Args, env.Args):
     names: Optional[str] = None
     num_test_envs: int = 8
     num_test_names: int = 2
@@ -43,20 +44,19 @@ class Args(main.Args, pybullet_env.Args):
         "EleutherAI/gpt-neo-2.7B",
     ] = "gpt2-large"  # what size of pretrained GPT to use
     prefix_length: int = 0
-    record: bool = False
     use_features: bool = False
 
     def configure(self) -> None:
         self.add_subparsers(dest="logger_args")
-        main.configure_logger_args(self)
+        base_main.configure_logger_args(self)
 
 
-class ArgsType(main.ArgsType, Args):
+class ArgsType(base_main.ArgsType, Args):
     pass
 
 
 @dataclass
-class Counters(main.Counters):
+class Counters(base_main.Counters):
     episode_rewards_per_env: dict = field(default_factory=lambda: defaultdict(list))
 
     def reset(self):
@@ -64,7 +64,7 @@ class Counters(main.Counters):
         self.episode_rewards_per_env = defaultdict(list)
 
 
-class Trainer(main.Trainer):
+class Trainer(base_main.Trainer):
     @classmethod
     def build_counters(cls):
         return Counters()
@@ -85,34 +85,15 @@ class Trainer(main.Trainer):
     def make_env(cls, env, allow_early_resets, render: bool = False, *args, **kwargs):
         def _thunk(
             all_missions: list,
-            env_bounds: float,
             features: Dict[str, List[str]],
-            image_size: int,
-            max_episode_steps: int,
-            rank: int,
-            record: bool,
-            run_id: Optional[int],
+            meshes: List[Mesh],
+            room_size: int,
             seed: int,
-            step_size: float,
-            steps_per_action: int,
             tokenizer: GPT2Tokenizer,
-            urdfs: List[URDF],
             **_,
         ):
 
-            _env = Env(
-                env_bounds=env_bounds,
-                image_size=image_size,
-                max_episode_steps=max_episode_steps,
-                random_seed=seed,
-                rank=rank,
-                step_size=step_size,
-                steps_per_action=steps_per_action,
-                urdfs=urdfs,
-            )
-            if record:
-                video_path = Path(cls.save_dir(run_id), "video.mp4")
-                _env = VideoRecorderWrapper(_env, path=video_path)
+            _env = Env(meshes=meshes, seed=seed, size=room_size)
             if render:
                 _env = RenderWrapper(_env, mode="ascii")
             _env = ImageNormalizerWrapper(_env)
@@ -123,11 +104,8 @@ class Trainer(main.Trainer):
                 tokenizer=tokenizer,
                 all_missions=all_missions,
             )
-
             _env = RolloutsWrapper(_env)
-
             _env = Monitor(_env, allow_early_resets=allow_early_resets)
-
             return _env
 
         return functools.partial(_thunk, env_id=env, **kwargs)
@@ -137,6 +115,8 @@ class Trainer(main.Trainer):
     def make_vec_envs(
         cls,
         data_path: str,
+        obj_pattern: str,
+        png_pattern: str,
         pretrained_model: str,
         names: Optional[str],
         num_processes: int,
@@ -152,19 +132,42 @@ class Trainer(main.Trainer):
         if test:
             num_processes = cls._num_eval_processes(num_processes, num_test_envs)
 
-        data_path = Path(data_path)
+        data_path = Path(data_path).expanduser()
         if not data_path.exists():
             raise RuntimeError(
                 f"""\
 {data_path} does not exist.
-Download dataset using: git clone git@github.com:GPT-RL/pybullet-URDF-models.git
+Download dataset using https://github.com/sea-bass/ycb-tools
 """
             )
 
         if names:
             names: Set[str] = set(names.split(","))
-        urdfs = list(get_urdfs(data_path, names))
-        names: List[str] = [urdf.name for urdf in urdfs]
+
+        def get_name(path: Path):
+            if data_path == Path("~/.cache/data/ycb").expanduser():
+                name = path.parent.parent.name
+            elif (
+                data_path == Path("~/.gym-miniworld/gym_miniworld/meshes").expanduser()
+            ):
+                name = path.stem
+            else:
+                raise RuntimeError(f"Not a recognized path: {data_path}")
+            name = re.sub(r"\d+(-[a-z])?_", "", name)
+            return name.replace("_", " ")
+
+        objs = {get_name(path): path for path in data_path.glob(obj_pattern)}
+        pngs = {get_name(path): path for path in data_path.glob(png_pattern)}
+
+        def get_meshes():
+            for name in objs:
+                if not names or name in names:
+                    yield Mesh(objs.get(name), pngs.get(name), name)
+
+        meshes: List[Mesh] = list(get_meshes())
+
+        for mesh in tqdm(meshes):
+            ObjMesh.get(str(mesh.obj), tex_path=mesh.png)
 
         if use_features:
             with Path("features.csv").open() as f:
@@ -176,30 +179,30 @@ Download dataset using: git clone git@github.com:GPT-RL/pybullet-URDF-models.git
                             yield k, tuple(vs)
 
                 features = dict(get_features())
-            urdfs = [u for u in urdfs if u.name in features]
+            meshes = [m for m in meshes if m.name in features]
             all_missions = list(features.values())
         else:
             features = None
-            all_missions = names
+            all_missions = [m.name for m in meshes]
 
         rng = np.random.default_rng(seed=seed)
         names: TrainTest[Set[str]] = cls.train_test_split(
-            tuple(names), num_test_names, rng
+            tuple([m.name for m in meshes]), num_test_names, rng
         )
         names: Set[str] = names.test if test else names.train
         assert len(names) > 1
-        urdfs = [u for u in urdfs if u.name in names]
+        meshes = [m for m in meshes if m.name in names]
 
         return super().make_vec_envs(
             all_missions=all_missions,
             features=features,
+            meshes=meshes,
             num_processes=num_processes,
             render=render,
             seed=seed,
             sync_envs=sync_envs,
             tokenizer=cls.tokenizer(pretrained_model),
             test=test,
-            urdfs=urdfs,
             **kwargs,
         )
 

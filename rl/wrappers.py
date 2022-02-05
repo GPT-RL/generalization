@@ -2,14 +2,13 @@ import abc
 import typing
 from dataclasses import astuple, dataclass, replace
 from functools import lru_cache
-from pathlib import Path
 from typing import Dict, Generic, List, TypeVar
 
 import gym
 import numpy as np
 from gym.spaces import Box, Discrete, MultiDiscrete
-from gym.wrappers.monitoring.video_recorder import VideoRecorder
-from pybullet_env import Observation
+from my.env import Obs
+from torch import Tensor
 from torch.nn.utils.rnn import pad_sequence
 from transformers import GPT2Tokenizer
 
@@ -22,9 +21,20 @@ class TrainTest(Generic[T]):
     test: T
 
 
+class DirectionWrapper(gym.Wrapper):
+    def __init__(self, env):
+        super().__init__(env)
+        self.observation_space = gym.spaces.Dict(
+            spaces=dict(
+                **self.observation_space.spaces,
+                direction=Discrete(4),
+            )
+        )
+
+
 class ImageNormalizerWrapper(gym.ObservationWrapper):
     def observation(self, observation):
-        observation = Observation(*observation)
+        observation = Obs(**observation)
         return replace(observation, image=observation.image / 255).to_obs(
             self.observation_space
         )
@@ -36,7 +46,7 @@ class MissionWrapper(gym.Wrapper, abc.ABC):
         super().__init__(env)
 
     def reset(self, **kwargs):
-        observation = Observation(*self.env.reset(**kwargs))
+        observation = Obs(**self.env.reset(**kwargs))
         self._mission = self.change_mission(observation.mission)
         return replace(observation, mission=self._mission).to_obs(
             self.observation_space
@@ -44,7 +54,7 @@ class MissionWrapper(gym.Wrapper, abc.ABC):
 
     def step(self, action):
         observation, reward, done, info = self.env.step(action)
-        observation = replace(Observation(*observation), mission=self._mission)
+        observation = replace(Obs(**observation), mission=self._mission)
         return observation.to_obs(self.observation_space), reward, done, info
 
     def render(self, mode="human", pause=True, **kwargs):
@@ -68,7 +78,7 @@ class FeatureWrapper(MissionWrapper):
     def __init__(self, env: gym.Env, features: Dict[str, List[str]]):
         super().__init__(env)
         self.features = features
-        observation_space = Observation(*self.observation_space.spaces)
+        observation_space = Obs(**self.observation_space.spaces)
         self.observation_space = replace(
             observation_space, mission=StringTuple()
         ).to_space()
@@ -80,10 +90,8 @@ class FeatureWrapper(MissionWrapper):
 class RolloutsWrapper(gym.ObservationWrapper):
     def __init__(self, env):
         super().__init__(env)
-        spaces = Observation(*self.observation_space.spaces)
-        self.original_observation_space = Observation(
-            *self.observation_space.spaces
-        ).to_space()
+        spaces = Obs(**self.observation_space.spaces)
+        self.original_observation_space = spaces.to_space()
 
         def sizes():
             for space in astuple(spaces):
@@ -101,7 +109,9 @@ class RolloutsWrapper(gym.ObservationWrapper):
         )
 
     def observation(self, observation):
-        obs = np.concatenate(astuple(Observation(*[x.flatten() for x in observation])))
+        obs = np.concatenate(
+            astuple(Obs(**{k: v.flatten() for k, v in observation.items()}))
+        )
         # assert self.observation_space.contains(obs)
         return obs
 
@@ -119,7 +129,7 @@ class TokenizerWrapper(gym.ObservationWrapper):
         d = max(ds)
 
         super().__init__(env)
-        spaces = Observation(*self.observation_space.spaces)
+        spaces = Obs(**self.observation_space.spaces)
 
         self.obs_spaces = replace(
             spaces,
@@ -133,7 +143,14 @@ class TokenizerWrapper(gym.ObservationWrapper):
         tokenizer: GPT2Tokenizer,
     ):
         if isinstance(mission, tuple):
-            tokens = [tokenizer.encode(w, return_tensors="pt").T for w in mission]
+
+            def get_tokens():
+                for w in mission:
+                    encoded = tokenizer.encode(w, return_tensors="pt")
+                    encoded = typing.cast(Tensor, encoded)
+                    yield encoded.T
+
+            tokens = list(get_tokens())
             padded = (
                 pad_sequence(tokens, padding_value=tokenizer.eos_token_id).squeeze(-1).T
             )
@@ -164,7 +181,7 @@ class TokenizerWrapper(gym.ObservationWrapper):
         return padded.reshape(mission_shape)
 
     def observation(self, observation):
-        observation = Observation(*observation)
+        observation = Obs(**observation)
         mission = observation.mission
         if isinstance(mission, list):
             mission = tuple(mission)
@@ -174,24 +191,3 @@ class TokenizerWrapper(gym.ObservationWrapper):
             tokenizer=self.tokenizer,
         )
         return replace(observation, mission=mission).to_obs(self.observation_space)
-
-
-class VideoRecorderWrapper(gym.Wrapper):
-    def __init__(self, env: gym.Env, path: Path):
-        super().__init__(env)
-        self.rec = VideoRecorder(env, path=str(path))
-
-    def reset(self, **kwargs):
-        s = super().reset()
-        self.rec.capture_frame()
-        print(Observation(*s).mission)
-        return s
-
-    def step(self, action):
-        s, r, t, i = super().step(action)
-        self.rec.capture_frame()
-        return s, r, t, i
-
-    def close(self):
-        super().close()
-        self.rec.close()

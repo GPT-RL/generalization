@@ -7,7 +7,7 @@ import torch.nn as nn
 from agent import NNBase
 from gym import Space
 from gym.spaces import Box, Dict, Discrete, MultiDiscrete
-from pybullet_env import Observation
+from my.env import Obs
 from transformers import GPT2Tokenizer
 from utils import init
 
@@ -22,7 +22,7 @@ def get_size(space: Space):
 
 class Agent(agent.Agent):
     def __init__(self, observation_space, **kwargs):
-        spaces = Observation(*observation_space.spaces)
+        spaces = Obs(**observation_space.spaces)
         super().__init__(
             obs_shape=spaces.image.shape, observation_space=observation_space, **kwargs
         )
@@ -46,7 +46,7 @@ class Base(NNBase):
             recurrent_input_size=256 + mission_size,
             hidden_size=hidden_size,
         )
-        self.observation_spaces = Observation(*observation_space.spaces)
+        self.observation_spaces = Obs(**observation_space.spaces)
 
         self.pad_token_id = GPT2Tokenizer.from_pretrained(pretrained_model).eos_token_id
 
@@ -98,7 +98,7 @@ class Base(NNBase):
         return outputs
 
     def forward(self, inputs, rnn_hxs, masks):
-        inputs = Observation(
+        inputs = Obs(
             *torch.split(
                 inputs,
                 [get_size(space) for space in astuple(self.observation_spaces)],

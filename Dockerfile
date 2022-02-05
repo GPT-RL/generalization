@@ -1,5 +1,5 @@
 # inspired by https://sourcery.ai/blog/python-docker/
-FROM nvidia/cudagl:11.3.1-runtime-ubuntu18.04 as base
+FROM nvidia/cudagl:11.4.0-runtime-ubuntu20.04 as base
 ENV LC_ALL C.UTF-8
 
 # no .pyc files
@@ -15,14 +15,15 @@ ENV PYTHONBREAKPOINT=ipdb.set_trace
 RUN apt-get update -q \
  && DEBIAN_FRONTEND="noninteractive" \
     apt-get install -yq \
-      # video recording
-      ffmpeg \
+      # needed for rendering
+      freeglut3-dev \
+      libfreetype6 \
+
+      # needed for egl
+      libegl-mesa0 \
 
       # git-state
       git \
-
-      # EGL for rendering
-      libegl-mesa0 \
 
       # primary interpreter
       python3.8 \
