@@ -87,8 +87,8 @@ class Env(MiniWorldEnv):
 
         super().__init__(max_episode_steps=max_episode_steps, **kwargs)
 
-        # Allow only movement actions (left/right/forward)
-        self.action_space = spaces.Discrete(self.actions.move_forward + 1)
+        # Allow only movement actions (left/right/forward) and pickup
+        self.action_space = spaces.Discrete(self.actions.pickup + 1)
         self.observation_space = Obs(
             image=self.observation_space, mission=String()
         ).to_space()
@@ -144,10 +144,10 @@ class Env(MiniWorldEnv):
         self.update_timestep(a=[*MiniWorldEnv.Actions][action.item()])
         image, reward, done, info = super().step(action)
 
-        if self.near(self.goal):
+        if self.agent.carrying == self.goal:
             reward += self._reward()
             done = True
-        elif self.near(self.dist):
+        elif self.agent.carrying == self.dist:
             done = True
 
         obs = self.make_obs(image)
