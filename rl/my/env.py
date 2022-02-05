@@ -85,7 +85,7 @@ class Env(MiniWorldEnv):
         meshes = [
             MeshEnt(str(mesh.obj), height=1, tex_name=str(mesh.png)) for mesh in meshes
         ]
-        self.goal, _ = [self.place_entity(mesh) for mesh in meshes]
+        self.goal, self.dist = [self.place_entity(mesh) for mesh in meshes]
 
         self.place_agent()
 
@@ -106,6 +106,8 @@ class Env(MiniWorldEnv):
 
         if self.near(self.goal):
             reward += self._reward()
+            done = True
+        elif self.near(self.dist):
             done = True
 
         obs = self.make_obs(image)
