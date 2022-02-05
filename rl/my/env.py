@@ -1,13 +1,14 @@
 import string
 from dataclasses import asdict, dataclass, replace
 from pathlib import Path
-from typing import List, NamedTuple, TypeVar
+from typing import List, NamedTuple, Optional, TypeVar, Union
 
 import gym
 import numpy as np
 from art import text2art
 from colors import color
 from gym import Space, spaces
+from gym_miniworld.envs import OneRoom
 from gym_miniworld.miniworld import MiniWorldEnv
 from my.mesh_ent import MeshEnt
 from tap import Tap
@@ -21,8 +22,8 @@ class Args(Tap):
 
 
 class Mesh(NamedTuple):
-    obj: Path
-    png: Path
+    obj: Union[Path, str]
+    png: Optional[Path]
     name: str
 
 
@@ -61,6 +62,9 @@ class Timestep:
     i: dict = None
 
 
+OneRoom
+
+
 class Env(MiniWorldEnv):
     """
     Environment in which the goal is to go to a red box
@@ -95,7 +99,10 @@ class Env(MiniWorldEnv):
         goal_mesh, _ = meshes = [self.meshes[i] for i in meshes]
         self.mission = goal_mesh.name
         meshes = [
-            MeshEnt(str(mesh.obj), height=1, tex_name=str(mesh.png)) for mesh in meshes
+            MeshEnt(
+                str(mesh.obj), height=1, tex_name=str(mesh.png) if mesh.png else None
+            )
+            for mesh in meshes
         ]
         self.goal, self.dist = [self.place_entity(mesh) for mesh in meshes]
 

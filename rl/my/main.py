@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Dict, List, Literal, Optional, Set, Tuple, cast
 
 import base_main
+import gym_miniworld
 import numpy as np
 from envs import RenderWrapper, VecPyTorch
 from gym_miniworld.objmesh import ObjMesh
@@ -131,40 +132,59 @@ class Trainer(base_main.Trainer):
     ):
         if test:
             num_processes = cls._num_eval_processes(num_processes, num_test_envs)
-
-        data_path = Path(data_path).expanduser()
-        if not data_path.exists():
-            raise RuntimeError(
-                f"""\
-{data_path} does not exist.
-Download dataset using https://github.com/sea-bass/ycb-tools
-"""
-            )
-
         if names:
             names: Set[str] = set(names.split(","))
 
-        def get_name(path: Path):
-            if data_path == Path("~/.cache/data/ycb").expanduser():
-                name = path.parent.parent.name
-            elif (
-                data_path == Path("~/.gym-miniworld/gym_miniworld/meshes").expanduser()
-            ):
-                name = path.stem
-            else:
-                raise RuntimeError(f"Not a recognized path: {data_path}")
-            name = re.sub(r"\d+(-[a-z])?_", "", name)
-            return name.replace("_", " ")
+        default_meshes_dir = Path(Path(gym_miniworld.__file__).parent, "meshes")
+        if data_path is not None:
+            #     assert names
+            #     meshes = [
+            #         Mesh(obj=name, png=None, name=name.replace("_", " ")) for name in names
+            #     ]
+            # else:
+            data_path = Path(data_path).expanduser()
+            if not data_path.exists():
+                raise RuntimeError(
+                    f"""\
+        {data_path} does not exist.
+        Download dataset using https://github.com/sea-bass/ycb-tools
+        """
+                )
 
-        objs = {get_name(path): path for path in data_path.glob(obj_pattern)}
-        pngs = {get_name(path): path for path in data_path.glob(png_pattern)}
+        def get_data_path_meshes():
+            if data_path:
 
-        def get_meshes():
-            for name in objs:
-                if not names or name in names:
-                    yield Mesh(objs.get(name), pngs.get(name), name)
+                def get_names(path: Path):
+                    name = path.parent.parent.name
+                    name = re.sub(r"\d+(-[a-z])?_", "", name)
+                    return name.replace("_", " ")
 
-        meshes: List[Mesh] = list(get_meshes())
+                objs = {get_names(path): path for path in data_path.glob(obj_pattern)}
+                pngs = {get_names(path): path for path in data_path.glob(png_pattern)}
+                for n in objs:
+                    yield Mesh(objs.get(n), pngs.get(n), n)
+
+        data_path_meshes = list(get_data_path_meshes())
+        default_meshes = [
+            Mesh(name=name.replace("_", " "), obj=name, png=None)
+            for name in {m.stem for m in default_meshes_dir.iterdir()}
+        ]
+        if names is None:
+            meshes = default_meshes if data_path is None else data_path_meshes
+        else:
+            data_path_meshes = {m.name: m for m in data_path_meshes}
+            default_meshes = {m.name: m for m in default_meshes}
+
+            def get_meshes():
+                for name in names:
+                    if name in data_path_meshes:
+                        yield data_path_meshes[name]
+                    elif name in default_meshes:
+                        yield default_meshes[name]
+                    else:
+                        raise RuntimeError(f"Invalid name: {name}")
+
+            meshes = list(get_meshes())
 
         for mesh in tqdm(meshes):
             ObjMesh.get(str(mesh.obj), tex_path=mesh.png)
