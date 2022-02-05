@@ -1,10 +1,12 @@
 import string
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 from typing import List, NamedTuple, TypeVar
 
 import gym
 import numpy as np
+from art import text2art
+from colors import color
 from gym import Space, spaces
 from gym_miniworld.miniworld import MiniWorldEnv
 from my.mesh_ent import MeshEnt
@@ -50,6 +52,15 @@ class String(gym.Space):
         return isinstance(x, str)
 
 
+@dataclass
+class Timestep:
+    s: Obs = None
+    a: MiniWorldEnv.Actions = None
+    r: float = None
+    t: bool = None
+    i: dict = None
+
+
 class Env(MiniWorldEnv):
     """
     Environment in which the goal is to go to a red box
@@ -68,6 +79,7 @@ class Env(MiniWorldEnv):
         assert size >= 2
         self.size = size
         self.rng = np.random.default_rng(seed=seed)
+        self._timestep = Timestep()
 
         super().__init__(max_episode_steps=max_episode_steps, **kwargs)
 
@@ -89,19 +101,40 @@ class Env(MiniWorldEnv):
 
         self.place_agent()
 
-    def make_obs(self, image: np.ndarray) -> dict:
-        check = isinstance(self.observation_space, gym.spaces.Dict)
-        return Obs(image=image, mission=self.mission).to_obs(
-            self.observation_space, check=check
-        )
+    @staticmethod
+    def ascii_of_image(image: np.ndarray):
+        def rows():
+            for row in image:
+                yield "".join([(color("██", tuple(rgb.astype(int)))) for rgb in row])
 
-    def render(self, *args, mode="human", **kwargs):
-        return super().render(*args, mode=mode, **kwargs)
+        return "\n".join(rows())
+
+    def make_obs(self, image: np.ndarray) -> Obs:
+        return Obs(image=image, mission=self.mission)
+
+    def render(self, mode="human", pause=True, **kwargs):
+        if mode == "ascii":
+            print(self.ascii_of_image(self.render_obs()))
+            print()
+            subtitle = self.mission
+            if self._timestep.a is not None:
+                action = self._timestep.a.name.replace("_", " ")
+                subtitle = f"{subtitle}, {action}, r={round(self._timestep.r, 2)}"
+                if self._timestep.t:
+                    subtitle += ", done"
+            print(text2art(subtitle.swapcase(), font="com_sen"))
+            if pause:
+                input("Press enter to continue.")
+        else:
+            return super().render(mode=mode, **kwargs)
 
     def reset(self) -> dict:
-        return self.make_obs(super().reset())
+        obs = self.make_obs(super().reset())
+        self.update_timestep(s=obs)
+        return self.to_obs(obs)
 
-    def step(self, action):
+    def step(self, action: np.ndarray):
+        self.update_timestep(a=[*MiniWorldEnv.Actions][action.item()])
         image, reward, done, info = super().step(action)
 
         if self.near(self.goal):
@@ -111,4 +144,21 @@ class Env(MiniWorldEnv):
             done = True
 
         obs = self.make_obs(image)
-        return obs, reward, done, info
+        self.update_timestep(s=obs, r=reward, t=done, i=info)
+        return self.to_obs(obs), reward, done, info
+
+    def to_obs(self, obs: Obs):
+        check = isinstance(self.observation_space, gym.spaces.Dict)
+        return obs.to_obs(self.observation_space, check=check)
+
+    def update_timestep(
+        self,
+        s: Obs = None,
+        a: MiniWorldEnv.Actions = None,
+        r: float = None,
+        t: bool = None,
+        i: dict = None,
+    ):
+        mapping = dict(s=s, a=a, r=r, t=t, i=i)
+        kwargs = {k: v for k, v in mapping.items() if v is not None}
+        self._timestep = replace(self._timestep, **kwargs)
