@@ -13,6 +13,7 @@ transformers = "^4.16.2"
 typed-argument-parser = "^1.7.2"
 ansicolors = "^1.1.8"
 art = "^5.4"
+ray = "^1.10.0"
 
 [tool.poetry.dev-dependencies]
 ipdb = "^0.13.9"
