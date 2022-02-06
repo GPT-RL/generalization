@@ -6,7 +6,7 @@ from typing import List, cast
 import Levenshtein
 import pandas as pd
 import tabula
-from my.env import get_data_path_meshes
+from my.env import Mesh
 from tap import Tap
 
 
@@ -24,8 +24,23 @@ def remove_newline(s: str):
 
 class Args(Tap):
     data_path: str = str(Path(Path.home(), ".cache/data/ycb"))
-    pdf_path: str = "ycb.pdf"
+    excluded_path: str = "excluded.csv"
     features_path: str = "features.csv"
+    pdf_path: str = "ycb.pdf"
+
+
+def get_data_path_meshes(data_path: Path, obj_pattern: str, png_pattern: str):
+    if data_path:
+
+        def get_names(path: Path):
+            name = path.parent.parent.name
+            name = re.sub(r"\d+(-[a-z])?_", "", name)
+            return name.replace("_", " ")
+
+        objs = {get_names(path): path for path in data_path.glob(obj_pattern)}
+        pngs = {get_names(path): path for path in data_path.glob(png_pattern)}
+        for n in objs:
+            yield Mesh(objs.get(n), pngs.get(n), n)
 
 
 def main(args: Args):
@@ -37,6 +52,8 @@ def main(args: Args):
     mesh_paths = {path.parts[0]: path for path in mesh_paths}
     features = pd.read_csv(args.features_path, index_col="name")
     features = features.to_dict()["description"]
+    excluded = pd.read_csv(args.excluded_path, header=None, index_col=0)
+    excluded = set(excluded.index)
 
     @dataclass
     class Columns:
@@ -83,6 +100,8 @@ def main(args: Args):
                     name = cast(str, row.Name)
                     name = name.replace("-\xad‐", "-")
                     name = re.sub(r"[\t\r ]+", " ", name)
+                    if name in excluded:
+                        continue
                     path = mesh_paths[
                         min(
                             list(mesh_paths),
