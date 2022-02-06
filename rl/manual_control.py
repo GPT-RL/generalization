@@ -2,7 +2,6 @@ import math
 import re
 import sys
 import time
-from pathlib import Path
 
 import pyglet
 from my.env import Args, Env, Mesh
@@ -22,18 +21,16 @@ if __name__ == "__main__":
     env = Env(
         meshes=[
             Mesh(
-                obj=Path(f"~/.cache/data/ycb/{name}/google_16k/textured").expanduser(),
-                png=Path(
-                    f"~/.cache/data/ycb/{name}/google_16k/texture_map"
-                ).expanduser(),
+                obj=name,
+                png=None,
                 name=re.sub(r"\d+_", "", name),
             )
             for name in [
-                "013_apple",
-                "014_lemon",
+                "barrel",
+                "key",
             ]
         ],
-        seed=0,
+        size=6,
     )
     if args.no_time_limit:
         env.max_episode_steps = math.inf

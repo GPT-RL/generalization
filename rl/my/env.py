@@ -140,8 +140,13 @@ class Env(MiniWorldEnv):
         self.update_timestep(s=obs)
         return self.to_obs(obs)
 
-    def step(self, action: np.ndarray):
-        self.update_timestep(a=[*MiniWorldEnv.Actions][action.item()])
+    def step(self, action: Union[np.ndarray, MiniWorldEnv.Actions]):
+        a = (
+            action
+            if isinstance(action, MiniWorldEnv.Actions)
+            else [*MiniWorldEnv.Actions][action.item()]
+        )
+        self.update_timestep(a=a)
         image, reward, done, info = super().step(action)
 
         if self.agent.carrying == self.goal:
