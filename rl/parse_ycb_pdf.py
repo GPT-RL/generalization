@@ -12,8 +12,9 @@ from tap import Tap
 
 @dataclass
 class Object:
+    description: List[str] = None
     dimensions: List[float] = None
-    features: List[str] = None
+    height: float = None
     name: str = None
     path: Path = None
 
@@ -51,7 +52,7 @@ def main(args: Args):
     mesh_paths = [m.obj.relative_to(data_path) for m in data_path_meshes]
     mesh_paths = {path.parts[0]: path for path in mesh_paths}
     features = pd.read_csv(args.features_path, index_col="name")
-    features = features.to_dict()["description"]
+    features = features.to_dict()
     excluded = pd.read_csv(args.excluded_path, header=None, index_col=0)
     excluded = set(excluded.index)
 
@@ -79,9 +80,6 @@ def main(args: Args):
         for i, df in enumerate(tables):
             if i == 0:
                 df = df.drop([0])
-            # apply = df.apply(lambda row: row.astype(str).str.contains("Dice").any(), axis=1)
-            # if apply.any():
-            #     breakpoint()
             if len(df.columns) == 1:
                 continue
             if i not in renames:
@@ -102,17 +100,24 @@ def main(args: Args):
                     name = re.sub(r"[\t\r ]+", " ", name)
                     if name in excluded:
                         continue
-                    path = mesh_paths[
-                        min(
-                            list(mesh_paths),
-                            key=lambda p: Levenshtein.distance(name, p),
-                        )
-                    ]
-                    _features = features[name]
-                    _features = None if pd.isna(_features) else _features.split(",")
+                    if name == "Srub Cleanser bottle":
+                        path = "021_bleach_cleanser/google_16k/textured.obj"
+                    else:
+                        path = mesh_paths[
+                            min(
+                                list(mesh_paths),
+                                key=lambda p: Levenshtein.distance(name, p),
+                            )
+                        ]
+                    height = features["height"][name]
+                    description = features["description"][name]
+                    description = (
+                        None if pd.isna(description) else description.split(",")
+                    )
                     obj = Object(
                         dimensions=dimensions,
-                        features=_features,
+                        description=description,
+                        height=height,
                         name=name,
                         path=path,
                     )

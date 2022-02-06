@@ -79,6 +79,7 @@ class Env(MiniWorldEnv):
         self,
         meshes: List[Mesh],
         size: int,
+        image_size: int = 128,
         max_episode_steps: int = 180,
         pitch: float = 0,
         rank: int = 0,
@@ -93,7 +94,13 @@ class Env(MiniWorldEnv):
 
         params = deepcopy(DEFAULT_PARAMS)
         params.set("cam_pitch", pitch, pitch, pitch)
-        super().__init__(max_episode_steps=max_episode_steps, params=params, **kwargs)
+        super().__init__(
+            max_episode_steps=max_episode_steps,
+            params=params,
+            obs_width=image_size,
+            obs_height=image_size,
+            **kwargs,
+        )
         # Allow only movement actions (left/right/forward) and pickup
         self.action_space = spaces.Discrete(self.actions.pickup + 1)
         self.observation_space = Obs(
@@ -104,11 +111,12 @@ class Env(MiniWorldEnv):
         self.add_rect_room(min_x=0, max_x=self.size, min_z=0, max_z=self.size)
         meshes = self.rand.subset(self.meshes, num_elems=2)
         self.mission, _ = [m.name for m in meshes]
+        meshes
         self.goal, self.dist = [
             self.place_entity(
                 MeshEnt(
                     str(mesh.obj),
-                    height=0.8,
+                    height=mesh.height,
                     static=False,
                     tex_name=str(mesh.png) if mesh.png else None,
                 )
@@ -210,7 +218,8 @@ def get_meshes(
             parent = Path(data_path, path.parent)
             obj = Path(parent, path.stem)
             png = Path(parent, "texture_map.png")
-            height = row.get("height", 1)
+            height = row.get("height")
+            height = 1 if pd.isna(height) else height / 100
             yield Mesh(obj=obj, png=png, name=row["name"], height=height)
 
     data_path_meshes = list(_get_meshes())

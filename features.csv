@@ -1,73 +1,73 @@
-name,description
-Cheez-it Cracker box,"red,has letters,rectangular,box"
-Domino Sugar box,"yellow,white,some blue,rectangular,box"
-Jell-O Chocolate Pudding box,"brown,has letters,rectangular,box"
-Jell-O Strawberry Gelatin box,"red,has letters,rectangular,box"
-Spam Potted Meat can,"blue,gold,has letters,rectangular"
-Master Chef Coffee can,"blue,has letters,cylinder"
-Starkist Tuna Fish can,"blue,has letters,cylinder"
-Pringles Chips can,"red,has letters,cylinder"
-French's Mustard bottle,"yellow,has letters,bottle"
-Tomato Soup can,"red,has letters,cylinder"
-Plastic banana,"yellow,curved"
-Plastic strawberry,"red,round"
-Plastic apple,"red,round"
-Plastic lemon,"yellow,round"
-Plastic peach,"orange,red,round"
-Plastic pear,green
-Plastic orange,"orange,round"
-Plastic plum,"purple,round"
-Windex Spray bottle,"blue,bottle,has letters"
-Srub Cleanser bottle,"white,bottle,has letters"
-Scotch Brite Dobie sponge,"beige,flat"
-Pitcher Base,"blue,cylinder"
-Pitcher Lid,blue
-Plate,"red,round"
-Bowl,"red,round,has rim"
-Fork,"red,metal,long"
-Spoon,"red,metal,long"
-Knife,"red,metal,long"
-Spatula,"black,long"
-Wine glass,"glass,has rim"
-Mug,"red,has rim,cylinder"
-Skillet,"white,has rim"
-Skillet Lid,"glass,round"
-Table Cloth,white
-Scissors,"grey,metal,long"
-Large marker,"black,white,long"
-Small marker,"black,white,long"
-Padlock & Keys,metal
-Hammer,"wood,metal,long"
-Nails,"metal,long"
-Bolt & nut,metal
-Phillips Screwdriver,"grey,blue,black,metal,long"
-Flat Screwdriver,"red,grey,black,metal,long"
-Adjustable Wrench,"metal,long"
-Wood block,"wood,rectangular,box"
-Clamps,black
-Power Drill,"black,orange"
-Credit Card blank,"white,flat,rectangle"
-Mini soccer ball,"round,white,green"
-Soft Ball,"round,green"
-Baseball,"round,white"
-Tennis Ball,"round,green"
-Racquetball,"round,blue"
-Golf Ball,"round,white"
-Marbles,
-Cups,
-Foam Brick,
-Dice,"white,box"
-Washers( 7 sizes),"metal,round,flat"
-Rope,
-Chain,
-Rubicks Cube,"square,box,red,yellow,green"
-Clear Box( x2),
-Box Lid,
-Colored Wood Blocks,
-9-Peg-Hole Test,
-Toy Airplane,
-LEGO Duplo,
-Magazine,
-Black t-shirt,black
-Timer,
-Footlocker,"grey,box"
+name,description,height
+Cheez-it Cracker box,"red,has letters,rectangular,box",158.0
+Domino Sugar box,"yellow,white,some blue,rectangular,box",89.0
+Jell-O Chocolate Pudding box,"brown,has letters,rectangular,box",110.0
+Jell-O Strawberry Gelatin box,"red,has letters,rectangular,box",110.0
+Spam Potted Meat can,"blue,gold,has letters,rectangular",97.0
+Master Chef Coffee can,"blue,has letters,cylinder",102.0
+Starkist Tuna Fish can,"blue,has letters,cylinder",85.0
+Pringles Chips can,"red,has letters,cylinder",85.0
+French's Mustard bottle,"yellow,has letters,bottle",85.0
+Tomato Soup can,"red,has letters,cylinder",66.0
+Plastic banana,"yellow,curved",190.0
+Plastic strawberry,"red,round",55.0
+Plastic apple,"red,round",75.0
+Plastic lemon,"yellow,round",68.0
+Plastic peach,"orange,red,round",59.0
+Plastic pear,green,100.0
+Plastic orange,"orange,round",73.0
+Plastic plum,"purple,round",52.0
+Windex Spray bottle,"blue,bottle,has letters",105.0
+Srub Cleanser bottle,"white,bottle,has letters",65.0
+Scotch Brite Dobie sponge,"beige,flat",72.0
+Pitcher Base,"blue,cylinder",108.0
+Pitcher Lid,blue,123.0
+Plate,"red,round",200.0
+Bowl,"red,round,has rim",159.0
+Fork,"red,metal,long",30.0
+Spoon,"red,metal,long",30.0
+Knife,"red,metal,long",30.0
+Spatula,"black,long",83.0
+Wine glass,"glass,has rim",270.0
+Mug,"red,has rim,cylinder",82.0
+Skillet,"white,has rim",121.0
+Skillet Lid,"glass,round",270.0
+Table Cloth,white,3.0
+Scissors,"grey,metal,long",200.0
+Large marker,"black,white,long",121.0
+Small marker,"black,white,long",205.0
+Padlock & Keys,metal,200.0
+Hammer,"wood,metal,long",150.0
+Nails,"metal,long",3.0
+Bolt & nut,metal,140.0
+Phillips Screwdriver,"grey,blue,black,metal,long",50.0
+Flat Screwdriver,"red,grey,black,metal,long",50.0
+Adjustable Wrench,"metal,long",205.0
+Wood block,"wood,rectangular,box",200.0
+Clamps,black,42.7
+Power Drill,"black,orange",150.0
+Credit Card blank,"white,flat,rectangle",1.0
+Mini soccer ball,"round,white,green",140.0
+Soft Ball,"round,green",96.0
+Baseball,"round,white",80.0
+Tennis Ball,"round,green",64.7
+Racquetball,"round,blue",55.3
+Golf Ball,"round,white",42.7
+Marbles,,
+Cups,,82.0
+Foam Brick,,75.0
+Dice,"white,box",16.2
+Washers( 7 sizes),"metal,round,flat",
+Rope,,
+Chain,,130.0
+Rubicks Cube,"square,box,red,yellow,green",57.0
+Clear Box( x2),,149.0
+Box Lid,,
+Colored Wood Blocks,,26.0
+9-Peg-Hole Test,,
+Toy Airplane,,
+LEGO Duplo,,
+Magazine,,
+Black t-shirt,black,
+Timer,,
+Footlocker,"grey,box",
