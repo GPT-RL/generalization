@@ -13,6 +13,7 @@ from tap import Tap
 @dataclass
 class Object:
     dimensions: List[float] = None
+    features: List[str] = None
     name: str = None
     path: Path = None
 
@@ -24,6 +25,7 @@ def remove_newline(s: str):
 class Args(Tap):
     data_path: str = str(Path(Path.home(), ".cache/data/ycb"))
     pdf_path: str = "ycb.pdf"
+    features_path: str = "features.csv"
 
 
 def main(args: Args):
@@ -33,6 +35,8 @@ def main(args: Args):
     )
     mesh_paths = [m.obj.relative_to(data_path) for m in data_path_meshes]
     mesh_paths = {path.parts[0]: path for path in mesh_paths}
+    features = pd.read_csv(args.features_path, index_col="name")
+    features = features.to_dict()["description"]
 
     @dataclass
     class Columns:
@@ -85,12 +89,19 @@ def main(args: Args):
                             key=lambda p: Levenshtein.distance(name, p),
                         )
                     ]
-                    obj = Object(dimensions=dimensions, name=name, path=path)
-                    print(obj)
+                    _features = features[name]
+                    _features = None if pd.isna(_features) else _features.split(",")
+                    obj = Object(
+                        dimensions=dimensions,
+                        features=_features,
+                        name=name,
+                        path=path,
+                    )
                     yield obj
 
     dataframe = pd.DataFrame.from_records([asdict(o) for o in generate_objects()])
     dataframe.to_csv("ycb.csv")
+    print(dataframe)
 
 
 if __name__ == "__main__":
