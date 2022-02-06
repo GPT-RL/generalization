@@ -89,12 +89,11 @@ class Trainer(base_main.Trainer):
             features: Dict[str, List[str]],
             meshes: List[Mesh],
             room_size: int,
-            seed: int,
             tokenizer: GPT2Tokenizer,
             **_,
         ):
 
-            _env = Env(meshes=meshes, seed=seed, size=room_size)
+            _env = Env(meshes=meshes, size=room_size)
             if render:
                 _env = RenderWrapper(_env, mode="ascii")
             _env = ImageNormalizerWrapper(_env)

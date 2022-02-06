@@ -34,7 +34,6 @@ if __name__ == "__main__":
             ]
         ],
         seed=0,
-        size=5,
     )
     if args.no_time_limit:
         env.max_episode_steps = math.inf

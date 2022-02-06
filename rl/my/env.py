@@ -74,7 +74,6 @@ class Env(MiniWorldEnv):
     def __init__(
         self,
         meshes: List[Mesh],
-        seed: int,
         size: int,
         max_episode_steps: int = 180,
         **kwargs,
@@ -82,7 +81,6 @@ class Env(MiniWorldEnv):
         self.meshes = meshes
         assert size >= 2
         self.size = size
-        self.rng = np.random.default_rng(seed=seed)
         self._timestep = Timestep()
 
         super().__init__(max_episode_steps=max_episode_steps, **kwargs)
@@ -95,8 +93,7 @@ class Env(MiniWorldEnv):
 
     def _gen_world(self):
         self.add_rect_room(min_x=0, max_x=self.size, min_z=0, max_z=self.size)
-        meshes = self.rng.choice(len(self.meshes), size=2, replace=False)
-        goal_mesh, _ = meshes = [self.meshes[i] for i in meshes]
+        goal_mesh, _ = meshes = self.rand.subset(self.meshes, num_elems=2)
         self.mission = goal_mesh.name
         meshes = [
             MeshEnt(
