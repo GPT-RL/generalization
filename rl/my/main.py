@@ -1,20 +1,18 @@
 import csv
 import functools
-import re
 from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Literal, Optional, Set, Tuple, cast
 
 import base_main
-import gym_miniworld
 import numpy as np
 from envs import RenderWrapper, VecPyTorch
 from gym_miniworld.objmesh import ObjMesh
 from line_chart import spec
 from my import env
 from my.agent import Agent
-from my.env import Env, Mesh
+from my.env import Env, Mesh, get_meshes
 from run_logger import HasuraLogger
 from stable_baselines3.common.monitor import Monitor
 from tqdm import tqdm
@@ -34,7 +32,6 @@ ENV_RETURN = "environment return"
 
 
 class Args(base_main.Args, env.Args):
-    names: Optional[str] = None
     num_test_envs: int = 8
     num_test_names: int = 2
     pretrained_model: Literal[
@@ -160,59 +157,12 @@ class Trainer(base_main.Trainer):
     ):
         if test:
             num_processes = cls._num_eval_processes(num_processes, num_test_envs)
-        if names:
-            names: Set[str] = set(names.split(","))
-
-        default_meshes_dir = Path(Path(gym_miniworld.__file__).parent, "meshes")
-        if data_path is not None:
-            #     assert names
-            #     meshes = [
-            #         Mesh(obj=name, png=None, name=name.replace("_", " ")) for name in names
-            #     ]
-            # else:
-            data_path = Path(data_path).expanduser()
-            if not data_path.exists():
-                raise RuntimeError(
-                    f"""\
-        {data_path} does not exist.
-        Download dataset using https://github.com/sea-bass/ycb-tools
-        """
-                )
-
-        def get_data_path_meshes():
-            if data_path:
-
-                def get_names(path: Path):
-                    name = path.parent.parent.name
-                    name = re.sub(r"\d+(-[a-z])?_", "", name)
-                    return name.replace("_", " ")
-
-                objs = {get_names(path): path for path in data_path.glob(obj_pattern)}
-                pngs = {get_names(path): path for path in data_path.glob(png_pattern)}
-                for n in objs:
-                    yield Mesh(objs.get(n), pngs.get(n), n)
-
-        data_path_meshes = list(get_data_path_meshes())
-        default_meshes = [
-            Mesh(name=name.replace("_", " "), obj=name, png=None)
-            for name in {m.stem for m in default_meshes_dir.iterdir()}
-        ]
-        if names is None:
-            meshes = default_meshes if data_path is None else data_path_meshes
-        else:
-            data_path_meshes = {m.name: m for m in data_path_meshes}
-            default_meshes = {m.name: m for m in default_meshes}
-
-            def get_meshes():
-                for name in names:
-                    if name in data_path_meshes:
-                        yield data_path_meshes[name]
-                    elif name in default_meshes:
-                        yield default_meshes[name]
-                    else:
-                        raise RuntimeError(f"Invalid name: {name}")
-
-            meshes = list(get_meshes())
+        meshes = get_meshes(
+            data_path=data_path,
+            names=names,
+            obj_pattern=obj_pattern,
+            png_pattern=png_pattern,
+        )
 
         for mesh in tqdm(meshes):
             ObjMesh.get(str(mesh.obj), tex_path=mesh.png)

@@ -1,10 +1,9 @@
 import math
-import re
 import sys
 import time
 
 import pyglet
-from my.env import Args, Env, Mesh
+from my.env import Args, Env, get_meshes
 from pyglet.window import key
 
 
@@ -19,18 +18,13 @@ if __name__ == "__main__":
     args: ManualControlArgs = ManualControlArgs().parse_args()
 
     env = Env(
-        meshes=[
-            Mesh(
-                obj=name,
-                png=None,
-                name=re.sub(r"\d+_", "", name),
-            )
-            for name in [
-                "barrel",
-                "key",
-            ]
-        ],
-        size=6,
+        meshes=get_meshes(
+            data_path=args.data_path,
+            names=args.names,
+            obj_pattern=args.obj_pattern,
+            png_pattern=args.png_pattern,
+        ),
+        size=args.room_size,
     )
     if args.no_time_limit:
         env.max_episode_steps = math.inf

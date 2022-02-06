@@ -1,10 +1,12 @@
 import multiprocessing
+import re
 import string
 from dataclasses import asdict, dataclass, replace
 from pathlib import Path
-from typing import List, NamedTuple, Optional, TypeVar, Union
+from typing import List, NamedTuple, Optional, Set, TypeVar, Union
 
 import gym
+import gym_miniworld
 import numpy as np
 from art import text2art
 from colors import color
@@ -17,10 +19,11 @@ from tqdm import tqdm
 
 
 class Args(Tap):
-    data_path: str = "/root/.cache/data/ycb"
+    data_path: str = str(Path(Path.home(), ".cache/data/ycb"))
+    names: Optional[str] = None
     obj_pattern: str = "*/google_16k/textured.obj"
     png_pattern: str = "*/google_16k/texture_map.png"
-    room_size: int = 6
+    room_size: int = 8
 
 
 class Mesh(NamedTuple):
@@ -76,9 +79,9 @@ class Env(MiniWorldEnv):
     def __init__(
         self,
         meshes: List[Mesh],
-        rank: int,
         size: int,
         max_episode_steps: int = 180,
+        rank: int = 0,
         **kwargs,
     ):
         assert size >= 2
@@ -177,3 +180,64 @@ class Env(MiniWorldEnv):
         mapping = dict(s=s, a=a, r=r, t=t, i=i)
         kwargs = {k: v for k, v in mapping.items() if v is not None}
         self._timestep = replace(self._timestep, **kwargs)
+
+
+def get_meshes(
+    data_path: Optional[str],
+    names: Optional[str],
+    obj_pattern: Optional[str],
+    png_pattern: Optional[str],
+):
+    if names:
+        names: Set[str] = set(names.split(","))
+    default_meshes_dir = Path(Path(gym_miniworld.__file__).parent, "meshes")
+    if data_path is not None:
+        #     assert names
+        #     meshes = [
+        #         Mesh(obj=name, png=None, name=name.replace("_", " ")) for name in names
+        #     ]
+        # else:
+        data_path = Path(data_path).expanduser()
+        if not data_path.exists():
+            raise RuntimeError(
+                f"""\
+    {data_path} does not exist.
+    Download dataset using https://github.com/sea-bass/ycb-tools
+    """
+            )
+
+    def get_data_path_meshes():
+        if data_path:
+
+            def get_names(path: Path):
+                name = path.parent.parent.name
+                name = re.sub(r"\d+(-[a-z])?_", "", name)
+                return name.replace("_", " ")
+
+            objs = {get_names(path): path for path in data_path.glob(obj_pattern)}
+            pngs = {get_names(path): path for path in data_path.glob(png_pattern)}
+            for n in objs:
+                yield Mesh(objs.get(n), pngs.get(n), n)
+
+    data_path_meshes = list(get_data_path_meshes())
+    default_meshes = [
+        Mesh(name=name.replace("_", " "), obj=name, png=None)
+        for name in {m.stem for m in default_meshes_dir.iterdir()}
+    ]
+    if names is None:
+        meshes = default_meshes if data_path is None else data_path_meshes
+    else:
+        data_path_meshes = {m.name: m for m in data_path_meshes}
+        default_meshes = {m.name: m for m in default_meshes}
+
+        def get_meshes():
+            for name in names:
+                if name in data_path_meshes:
+                    yield data_path_meshes[name]
+                elif name in default_meshes:
+                    yield default_meshes[name]
+                else:
+                    raise RuntimeError(f"Invalid name: {name}")
+
+        meshes = list(get_meshes())
+    return meshes
