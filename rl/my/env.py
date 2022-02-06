@@ -88,6 +88,7 @@ class Env(MiniWorldEnv):
                 mesh.name: MeshEnt(
                     str(mesh.obj),
                     height=1,
+                    static=False,
                     tex_name=str(mesh.png) if mesh.png else None,
                 )
                 for mesh in meshes
