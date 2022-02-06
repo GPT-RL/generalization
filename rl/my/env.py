@@ -1,3 +1,4 @@
+import multiprocessing
 import string
 from dataclasses import asdict, dataclass, replace
 from pathlib import Path
@@ -18,7 +19,7 @@ class Args(Tap):
     data_path: str = "/root/.cache/data/ycb"
     obj_pattern: str = "*/google_16k/textured.obj"
     png_pattern: str = "*/google_16k/texture_map.png"
-    room_size: int = 4
+    room_size: int = 6
 
 
 class Mesh(NamedTuple):
@@ -78,13 +79,21 @@ class Env(MiniWorldEnv):
         max_episode_steps: int = 180,
         **kwargs,
     ):
-        self.meshes = meshes
         assert size >= 2
         self.size = size
         self._timestep = Timestep()
 
-        super().__init__(max_episode_steps=max_episode_steps, **kwargs)
+        with multiprocessing.Lock():
+            self.meshes = {
+                mesh.name: MeshEnt(
+                    str(mesh.obj),
+                    height=1,
+                    tex_name=str(mesh.png) if mesh.png else None,
+                )
+                for mesh in meshes
+            }
 
+        super().__init__(max_episode_steps=max_episode_steps, **kwargs)
         # Allow only movement actions (left/right/forward) and pickup
         self.action_space = spaces.Discrete(self.actions.pickup + 1)
         self.observation_space = Obs(
@@ -93,14 +102,8 @@ class Env(MiniWorldEnv):
 
     def _gen_world(self):
         self.add_rect_room(min_x=0, max_x=self.size, min_z=0, max_z=self.size)
-        goal_mesh, _ = meshes = self.rand.subset(self.meshes, num_elems=2)
-        self.mission = goal_mesh.name
-        meshes = [
-            MeshEnt(
-                str(mesh.obj), height=1, tex_name=str(mesh.png) if mesh.png else None
-            )
-            for mesh in meshes
-        ]
+        self.mission, _ = names = self.rand.subset(self.meshes, num_elems=2)
+        meshes = [self.meshes[n] for n in names]
         self.goal, self.dist = [self.place_entity(mesh) for mesh in meshes]
 
         self.place_agent()
