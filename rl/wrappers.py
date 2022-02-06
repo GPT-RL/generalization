@@ -116,6 +116,14 @@ class RolloutsWrapper(gym.ObservationWrapper):
         return obs
 
 
+class SuccessWrapper(gym.Wrapper):
+    def step(self, action):
+        s, r, t, i = super().step(action)
+        if t:
+            i.update(success=r > 0)
+        return s, r, t, i
+
+
 class TokenizerWrapper(gym.ObservationWrapper):
     def __init__(
         self,

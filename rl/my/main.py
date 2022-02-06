@@ -11,9 +11,11 @@ import gym_miniworld
 import numpy as np
 from envs import RenderWrapper, VecPyTorch
 from gym_miniworld.objmesh import ObjMesh
+from line_chart import spec
 from my import env
 from my.agent import Agent
 from my.env import Env, Mesh
+from run_logger import HasuraLogger
 from stable_baselines3.common.monitor import Monitor
 from tqdm import tqdm
 from transformers import GPT2Tokenizer
@@ -21,6 +23,7 @@ from wrappers import (
     FeatureWrapper,
     ImageNormalizerWrapper,
     RolloutsWrapper,
+    SuccessWrapper,
     TokenizerWrapper,
     TrainTest,
 )
@@ -59,16 +62,40 @@ class ArgsType(base_main.ArgsType, Args):
 @dataclass
 class Counters(base_main.Counters):
     episode_rewards_per_env: dict = field(default_factory=lambda: defaultdict(list))
+    episode_success: List[bool] = field(default_factory=list)
 
     def reset(self):
         super().reset()
         self.episode_rewards_per_env = defaultdict(list)
+        self.episode_success = []
 
 
 class Trainer(base_main.Trainer):
     @classmethod
     def build_counters(cls):
         return Counters()
+
+    @classmethod
+    def charts(cls, **kwargs):
+        return [
+            spec(x=base_main.STEP, y=base_main.EPISODE_SUCCESS, **kwargs),
+            spec(x=base_main.STEP, y=base_main.TEST_EPISODE_SUCCESS, **kwargs),
+            *super().charts(**kwargs),
+        ]
+
+    @classmethod
+    def log(
+        cls,
+        logger: HasuraLogger,
+        log: dict,
+        counters: Counters,
+        total_num_steps: int,
+    ):
+
+        log.update({base_main.EPISODE_SUCCESS: np.mean(counters.episode_success)})
+        super().log(
+            logger=logger, log=log, counters=counters, total_num_steps=total_num_steps
+        )
 
     @classmethod
     def make_agent(cls, envs: VecPyTorch, args: ArgsType) -> Agent:
@@ -88,12 +115,14 @@ class Trainer(base_main.Trainer):
             all_missions: list,
             features: Dict[str, List[str]],
             meshes: List[Mesh],
+            rank: int,
             room_size: int,
             tokenizer: GPT2Tokenizer,
             **_,
         ):
 
-            _env = Env(meshes=meshes, size=room_size)
+            _env = Env(meshes=meshes, rank=rank, size=room_size)
+            _env = SuccessWrapper(_env)
             if render:
                 _env = RenderWrapper(_env, mode="ascii")
             _env = ImageNormalizerWrapper(_env)
@@ -232,6 +261,12 @@ class Trainer(base_main.Trainer):
     @classmethod
     def num_eval_processes(cls, args: Args):
         return cls._num_eval_processes(args.num_processes, args.num_test_envs)
+
+    @classmethod
+    def process_info(cls, counters: Counters, info: dict):
+        super().process_info(counters, info)
+        if "success" in info.keys():
+            counters.episode_success.append(info["success"])
 
     @staticmethod
     def recurrent(args: Args):

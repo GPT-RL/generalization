@@ -13,6 +13,7 @@ from gym_miniworld.envs import OneRoom
 from gym_miniworld.miniworld import MiniWorldEnv
 from my.mesh_ent import MeshEnt
 from tap import Tap
+from tqdm import tqdm
 
 
 class Args(Tap):
@@ -75,6 +76,7 @@ class Env(MiniWorldEnv):
     def __init__(
         self,
         meshes: List[Mesh],
+        rank: int,
         size: int,
         max_episode_steps: int = 180,
         **kwargs,
@@ -91,7 +93,7 @@ class Env(MiniWorldEnv):
                     static=False,
                     tex_name=str(mesh.png) if mesh.png else None,
                 )
-                for mesh in meshes
+                for mesh in tqdm(meshes, position=rank)
             }
 
         super().__init__(max_episode_steps=max_episode_steps, **kwargs)
