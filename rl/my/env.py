@@ -1,6 +1,7 @@
 import multiprocessing
 import re
 import string
+from copy import deepcopy
 from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 from typing import List, NamedTuple, Optional, Set, TypeVar, Union
@@ -13,6 +14,7 @@ from colors import color
 from gym import Space, spaces
 from gym_miniworld.envs import OneRoom
 from gym_miniworld.miniworld import MiniWorldEnv
+from gym_miniworld.params import DEFAULT_PARAMS
 from my.mesh_ent import MeshEnt
 from tap import Tap
 from tqdm import tqdm
@@ -81,6 +83,7 @@ class Env(MiniWorldEnv):
         meshes: List[Mesh],
         size: int,
         max_episode_steps: int = 180,
+        pitch: float = 0,
         rank: int = 0,
         **kwargs,
     ):
@@ -99,7 +102,10 @@ class Env(MiniWorldEnv):
                 for mesh in tqdm(meshes, position=rank)
             }
 
-        super().__init__(max_episode_steps=max_episode_steps, **kwargs)
+        params = deepcopy(DEFAULT_PARAMS)
+        params.set("cam_pitch", pitch, pitch, pitch)
+
+        super().__init__(max_episode_steps=max_episode_steps, params=params, **kwargs)
         # Allow only movement actions (left/right/forward) and pickup
         self.action_space = spaces.Discrete(self.actions.pickup + 1)
         self.observation_space = Obs(
