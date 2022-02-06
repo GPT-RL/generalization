@@ -139,8 +139,6 @@ class Trainer(base_main.Trainer):
     def make_vec_envs(
         cls,
         data_path: str,
-        obj_pattern: str,
-        png_pattern: str,
         pretrained_model: str,
         names: Optional[str],
         num_processes: int,
@@ -155,12 +153,7 @@ class Trainer(base_main.Trainer):
     ):
         if test:
             num_processes = cls._num_eval_processes(num_processes, num_test_envs)
-        meshes = get_meshes(
-            data_path=data_path,
-            names=names,
-            obj_pattern=obj_pattern,
-            png_pattern=png_pattern,
-        )
+        meshes = get_meshes(data_path=data_path, names=names)
 
         if use_features:
             with Path("features.csv").open() as f:
