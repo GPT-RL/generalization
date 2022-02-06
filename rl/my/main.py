@@ -8,14 +8,12 @@ from typing import Dict, List, Literal, Optional, Set, Tuple, cast
 import base_main
 import numpy as np
 from envs import RenderWrapper, VecPyTorch
-from gym_miniworld.objmesh import ObjMesh
 from line_chart import spec
 from my import env
 from my.agent import Agent
 from my.env import Env, Mesh, get_meshes
 from run_logger import HasuraLogger
 from stable_baselines3.common.monitor import Monitor
-from tqdm import tqdm
 from transformers import GPT2Tokenizer
 from wrappers import (
     FeatureWrapper,
@@ -163,9 +161,6 @@ class Trainer(base_main.Trainer):
             obj_pattern=obj_pattern,
             png_pattern=png_pattern,
         )
-
-        for mesh in tqdm(meshes):
-            ObjMesh.get(str(mesh.obj), tex_path=mesh.png)
 
         if use_features:
             with Path("features.csv").open() as f:

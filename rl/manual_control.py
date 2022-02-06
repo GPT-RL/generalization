@@ -17,13 +17,15 @@ if __name__ == "__main__":
 
     args: ManualControlArgs = ManualControlArgs().parse_args()
 
+    meshes = get_meshes(
+        data_path=args.data_path,
+        names=args.names,
+        obj_pattern=args.obj_pattern,
+        png_pattern=args.png_pattern,
+    )
+
     env = Env(
-        meshes=get_meshes(
-            data_path=args.data_path,
-            names=args.names,
-            obj_pattern=args.obj_pattern,
-            png_pattern=args.png_pattern,
-        ),
+        meshes=meshes,
         size=args.room_size,
     )
     if args.no_time_limit:

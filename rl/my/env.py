@@ -1,4 +1,3 @@
-import multiprocessing
 import re
 import string
 from copy import deepcopy
@@ -17,7 +16,6 @@ from gym_miniworld.miniworld import MiniWorldEnv
 from gym_miniworld.params import DEFAULT_PARAMS
 from my.mesh_ent import MeshEnt
 from tap import Tap
-from tqdm import tqdm
 
 
 class Args(Tap):
@@ -91,20 +89,10 @@ class Env(MiniWorldEnv):
         self.size = size
         self._timestep = Timestep()
 
-        with multiprocessing.Lock():
-            self.meshes = {
-                mesh.name: MeshEnt(
-                    str(mesh.obj),
-                    height=1,
-                    static=False,
-                    tex_name=str(mesh.png) if mesh.png else None,
-                )
-                for mesh in tqdm(meshes, position=rank)
-            }
+        self.meshes = meshes
 
         params = deepcopy(DEFAULT_PARAMS)
         params.set("cam_pitch", pitch, pitch, pitch)
-
         super().__init__(max_episode_steps=max_episode_steps, params=params, **kwargs)
         # Allow only movement actions (left/right/forward) and pickup
         self.action_space = spaces.Discrete(self.actions.pickup + 1)
@@ -114,9 +102,19 @@ class Env(MiniWorldEnv):
 
     def _gen_world(self):
         self.add_rect_room(min_x=0, max_x=self.size, min_z=0, max_z=self.size)
-        self.mission, _ = names = self.rand.subset(self.meshes, num_elems=2)
-        meshes = [self.meshes[n] for n in names]
-        self.goal, self.dist = [self.place_entity(mesh) for mesh in meshes]
+        meshes = self.rand.subset(self.meshes, num_elems=2)
+        self.mission, _ = [m.name for m in meshes]
+        self.goal, self.dist = [
+            self.place_entity(
+                MeshEnt(
+                    str(mesh.obj),
+                    height=0.8,
+                    static=False,
+                    tex_name=str(mesh.png) if mesh.png else None,
+                )
+            )
+            for mesh in meshes
+        ]
 
         self.place_agent()
 
@@ -198,11 +196,6 @@ def get_meshes(
         names: Set[str] = set(names.split(","))
     default_meshes_dir = Path(Path(gym_miniworld.__file__).parent, "meshes")
     if data_path is not None:
-        #     assert names
-        #     meshes = [
-        #         Mesh(obj=name, png=None, name=name.replace("_", " ")) for name in names
-        #     ]
-        # else:
         data_path = Path(data_path).expanduser()
         if not data_path.exists():
             raise RuntimeError(

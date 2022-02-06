@@ -1,18 +1,39 @@
 import math
+import multiprocessing
+from pathlib import Path
 
-from gym_miniworld.entity import Entity
-from gym_miniworld.objmesh import ObjMesh
-from pyglet.gl import (
-    glColor3f,
-    glPopMatrix,
-    glPushMatrix,
-    glRotatef,
-    glScalef,
-    glTranslatef,
-)
+import gym_miniworld.entity
+import gym_miniworld.objmesh
+from gym_miniworld.utils import get_file_path
 
 
-class MeshEnt(Entity):
+class ObjMesh(gym_miniworld.objmesh.ObjMesh):
+    @classmethod
+    def get(cls, mesh_name: str, **kwargs):
+        """
+        Load a mesh or used a cached version
+        """
+        path = Path(mesh_name)
+        if path.is_absolute():
+            subdir = path.parent
+            mesh_name = path.stem
+        else:
+            subdir = "meshes"
+
+        # Assemble the absolute path to the mesh file
+        file_path = get_file_path(subdir, mesh_name, "obj")
+
+        if file_path in cls.cache:
+            return cls.cache[file_path]
+
+        mesh = ObjMesh(file_path, **kwargs)
+        with multiprocessing.Lock():
+            cls.cache[file_path] = mesh
+
+        return mesh
+
+
+class MeshEnt(gym_miniworld.entity.MeshEnt):
     """
     Entity whose appearance is defined by a mesh file
 
@@ -27,7 +48,7 @@ class MeshEnt(Entity):
         static=True,
         tex_name=None,
     ):
-        super().__init__()
+        gym_miniworld.entity.Entity.__init__(self)
 
         self.static = static
 
@@ -43,20 +64,3 @@ class MeshEnt(Entity):
         # Compute the radius and height
         self.radius = math.sqrt(sx * sx + sz * sz) * self.scale
         self.height = height
-
-    def render(self):
-        """
-        Draw the object
-        """
-
-        glPushMatrix()
-        glTranslatef(*self.pos)
-        glScalef(self.scale, self.scale, self.scale)
-        glRotatef(self.dir * 180 / math.pi, 0, 1, 0)
-        glColor3f(1, 1, 1)
-        self.mesh.render()
-        glPopMatrix()
-
-    @property
-    def is_static(self):
-        return self.static
