@@ -585,6 +585,17 @@ optional = false
 python-versions = ">=3.5"
 
 [[package]]
+name = "pymeshlab"
+version = "2021.10"
+description = "A Python interface to MeshLab"
+category = "dev"
+optional = false
+python-versions = "*"
+
+[package.dependencies]
+numpy = "*"
+
+[[package]]
 name = "pyparsing"
 version = "3.0.7"
 description = "Python parsing module"
@@ -967,7 +978,7 @@ python-versions = "*"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.8"
-content-hash = "a8881907007dea3d585bb01cb4f716f5ab8cf094259433155a9e1b0b1e923538"
+content-hash = "d19cc662d8b14320ec82fe1b5df0475bf00995340c153a5c79213ff4b47e2f90"
 
 [metadata.files]
 ansicolors = [
@@ -1299,6 +1310,23 @@ pyglet = [
 pygments = [
     {file = "Pygments-2.11.2-py3-none-any.whl", hash = "sha256:44238f1b60a76d78fc8ca0528ee429702aae011c265fe6a8dd8b63049ae41c65"},
     {file = "Pygments-2.11.2.tar.gz", hash = "sha256:4e426f72023d88d03b2fa258de560726ce890ff3b630f88c21cbb8b2503b8c6a"},
+]
+pymeshlab = [
+    {file = "pymeshlab-2021.10-cp310-cp310-macosx_10_11_x86_64.whl", hash = "sha256:2453522dd1fe5916a95e0bbb1723ddbb6bd9c847f74bb1021590c0ecdd028461"},
+    {file = "pymeshlab-2021.10-cp310-cp310-manylinux1_x86_64.whl", hash = "sha256:598a5cab560a6042f00203ba91f4e11771101cf3ba892dcf492696389e1516cd"},
+    {file = "pymeshlab-2021.10-cp310-cp310-win_amd64.whl", hash = "sha256:d745b2d590b4dca487162a3d809368d557d293cb01c55574aca4c1d70cbb5bda"},
+    {file = "pymeshlab-2021.10-cp36-cp36m-macosx_10_11_x86_64.whl", hash = "sha256:8e9562c89f03b69ca4eb4b628902c6acb5f4409179d2a92ca44ad887e0446f5a"},
+    {file = "pymeshlab-2021.10-cp36-cp36m-manylinux1_x86_64.whl", hash = "sha256:8e24402c85916eea575979e7eb418be47aaf07b1017c8c4128e03cf98f0774b1"},
+    {file = "pymeshlab-2021.10-cp36-cp36m-win_amd64.whl", hash = "sha256:f349af3e558b52f8b78754094caee8fff07b52414526e28ad457b8ce736a7bf6"},
+    {file = "pymeshlab-2021.10-cp37-cp37m-macosx_10_11_x86_64.whl", hash = "sha256:96a80c160a6f54edbb96b72fc3a635d3496bd39cb174758ae155addd6dcc780b"},
+    {file = "pymeshlab-2021.10-cp37-cp37m-manylinux1_x86_64.whl", hash = "sha256:b79ab4483eeb85a49140b6ddc25240c9a75694009d1a3f9875a06c53d9f53ed1"},
+    {file = "pymeshlab-2021.10-cp37-cp37m-win_amd64.whl", hash = "sha256:ce976d277bb4e6f400c13c16408dfe2952717d446c12d93add83b515e7678fae"},
+    {file = "pymeshlab-2021.10-cp38-cp38-macosx_10_11_x86_64.whl", hash = "sha256:f82e4baa5e8bc9c234839d2922675262a3206ce844145beeaced159215a2958d"},
+    {file = "pymeshlab-2021.10-cp38-cp38-manylinux1_x86_64.whl", hash = "sha256:263a773299a08191ffa0f9851b9b61fe83b13f98e7cd9b69116d8bbb6c9c21d8"},
+    {file = "pymeshlab-2021.10-cp38-cp38-win_amd64.whl", hash = "sha256:37ac91e50027862508729235368f74156220d4583221089c30203b9acb4a31e7"},
+    {file = "pymeshlab-2021.10-cp39-cp39-macosx_10_11_x86_64.whl", hash = "sha256:be617f7d035fb6824b0af45677b872b613873d71cf08b755dcf55d99b0a33054"},
+    {file = "pymeshlab-2021.10-cp39-cp39-manylinux1_x86_64.whl", hash = "sha256:be5c679cd37831fa380f67eb05ff73d55140a7321967046c4a764babc54d98a9"},
+    {file = "pymeshlab-2021.10-cp39-cp39-win_amd64.whl", hash = "sha256:aa9969255a861de13a6afc6774ae75739958ebbce8ccc2c0e57fb4053d62e144"},
 ]
 pyparsing = [
     {file = "pyparsing-3.0.7-py3-none-any.whl", hash = "sha256:a6c06a88f252e6c322f65faf8f418b16213b51bdfaece0524c1c1bc30c63c484"},
