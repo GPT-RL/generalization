@@ -186,6 +186,20 @@ class Env(MiniWorldEnv):
         self._timestep = replace(self._timestep, **kwargs)
 
 
+def get_data_path_meshes(data_path: Path, obj_pattern: str, png_pattern: str):
+    if data_path:
+
+        def get_names(path: Path):
+            name = path.parent.parent.name
+            name = re.sub(r"\d+(-[a-z])?_", "", name)
+            return name.replace("_", " ")
+
+        objs = {get_names(path): path for path in data_path.glob(obj_pattern)}
+        pngs = {get_names(path): path for path in data_path.glob(png_pattern)}
+        for n in objs:
+            yield Mesh(objs.get(n), pngs.get(n), n)
+
+
 def get_meshes(
     data_path: Optional[str],
     names: Optional[str],
@@ -205,20 +219,11 @@ def get_meshes(
     """
             )
 
-    def get_data_path_meshes():
-        if data_path:
-
-            def get_names(path: Path):
-                name = path.parent.parent.name
-                name = re.sub(r"\d+(-[a-z])?_", "", name)
-                return name.replace("_", " ")
-
-            objs = {get_names(path): path for path in data_path.glob(obj_pattern)}
-            pngs = {get_names(path): path for path in data_path.glob(png_pattern)}
-            for n in objs:
-                yield Mesh(objs.get(n), pngs.get(n), n)
-
-    data_path_meshes = list(get_data_path_meshes())
+    data_path_meshes = list(
+        get_data_path_meshes(
+            data_path=data_path, obj_pattern=obj_pattern, png_pattern=png_pattern
+        )
+    )
     default_meshes = [
         Mesh(name=name.replace("_", " "), obj=name, png=None)
         for name in {m.stem for m in default_meshes_dir.iterdir()}
@@ -229,7 +234,7 @@ def get_meshes(
         data_path_meshes = {m.name: m for m in data_path_meshes}
         default_meshes = {m.name: m for m in default_meshes}
 
-        def get_meshes():
+        def _get_meshes():
             for name in names:
                 if name in data_path_meshes:
                     yield data_path_meshes[name]
@@ -238,5 +243,5 @@ def get_meshes(
                 else:
                     raise RuntimeError(f"Invalid name: {name}")
 
-        meshes = list(get_meshes())
+        meshes = list(_get_meshes())
     return meshes

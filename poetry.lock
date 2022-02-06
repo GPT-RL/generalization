@@ -138,6 +138,14 @@ optional = false
 python-versions = "*"
 
 [[package]]
+name = "distro"
+version = "1.6.0"
+description = "Distro - an OS platform information API"
+category = "dev"
+optional = false
+python-versions = "*"
+
+[[package]]
 name = "filelock"
 version = "3.4.2"
 description = "A platform independent file lock."
@@ -618,6 +626,14 @@ python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,>=2.7"
 six = ">=1.5"
 
 [[package]]
+name = "python-levenshtein"
+version = "0.12.2"
+description = "Python extension for computing string edit distances and similarities."
+category = "dev"
+optional = false
+python-versions = "*"
+
+[[package]]
 name = "pytz"
 version = "2021.3"
 description = "World timezone definitions, modern and historical"
@@ -781,6 +797,24 @@ type = "git"
 url = "https://github.com/run-tracker/sweep-logger.git"
 reference = "main"
 resolved_reference = "a3fb1d3ec87f9fda5a54f80773b434efc29153af"
+
+[[package]]
+name = "tabula-py"
+version = "2.3.0"
+description = "Simple wrapper for tabula-java, read tables from PDF into DataFrame"
+category = "dev"
+optional = false
+python-versions = ">=3.5"
+
+[package.dependencies]
+distro = "*"
+numpy = "*"
+pandas = ">=0.25.3"
+
+[package.extras]
+dev = ["pytest", "flake8", "black", "isort"]
+doc = ["sphinx", "sphinx-rtd-theme"]
+test = ["pytest"]
 
 [[package]]
 name = "tokenizers"
@@ -978,7 +1012,7 @@ python-versions = "*"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.8"
-content-hash = "d19cc662d8b14320ec82fe1b5df0475bf00995340c153a5c79213ff4b47e2f90"
+content-hash = "eea9f08e34102ad505187262849c8ec787003271c8d057d5ae9c8b47a78ca91d"
 
 [metadata.files]
 ansicolors = [
@@ -1036,6 +1070,10 @@ decorator = [
 distlib = [
     {file = "distlib-0.3.4-py2.py3-none-any.whl", hash = "sha256:6564fe0a8f51e734df6333d08b8b94d4ea8ee6b99b5ed50613f731fd4089f34b"},
     {file = "distlib-0.3.4.zip", hash = "sha256:e4b58818180336dc9c529bfb9a0b58728ffc09ad92027a3f30b7cd91e3458579"},
+]
+distro = [
+    {file = "distro-1.6.0-py2.py3-none-any.whl", hash = "sha256:c8713330ab31a034623a9515663ed87696700b55f04556b97c39cd261aa70dc7"},
+    {file = "distro-1.6.0.tar.gz", hash = "sha256:83f5e5a09f9c5f68f60173de572930effbcc0287bb84fdc4426cb4168c088424"},
 ]
 filelock = [
     {file = "filelock-3.4.2-py3-none-any.whl", hash = "sha256:cf0fc6a2f8d26bd900f19bf33915ca70ba4dd8c56903eeb14e1e7a2fd7590146"},
@@ -1336,6 +1374,9 @@ python-dateutil = [
     {file = "python-dateutil-2.8.2.tar.gz", hash = "sha256:0123cacc1627ae19ddf3c27a5de5bd67ee4586fbdd6440d9748f8abb483d3e86"},
     {file = "python_dateutil-2.8.2-py2.py3-none-any.whl", hash = "sha256:961d03dc3453ebbc59dbdea9e4e11c5651520a876d0f4db161e8674aae935da9"},
 ]
+python-levenshtein = [
+    {file = "python-Levenshtein-0.12.2.tar.gz", hash = "sha256:dc2395fbd148a1ab31090dd113c366695934b9e85fe5a4b2a032745efd0346f6"},
+]
 pytz = [
     {file = "pytz-2021.3-py2.py3-none-any.whl", hash = "sha256:3672058bc3453457b622aab7a1c3bfd5ab0bdae451512f6cf25f64ed37f5b87c"},
     {file = "pytz-2021.3.tar.gz", hash = "sha256:acad2d8b20a1af07d4e4c9d2e9285c5ed9104354062f275f3fcd88dcef4f1326"},
@@ -1476,6 +1517,10 @@ stable-baselines3 = [
     {file = "stable_baselines3-1.4.0.tar.gz", hash = "sha256:0d5219d473d6caa32e770174c65294e6111fcdfce3697a82a58d9100d9227f9f"},
 ]
 sweep-logger = []
+tabula-py = [
+    {file = "tabula-py-2.3.0.tar.gz", hash = "sha256:9da61aa5d4256f79e7fa64d1fb09956d4c104d1a0116566c43bf9f612f37c149"},
+    {file = "tabula_py-2.3.0-py3-none-any.whl", hash = "sha256:784c37a9a46bc8b928cf31cef1d7ed1c9db8af19fb6bb1e63a481ecda0d169d1"},
+]
 tokenizers = [
     {file = "tokenizers-0.11.4-cp310-cp310-macosx_10_11_x86_64.whl", hash = "sha256:db80d19ac5e5fc99dcbc6050153e8c9c9f24e77ce3123b38ea5f94d47aa5edcb"},
     {file = "tokenizers-0.11.4-cp310-cp310-win32.whl", hash = "sha256:b06b59578ddf5f9b07c5f41f8cb2fc9b842842647da16a83b34daca5a9e888a0"},
