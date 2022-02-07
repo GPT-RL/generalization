@@ -16,7 +16,7 @@ def main(args: Args):
 
     input_dir = Path(args.input_dir).expanduser()
     output_dir = Path(args.output_dir).expanduser()
-    output_dir.mkdir()
+    output_dir.mkdir(exist_ok=True, parents=True)
     objs = list(input_dir.glob("**/*.obj"))
     for input_obj in tqdm(objs):
         ms = pymeshlab.MeshSet()
