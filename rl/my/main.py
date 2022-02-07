@@ -24,9 +24,9 @@ from wrappers import (
     TrainTest,
 )
 
-ROUNDED_STEP = "rounded step"
-ENV = "environment ID"
-ENV_RETURN = "environment return"
+EPISODE_SUCCESS = "episode success"
+PAIR = "object pair"
+TEST_EPISODE_SUCCESS = "test episode success"
 
 
 class Args(base_main.Args, env.Args):
@@ -56,13 +56,13 @@ class ArgsType(base_main.ArgsType, Args):
 
 @dataclass
 class Counters(base_main.Counters):
-    episode_rewards_per_env: dict = field(default_factory=lambda: defaultdict(list))
     episode_success: List[bool] = field(default_factory=list)
+    object_pairs: List[Tuple[str, str]] = field(default_factory=list)
 
     def reset(self):
         super().reset()
-        self.episode_rewards_per_env = defaultdict(list)
         self.episode_success = []
+        self.object_pairs = []
 
 
 class Trainer(base_main.Trainer):
@@ -73,8 +73,8 @@ class Trainer(base_main.Trainer):
     @classmethod
     def charts(cls, **kwargs):
         return [
-            spec(x=base_main.STEP, y=base_main.EPISODE_SUCCESS, **kwargs),
-            spec(x=base_main.STEP, y=base_main.TEST_EPISODE_SUCCESS, **kwargs),
+            spec(x=base_main.STEP, y=EPISODE_SUCCESS, **kwargs),
+            spec(x=base_main.STEP, y=TEST_EPISODE_SUCCESS, **kwargs),
             *super().charts(**kwargs),
         ]
 
@@ -83,11 +83,25 @@ class Trainer(base_main.Trainer):
         cls,
         logger: HasuraLogger,
         log: dict,
-        counters: Counters,
-        total_num_steps: int,
+        counters: Counters = None,
+        total_num_steps: int = None,
     ):
+        success_per_pair = defaultdict(list)
+        assert len(counters.episode_success) == len(counters.object_pairs)
+        for success, pairs in zip(counters.episode_success, counters.object_pairs):
+            success_per_pair[pairs].append(success)
 
-        log.update({base_main.EPISODE_SUCCESS: np.mean(counters.episode_success)})
+        for (mission, distractor), v in success_per_pair.items():
+            _log = {
+                EPISODE_SUCCESS: np.mean(v),
+                "mission": mission,
+                "distractor": distractor,
+            }
+            if logger.run_id is not None:
+                _log.update({base_main.RUN_ID: logger.run_id})
+            super().log(logger=logger, log=_log, total_num_steps=total_num_steps)
+
+        log.update({EPISODE_SUCCESS: np.mean(counters.episode_success)})
         super().log(
             logger=logger, log=log, counters=counters, total_num_steps=total_num_steps
         )
@@ -165,7 +179,7 @@ class Trainer(base_main.Trainer):
                             yield k, tuple(vs)
 
                 features = dict(get_features())
-            meshes = [m for m in meshes if m.name in features]
+            meshes: List[Mesh] = [m for m in meshes if m.name in features]
             all_missions = list(features.values())
         else:
             features = None
@@ -203,8 +217,10 @@ class Trainer(base_main.Trainer):
     @classmethod
     def process_info(cls, counters: Counters, info: dict):
         super().process_info(counters, info)
-        if "success" in info.keys():
+        if "success" in info:
             counters.episode_success.append(info["success"])
+        if "pair" in info:
+            counters.object_pairs.append(info["pair"])
 
     @staticmethod
     def recurrent(args: Args):

@@ -48,15 +48,14 @@ ACTION_LOSS = "action loss"
 ENTROPY = "entropy"
 EPISODE_RETURN = "episode return"
 EPISODE_LENGTH = "episode length"
-EPISODE_SUCCESS = "episode success"
 FPS = "fps"
 GRADIENT_NORM = "gradient norm"
 HOURS = "hours"
+RUN_ID = "run ID"
 SAVE_COUNT = "save count"
 STEP = "step"
 TEST_EPISODE_RETURN = "test episode return"
 TEST_EPISODE_LENGTH = "test episode length"
-TEST_EPISODE_SUCCESS = "test episode success"
 VALUE_LOSS = "value loss"
 TIME = "time"
 
@@ -233,7 +232,7 @@ class Trainer:
 
         logging.info(pformat(log))
         if logger.run_id is not None:
-            log.update({"run ID": logger.run_id})
+            log.update({RUN_ID: logger.run_id})
         logging.info(pformat(log))
         if logger.run_id is not None:
             logger.log(log)
@@ -268,8 +267,8 @@ class Trainer:
         cls,
         logger: HasuraLogger,
         log: dict,
-        counters: Counters,
-        total_num_steps: int,
+        counters: Counters = None,
+        total_num_steps: int = None,
     ):
         logging.info(pformat(log))
         if logger.run_id is not None:

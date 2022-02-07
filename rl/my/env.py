@@ -150,7 +150,7 @@ class Env(MiniWorldEnv):
         while True:
             obs = self.make_obs(image)
             if done:
-                info.update(names=[self._mission, self._dist_name])
+                info.update(pair=(self._mission, self._dist_name))
             action = yield obs, reward, done, info
             action = cast(MiniWorldEnv.Actions, action)
             assert not done
