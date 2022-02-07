@@ -3,7 +3,7 @@ import sys
 import time
 
 import pyglet
-from my.env import Args, Env, get_meshes
+from my.env import Args, Env, Obs, get_meshes
 from pyglet.window import key
 
 
@@ -30,28 +30,25 @@ if __name__ == "__main__":
 
     view_mode = "top" if args.top_view else "agent"
 
-    env.reset()
+    obs = env.reset()
 
     # Create the display window
     env.render("pyglet", view=view_mode)
 
     def step(action):
-        print(
-            "step {}/{}: {}".format(
-                env.step_count + 1, env.max_episode_steps, env.actions(action).name
-            )
-        )
+        print(f"step {env.step_count + 1}/{env.max_episode_steps}")
 
         obs, reward, done, info = env.step(action)
 
         if reward > 0:
-            print("reward={:.2f}".format(reward))
+            print(f"reward={reward:.2f}")
 
         if done:
             print("done!")
             tick = time.time()
-            env.reset()
+            obs = env.reset()
             print(time.time() - tick)
+        print(Obs(**obs).mission)
 
         env.render("pyglet", view=view_mode)
 

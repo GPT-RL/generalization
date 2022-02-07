@@ -154,8 +154,11 @@ class Env(MiniWorldEnv):
             action = yield obs, reward, done, info
             action = cast(MiniWorldEnv.Actions, action)
             assert not done
+
             image, reward, done, info = super().step(action)
 
+            if action == self.actions.done:
+                done = True
             if self.agent.carrying == self.goal:
                 reward += self._reward()
                 done = True
