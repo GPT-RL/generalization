@@ -9,6 +9,7 @@ import base_main
 import heatmap
 import line_chart
 import numpy as np
+from base_main import RUN_ID, STEP
 from envs import RenderWrapper, VecPyTorch
 from my import env
 from my.agent import Agent
@@ -100,9 +101,10 @@ class Trainer(base_main.Trainer):
                 EPISODE_SUCCESS: np.mean(v),
                 MISSION: mission,
                 DISTRACTOR: distractor,
+                STEP: total_num_steps,
             }
             if logger.run_id is not None:
-                _log.update({base_main.RUN_ID: logger.run_id})
+                _log.update({RUN_ID: logger.run_id})
             super().log(logger=logger, log=_log, total_num_steps=total_num_steps)
 
         log.update({EPISODE_SUCCESS: np.mean(counters.episode_success)})

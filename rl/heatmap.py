@@ -52,7 +52,7 @@ def spec(x, y, color):
                         "y": {"scale": "y", "field": y},
                         "width": {"scale": "x", "band": 1},
                         "height": {"scale": "y", "band": 1},
-                        "tooltip": {"signal": "datum.mission"},
+                        "tooltip": {"signal": f"datum['{color}']"},
                     },
                     "update": {"fill": {"scale": "color", "field": color}},
                 },
