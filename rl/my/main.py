@@ -6,9 +6,10 @@ from pathlib import Path
 from typing import Dict, List, Literal, Optional, Set, Tuple, cast
 
 import base_main
+import heatmap
+import line_chart
 import numpy as np
 from envs import RenderWrapper, VecPyTorch
-from line_chart import spec
 from my import env
 from my.agent import Agent
 from my.env import Env, Mesh, get_meshes
@@ -25,6 +26,8 @@ from wrappers import (
 )
 
 EPISODE_SUCCESS = "episode success"
+DISTRACTOR = "distractor"
+MISSION = "mission"
 PAIR = "object pair"
 TEST_EPISODE_SUCCESS = "test episode success"
 
@@ -73,8 +76,9 @@ class Trainer(base_main.Trainer):
     @classmethod
     def charts(cls, **kwargs):
         return [
-            spec(x=base_main.STEP, y=EPISODE_SUCCESS, **kwargs),
-            spec(x=base_main.STEP, y=TEST_EPISODE_SUCCESS, **kwargs),
+            line_chart.spec(x=base_main.STEP, y=EPISODE_SUCCESS, **kwargs),
+            line_chart.spec(x=base_main.STEP, y=TEST_EPISODE_SUCCESS, **kwargs),
+            heatmap.spec(x=DISTRACTOR, y=MISSION, color=EPISODE_SUCCESS),
             *super().charts(**kwargs),
         ]
 
@@ -94,8 +98,8 @@ class Trainer(base_main.Trainer):
         for (mission, distractor), v in success_per_pair.items():
             _log = {
                 EPISODE_SUCCESS: np.mean(v),
-                "mission": mission,
-                "distractor": distractor,
+                MISSION: mission,
+                DISTRACTOR: distractor,
             }
             if logger.run_id is not None:
                 _log.update({base_main.RUN_ID: logger.run_id})
