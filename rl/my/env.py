@@ -68,7 +68,7 @@ class Env(MiniWorldEnv):
         size: int,
         image_size: int = 128,
         max_episode_steps: int = 180,
-        pitch: float = 0,
+        pitch: float = -30,
         rank: int = 0,
         **kwargs,
     ):
