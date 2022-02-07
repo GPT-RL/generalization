@@ -20,7 +20,7 @@ from tap import Tap
 class Args(Tap):
     data_path: str = Path(Path.home(), ".cache/data/ycb")
     names: Optional[str] = None
-    room_size: int = 8
+    room_size: float = 8
 
 
 class Mesh(NamedTuple):
@@ -65,7 +65,7 @@ class Env(MiniWorldEnv):
     def __init__(
         self,
         meshes: List[Mesh],
-        size: int,
+        size: float,
         image_size: int = 128,
         max_episode_steps: int = 180,
         pitch: float = -30,
