@@ -45,10 +45,14 @@ def get_meshes(data_path: Path, names: Optional[str]):
 
     # default meshes (i.e. those that come with gym-miniworld package)
     default_meshes_dir = Path(Path(gym_miniworld.__file__).parent, "meshes")
-    default_meshes = [
-        Mesh(height=1, name=name.replace("_", " "), obj=name, png=None)
-        for name in {m.stem for m in default_meshes_dir.iterdir()}
-    ]
+
+    def get_default_meshes():
+        for name in {m.stem for m in default_meshes_dir.iterdir()}:
+            yield Mesh(
+                height=1, name=name.replace("_", " ").lower(), obj=name, png=None
+            )
+
+    default_meshes = list(get_default_meshes())
 
     # data-path meshes (i.e. the ycb objects)
     def get_data_path_meshes():
@@ -59,17 +63,16 @@ def get_meshes(data_path: Path, names: Optional[str]):
             for _, row in ycb.iterrows():
                 path = Path(data_path, row[PATH])
                 obj, png = mesh_path_to_obj_png(path)
+                name = row["name"].lower()
                 height = row.get("height")
                 height = 1 if pd.isna(height) else height / 100
-                yield Mesh(obj=obj, png=png, name=row["name"], height=height)
-
-    data_path_meshes = list(get_data_path_meshes())
+                yield Mesh(obj=obj, png=png, name=name, height=height)
 
     if names is None:
-        meshes = default_meshes if data_path is None else data_path_meshes
+        meshes = default_meshes if data_path is None else list(get_data_path_meshes())
     else:
-        names: Set[str] = set(names.split(","))
-        data_path_meshes = {m.name: m for m in data_path_meshes}
+        names: Set[str] = {n.lower() for n in names.split(",")}
+        data_path_meshes = {m.name: m for m in (list(get_data_path_meshes()))}
         default_meshes = {m.name: m for m in default_meshes}
 
         def _get_meshes():
