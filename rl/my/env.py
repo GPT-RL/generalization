@@ -103,7 +103,13 @@ class Env(MiniWorldEnv):
         ).to_space()
 
     def _gen_world(self):
-        self.add_rect_room(min_x=0, max_x=self.size, min_z=0, max_z=self.size)
+        self.add_rect_room(
+            min_x=0,
+            max_x=self.size,
+            min_z=0,
+            max_z=self.size,
+            floor_tex="floor_tiles_white",
+        )
         meshes = self.rand.subset(self.meshes, num_elems=2)
         self._mission, self._dist_name = [m.name for m in meshes]
         self.goal, self.dist = [

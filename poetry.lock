@@ -253,7 +253,7 @@ pyglet = ">=1.5.11"
 type = "git"
 url = "https://github.com/GPT-RL/gym-miniworld.git"
 reference = "master"
-resolved_reference = "ae386a6a3b7ddbd9bfd74d02023783cc737e0212"
+resolved_reference = "34b33d740fe927d121d8a6a460cd4c91d08a9a08"
 
 [[package]]
 name = "huggingface-hub"
