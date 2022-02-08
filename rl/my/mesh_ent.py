@@ -25,10 +25,13 @@ class ObjMesh(gym_miniworld.objmesh.ObjMesh):
 
         if file_path in cls.cache:
             return cls.cache[file_path]
+        print(f"Loading {file_path}...")
 
         mesh = ObjMesh(file_path, **kwargs)
+        print(f"Loaded {file_path}. Waiting on Lock...")
         with multiprocessing.Lock():
             cls.cache[file_path] = mesh
+            print(f"Cached {file_path}.")
 
         return mesh
 

@@ -1,3 +1,5 @@
+import itertools
+import math
 import string
 from copy import deepcopy
 from dataclasses import asdict, dataclass
@@ -119,7 +121,8 @@ class Env(MiniWorldEnv):
                     height=mesh.height,
                     static=False,
                     tex_name=str(mesh.png) if mesh.png else None,
-                )
+                ),
+                name=mesh.name,
             )
             for mesh in meshes
         ]
@@ -201,3 +204,73 @@ class Env(MiniWorldEnv):
     def to_obs(self, obs: Obs):
         # check = isinstance(self.observation_space, gym.spaces.Dict)
         return obs.to_obs(self.observation_space)
+
+    def place_entity(
+        self,
+        ent,
+        room=None,
+        pos=None,
+        dir=None,
+        min_x=None,
+        max_x=None,
+        min_z=None,
+        max_z=None,
+        name=None,
+    ):
+        """
+        Place an entity/object in the world.
+        Find a position that doesn't intersect with any other object.
+        """
+
+        assert len(self.rooms) > 0, "create rooms before calling place_entity"
+        assert ent.radius is not None, "entity must have physical size defined"
+
+        # Generate collision detection data
+        if len(self.wall_segs) == 0:
+            self._gen_static_data()
+
+        # If an exact position if specified
+        if pos is not None:
+            ent.dir = dir if dir is not None else self.rand.float(-math.pi, math.pi)
+            ent.pos = pos
+            self.entities.append(ent)
+            return ent
+
+        # Keep retrying until we find a suitable position
+        for i in itertools.count():
+            # Pick a room, sample rooms proportionally to floor surface area
+            r = room if room else self.rand.choice(self.rooms, probs=self.room_probs)
+
+            # Choose a random point within the square bounding box of the room
+            lx = r.min_x if min_x is None else min_x
+            hx = r.max_x if max_x is None else max_x
+            lz = r.min_z if min_z is None else min_z
+            hz = r.max_z if max_z is None else max_z
+            pos = self.rand.float(
+                low=[lx + ent.radius, 0, lz + ent.radius],
+                high=[hx - ent.radius, 0, hz - ent.radius],
+            )
+
+            # Make sure the position is within the room's outline
+            if not r.point_inside(pos):
+                if i > 100:
+                    print(i, name)
+
+                continue
+
+            # Make sure the position doesn't intersect with any walls
+            if self.intersect(ent, pos, ent.radius):
+                if i > 100:
+                    print(i, name)
+                continue
+
+            # Pick a direction
+            d = dir if dir is not None else self.rand.float(-math.pi, math.pi)
+
+            ent.pos = pos
+            ent.dir = d
+            break
+
+        self.entities.append(ent)
+
+        return ent
