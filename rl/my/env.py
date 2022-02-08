@@ -55,6 +55,10 @@ class Obs:
         return obs
 
 
+class PlacementError(RuntimeError):
+    pass
+
+
 class String(gym.Space):
     def sample(self):
         return "".join(self.np_random.choice(string.ascii_letters) for _ in range(10))
@@ -112,20 +116,27 @@ class Env(MiniWorldEnv):
             max_z=self.size,
             floor_tex="floor_tiles_white",
         )
-        meshes = self.rand.subset(self.meshes, num_elems=2)
-        self._mission, self._dist_name = [m.name for m in meshes]
-        self.goal, self.dist = [
-            self.place_entity(
-                MeshEnt(
-                    str(mesh.obj),
-                    height=mesh.height,
-                    static=False,
-                    tex_name=str(mesh.png) if mesh.png else None,
-                ),
-                name=mesh.name,
-            )
-            for mesh in meshes
-        ]
+        while True:
+            meshes = self.rand.subset(self.meshes, num_elems=2)
+            self._mission, self._dist_name = [m.name for m in meshes]
+
+            try:
+                self.goal, self.dist = [
+                    self.place_entity(
+                        MeshEnt(
+                            str(mesh.obj),
+                            height=mesh.height,
+                            static=False,
+                            tex_name=str(mesh.png) if mesh.png else None,
+                        ),
+                        name=mesh.name,
+                    )
+                    for mesh in meshes
+                ]
+                break
+            except PlacementError:
+                print("Failed to place:", self._mission, self._dist_name)
+                continue
 
         self.place_agent()
 
@@ -253,15 +264,15 @@ class Env(MiniWorldEnv):
 
             # Make sure the position is within the room's outline
             if not r.point_inside(pos):
-                if i > 100:
-                    print(i, name)
+                if i > 1000:
+                    raise PlacementError()
 
                 continue
 
             # Make sure the position doesn't intersect with any walls
             if self.intersect(ent, pos, ent.radius):
-                if i > 100:
-                    print(i, name)
+                if i > 1000:
+                    raise PlacementError()
                 continue
 
             # Pick a direction
