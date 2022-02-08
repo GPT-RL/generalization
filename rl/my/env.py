@@ -2,12 +2,10 @@ import string
 from copy import deepcopy
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import List, NamedTuple, Optional, Set, TypeVar, Union, cast
+from typing import List, NamedTuple, Optional, TypeVar, Union, cast
 
 import gym
-import gym_miniworld
 import numpy as np
-import pandas as pd
 from art import text2art
 from colors import color
 from gym import Space, spaces
@@ -16,11 +14,18 @@ from gym_miniworld.params import DEFAULT_PARAMS
 from my.mesh_ent import MeshEnt
 from tap import Tap
 
+EXCLUDED = "excluded"
+DESCRIPTION = "description"
+NAME = "name"
+PATH = "path"
+
 
 class Args(Tap):
     data_path: str = Path(Path.home(), ".cache/data/ycb")
     names: Optional[str] = None
     room_size: float = 8
+    obj_pattern: str = "*/*/*.obj"
+    png_pattern: str = "*/*/*.png"
 
 
 class Mesh(NamedTuple):
@@ -101,7 +106,6 @@ class Env(MiniWorldEnv):
         self.add_rect_room(min_x=0, max_x=self.size, min_z=0, max_z=self.size)
         meshes = self.rand.subset(self.meshes, num_elems=2)
         self._mission, self._dist_name = [m.name for m in meshes]
-        meshes
         self.goal, self.dist = [
             self.place_entity(
                 MeshEnt(
@@ -191,57 +195,3 @@ class Env(MiniWorldEnv):
     def to_obs(self, obs: Obs):
         # check = isinstance(self.observation_space, gym.spaces.Dict)
         return obs.to_obs(self.observation_space)
-
-
-def get_meshes(
-    data_path: Optional[str],
-    names: Optional[str],
-):
-    if names:
-        names: Set[str] = set(names.split(","))
-    default_meshes_dir = Path(Path(gym_miniworld.__file__).parent, "meshes")
-    if data_path is not None:
-        data_path = Path(data_path).expanduser()
-        if not data_path.exists():
-            raise RuntimeError(
-                f"""\
-    {data_path} does not exist.
-    Download dataset using https://github.com/sea-bass/ycb-tools
-    """
-            )
-
-    def _get_meshes():
-        if data_path:
-            for _, row in pd.read_csv("ycb.csv").iterrows():
-                path = Path(row.path)
-                assert path.name == "textured.obj"
-                parent = Path(data_path, path.parent)
-                obj = Path(parent, path.stem)
-                png = Path(parent, "texture_map.png")
-                height = row.get("height")
-                height = 1 if pd.isna(height) else height / 100
-                yield Mesh(obj=obj, png=png, name=row["name"], height=height)
-
-    data_path_meshes = list(_get_meshes())
-
-    default_meshes = [
-        Mesh(height=1, name=name.replace("_", " "), obj=name, png=None)
-        for name in {m.stem for m in default_meshes_dir.iterdir()}
-    ]
-    if names is None:
-        meshes = default_meshes if data_path is None else data_path_meshes
-    else:
-        data_path_meshes = {m.name: m for m in data_path_meshes}
-        default_meshes = {m.name: m for m in default_meshes}
-
-        def _get_meshes():
-            for name in names:
-                if name in data_path_meshes:
-                    yield data_path_meshes[name]
-                elif name in default_meshes:
-                    yield default_meshes[name]
-                else:
-                    raise RuntimeError(f"Invalid name: {name}")
-
-        meshes = list(_get_meshes())
-    return meshes

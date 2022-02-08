@@ -1,5 +1,5 @@
-import csv
 import functools
+import re
 from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -9,11 +9,13 @@ import base_main
 import heatmap
 import line_chart
 import numpy as np
+import pandas as pd
 from base_main import RUN_ID, STEP
 from envs import RenderWrapper, VecPyTorch
 from my import env
 from my.agent import Agent
-from my.env import Env, Mesh, get_meshes
+from my.env import DESCRIPTION, EXCLUDED, Env, Mesh
+from my.mesh_paths import get_meshes
 from run_logger import HasuraLogger
 from stable_baselines3.common.monitor import Monitor
 from transformers import GPT2Tokenizer
@@ -68,6 +70,32 @@ class Counters(base_main.Counters):
         super().reset()
         self.episode_success = []
         self.object_pairs = []
+
+
+def get_data_path_meshes(
+    data_path: Path,
+    obj_pattern: str,
+    png_pattern: str,
+):
+    if data_path:
+        data_path = data_path.expanduser()
+        if not data_path.exists():
+            raise RuntimeError(
+                f"""\
+        {data_path} does not exist.
+        Download dataset using https://github.com/sea-bass/ycb-tools
+        """
+            )
+
+        def get_names(path: Path):
+            name = path.parent.parent.name
+            name = re.sub(r"\d+(-[a-z])?_", "", name)
+            return name.replace("_", " ")
+
+        objs = {get_names(path): path for path in data_path.glob(obj_pattern)}
+        pngs = {get_names(path): path for path in data_path.glob(png_pattern)}
+        for n in objs:
+            yield Mesh(objs.get(n), pngs.get(n), n)
 
 
 class Trainer(base_main.Trainer):
@@ -174,6 +202,8 @@ class Trainer(base_main.Trainer):
         num_processes: int,
         num_test_envs: int,
         num_test_names: int,
+        obj_pattern: str,
+        png_pattern: str,
         render: bool,
         seed: int,
         sync_envs: bool,
@@ -183,18 +213,20 @@ class Trainer(base_main.Trainer):
     ):
         if test:
             num_processes = cls._num_eval_processes(num_processes, num_test_envs)
-        meshes = get_meshes(data_path=data_path, names=names)
+
+        meshes = get_meshes(data_path=Path(data_path).expanduser(), names=names)
 
         if use_features:
-            with Path("features.csv").open() as f:
-
-                def get_features():
-                    for k, *vs in csv.reader(f):
-                        vs = [v for v in vs if v]
-                        if vs:
-                            yield k, tuple(vs)
-
-                features = dict(get_features())
+            df = pd.read_csv("ycb.csv", index_col="name")
+            df = df[[DESCRIPTION, EXCLUDED]]
+            df = df[~df[EXCLUDED]].drop(EXCLUDED, axis=1)
+            features = df.apply(
+                func=lambda r: []
+                if r[DESCRIPTION].isna()
+                else r[DESCRIPTION].split(","),
+                axis=1,
+            )
+            features = features.to_dict()
             meshes: List[Mesh] = [m for m in meshes if m.name in features]
             all_missions = list(features.values())
         else:

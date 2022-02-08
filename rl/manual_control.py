@@ -1,9 +1,11 @@
 import math
 import sys
 import time
+from pathlib import Path
 
 import pyglet
-from my.env import Args, Env, Obs, get_meshes
+from my.env import Args, Env, Obs
+from my.mesh_paths import get_meshes
 from pyglet.window import key
 
 
@@ -17,7 +19,7 @@ if __name__ == "__main__":
 
     args: ManualControlArgs = ManualControlArgs().parse_args()
 
-    meshes = get_meshes(data_path=args.data_path, names=args.names)
+    meshes = get_meshes(data_path=Path(args.data_path), names=args.names)
 
     env = Env(
         meshes=meshes,
