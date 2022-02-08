@@ -2,8 +2,17 @@ def spec(x, y, color, history_len):
     return {
         "$schema": "https://vega.github.io/schema/vega/v5.json",
         "axes": [
-            {"scale": "x", "title": x, "orient": "bottom"},
             {"scale": "y", "title": y, "orient": "left"},
+            {
+                "scale": "x",
+                "title": x,
+                "orient": "bottom",
+                "encode": {
+                    "labels": {
+                        "update": {"angle": {"value": 45}, "align": {"value": "left"}}
+                    }
+                },
+            },
         ],
         "data": {
             "name": "data",
