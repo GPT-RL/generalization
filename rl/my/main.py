@@ -30,6 +30,7 @@ EPISODE_SUCCESS = "episode success"
 DISTRACTOR = "distractor"
 MISSION = "mission"
 PAIR = "object pair"
+PAIR_SUCCESS = "object pair success"
 TEST_EPISODE_SUCCESS = "test episode success"
 
 
@@ -75,12 +76,21 @@ class Trainer(base_main.Trainer):
         return Counters()
 
     @classmethod
-    def charts(cls, **kwargs):
+    def charts(cls, args: Args):
+        kwargs = dict(visualizer_url=args.visualizer_url)
         return [
             line_chart.spec(x=base_main.STEP, y=EPISODE_SUCCESS, **kwargs),
             line_chart.spec(x=base_main.STEP, y=TEST_EPISODE_SUCCESS, **kwargs),
-            heatmap.spec(x=DISTRACTOR, y=MISSION, color=EPISODE_SUCCESS),
-            *super().charts(**kwargs),
+            heatmap.spec(
+                x=DISTRACTOR,
+                y=MISSION,
+                color=PAIR_SUCCESS,
+                history_len=args.num_processes
+                * args.num_steps
+                * args.log_interval
+                * 10,
+            ),
+            *super().charts(args=args),
         ]
 
     @classmethod
@@ -98,7 +108,7 @@ class Trainer(base_main.Trainer):
 
         for (mission, distractor), v in success_per_pair.items():
             _log = {
-                EPISODE_SUCCESS: np.mean(v),
+                PAIR_SUCCESS: np.mean(v),
                 MISSION: mission,
                 DISTRACTOR: distractor,
                 STEP: total_num_steps,

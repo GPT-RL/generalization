@@ -152,7 +152,8 @@ class Trainer:
         return Counters()
 
     @classmethod
-    def charts(cls, **kwargs):
+    def charts(cls, args: Args):
+        kwargs = dict(visualizer_url=args.visualizer_url)
         return [
             *[
                 spec(x=HOURS, y=y, **kwargs)
@@ -605,9 +606,7 @@ class Trainer:
     @classmethod
     def main(cls, args: ArgsType):
         logging.getLogger().setLevel(args.log_level)
-        kwargs = dict(visualizer_url=args.visualizer_url)
-
-        charts = cls.charts(**kwargs)
+        charts = cls.charts(args=args)
 
         metadata = dict(reproducibility_info=args.get_reproducibility_info())
         if args.host_machine:
