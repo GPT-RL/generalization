@@ -276,8 +276,7 @@ class Trainer(base_main.Trainer):
 
     @staticmethod
     def recurrent(args: Args):
-        if "sequence" in args.env:
-            assert args.recurrent
+        assert args.recurrent
         return args.recurrent
 
     @staticmethod
