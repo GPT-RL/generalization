@@ -1012,7 +1012,7 @@ python-versions = "*"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.8"
-content-hash = "eea9f08e34102ad505187262849c8ec787003271c8d057d5ae9c8b47a78ca91d"
+content-hash = "f2efc0c76bc2cd7ee12e739c02f08efb018f24f1ce3478458b9e707a91ae5d03"
 
 [metadata.files]
 ansicolors = [
