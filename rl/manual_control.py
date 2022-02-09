@@ -21,7 +21,6 @@ if __name__ == "__main__":
     args: ManualControlArgs = ManualControlArgs().parse_args()
 
     meshes = get_meshes(data_path=Path(args.data_path), names=args.names)
-
     kwargs = {
         k: v
         for k, v in args.as_dict().items()

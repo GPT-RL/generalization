@@ -72,6 +72,9 @@ class String(gym.Space):
         return isinstance(x, str)
 
 
+RADIUS = 1.5724637533369341
+
+
 class Env(MiniWorldEnv):
     """
     Environment in which the goal is to go to a red box
@@ -140,6 +143,8 @@ class Env(MiniWorldEnv):
                     )
                     for mesh in meshes
                 ]
+                for ent in self.entities:
+                    ent.radius = RADIUS
                 break
             except PlacementError:
                 print("Failed to place:", self._mission, self._dist_name)
