@@ -11,9 +11,10 @@ import numpy as np
 from art import text2art
 from colors import color
 from gym import Space, spaces
+from gym_miniworld.entity import Entity
 from gym_miniworld.miniworld import MiniWorldEnv
 from gym_miniworld.params import DEFAULT_PARAMS
-from my.mesh_ent import MeshEnt
+from my.entities import Box, MeshEnt
 from tap import Tap
 
 EXCLUDED = "excluded"
@@ -153,10 +154,19 @@ class Env(MiniWorldEnv):
 
         return "\n".join(rows())
 
+    def can_pick_up(self, ent: Entity):
+        test_pos = self.agent.pos + self.agent.dir_vec * 1.5 * self.agent.radius
+        entities = self.entities
+        self.entities = [ent]
+        intersects = self.intersect(self.agent, test_pos, 1.2 * self.agent.radius)
+        self.entities = entities
+        return intersects is ent
+
     def generator(self):
         action = None
         reward = None
         done = False
+        highlighted = {}
 
         def render(pause=True):
             print(self.ascii_of_image(self.render_obs()))
@@ -185,6 +195,15 @@ class Env(MiniWorldEnv):
             assert not done
 
             image, reward, done, info = super().step(action)
+            for ent in [self.goal, self.dist]:
+                if self.can_pick_up(ent):
+                    box = Box(np.array([1, 1, 1]))
+                    if ent not in highlighted:
+                        highlighted[ent] = box
+                        self.place_entity(ent=box, pos=ent.pos, dir=ent.dir)
+                elif ent in highlighted:
+                    self.entities.remove(highlighted[ent])
+                    del highlighted[ent]
 
             if action == self.actions.done:
                 done = True
