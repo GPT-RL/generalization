@@ -24,6 +24,7 @@ PATH = "path"
 
 class Args(Tap):
     data_path: str = Path(Path.home(), ".cache/data/ycb")
+    floor_tex: str = "floor_tiles_white"
     image_size: int = 128
     names: Optional[str] = None
     room_size: float = 8
@@ -77,6 +78,7 @@ class Env(MiniWorldEnv):
 
     def __init__(
         self,
+        floor_tex: str,
         image_size: int,
         meshes: List[Mesh],
         room_size: float,
@@ -85,6 +87,7 @@ class Env(MiniWorldEnv):
         rank: int = 0,
         **kwargs,
     ):
+        self.floor_tex = floor_tex
         self.rank = rank
         assert room_size >= 2
         self.size = room_size
@@ -116,7 +119,7 @@ class Env(MiniWorldEnv):
             max_x=self.size,
             min_z=0,
             max_z=self.size,
-            floor_tex="floor_tiles_white",
+            floor_tex=self.floor_tex,
         )
         while True:
             meshes = self.rand.subset(self.meshes, num_elems=2)
