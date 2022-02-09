@@ -1,5 +1,4 @@
 import math
-import multiprocessing
 from pathlib import Path
 
 import gym_miniworld.entity
@@ -28,10 +27,8 @@ class ObjMesh(gym_miniworld.objmesh.ObjMesh):
         print(f"Loading {file_path}...")
 
         mesh = ObjMesh(file_path, **kwargs)
-        print(f"Loaded {file_path}. Waiting on Lock...")
-        with multiprocessing.Lock():
-            cls.cache[file_path] = mesh
-            print(f"Cached {file_path}.")
+        print(f"Loaded {file_path}.")
+        cls.cache[file_path] = mesh
 
         return mesh
 
