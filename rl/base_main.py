@@ -129,12 +129,6 @@ class ArgsType(Args):
 class Counters:
     episode_rewards: List[float] = field(default_factory=list)
     episode_lengths: List[int] = field(default_factory=list)
-    episode_successes: List[int] = field(default_factory=list)
-
-    def reset(self):
-        self.episode_rewards = []
-        self.episode_lengths = []
-        self.episode_successes = []
 
 
 @dataclass
@@ -264,13 +258,12 @@ class Trainer:
         agent.load_state_dict(torch.load(load_path))
 
     @classmethod
-    def log(
-        cls,
-        logger: HasuraLogger,
-        log: dict,
-        counters: Counters = None,
-        total_num_steps: int = None,
-    ):
+    def log(cls, log: dict, logger: HasuraLogger, step: int, counters: Counters = None):
+        log.update(step=step)
+        logging.info(pformat(log))
+        if logger.run_id is not None:
+            log.update({"run ID": logger.run_id})
+
         logging.info(pformat(log))
         if logger.run_id is not None:
             logger.log(log)
@@ -594,12 +587,14 @@ class Trainer:
                             VALUE_LOSS: value_loss,
                         }
 
-                        logging.info(pformat(log))
-                        if logger.run_id is not None:
-                            log.update({"run ID": logger.run_id})
-
-                        cls.log(logger, log, counters, total_num_steps)
-                        counters.reset()
+                        cls.log(
+                            log=log,
+                            logger=logger,
+                            step=total_num_steps,
+                            counters=counters,
+                        )
+                        counters.episode_lengths = []
+                        counters.episode_rewards = []
         finally:
             envs.close()
 

@@ -1,17 +1,17 @@
 import functools
 import re
 from collections import defaultdict
+from copy import deepcopy
 from dataclasses import dataclass, field
 from inspect import signature
 from pathlib import Path
-from typing import Dict, List, Literal, Optional, Set, Tuple, cast
+from typing import DefaultDict, Dict, List, Literal, Optional, Set, Tuple, cast
 
 import base_main
 import heatmap
 import line_chart
 import numpy as np
 import pandas as pd
-from base_main import RUN_ID, STEP
 from envs import RenderWrapper, VecPyTorch
 from my import env
 from my.agent import Agent
@@ -65,12 +65,9 @@ class ArgsType(base_main.ArgsType, Args):
 @dataclass
 class Counters(base_main.Counters):
     episode_success: List[bool] = field(default_factory=list)
-    object_pairs: List[Tuple[str, str]] = field(default_factory=list)
-
-    def reset(self):
-        super().reset()
-        self.episode_success = []
-        self.object_pairs = []
+    success_per_pair: DefaultDict[Tuple[str, str], List[float]] = field(
+        default_factory=lambda: defaultdict(list)
+    )
 
 
 def get_data_path_meshes(
@@ -117,7 +114,7 @@ class Trainer(base_main.Trainer):
                 history_len=args.num_processes
                 * args.num_steps
                 * args.log_interval
-                * 10,
+                * 100,
             ),
             *super().charts(args=args),
         ]
@@ -125,31 +122,29 @@ class Trainer(base_main.Trainer):
     @classmethod
     def log(
         cls,
-        logger: HasuraLogger,
         log: dict,
+        logger: HasuraLogger,
+        step: int,
         counters: Counters = None,
-        total_num_steps: int = None,
     ):
-        success_per_pair = defaultdict(list)
-        assert len(counters.episode_success) == len(counters.object_pairs)
-        for success, pairs in zip(counters.episode_success, counters.object_pairs):
-            success_per_pair[pairs].append(success)
-
+        success_per_pair = deepcopy(counters.success_per_pair)
         for (mission, distractor), v in success_per_pair.items():
-            _log = {
-                PAIR_SUCCESS: np.mean(v),
-                MISSION: mission,
-                DISTRACTOR: distractor,
-                STEP: total_num_steps,
-            }
-            if logger.run_id is not None:
-                _log.update({RUN_ID: logger.run_id})
-            # super().log(logger=logger, log=_log, total_num_steps=total_num_steps)
+            print(mission, distractor, len(v))
+            if len(v) >= 100:
+                super().log(
+                    log={
+                        PAIR_SUCCESS: np.mean(v),
+                        MISSION: mission,
+                        DISTRACTOR: distractor,
+                    },
+                    logger=logger,
+                    step=step,
+                )
+                counters.success_per_pair[mission, distractor] = []
 
         log.update({EPISODE_SUCCESS: np.mean(counters.episode_success)})
-        super().log(
-            logger=logger, log=log, counters=counters, total_num_steps=total_num_steps
-        )
+        super().log(log=log, logger=logger, step=step, counters=counters)
+        counters.episode_success = []
 
     @classmethod
     def make_agent(cls, envs: VecPyTorch, args: ArgsType) -> Agent:
@@ -272,7 +267,7 @@ class Trainer(base_main.Trainer):
         if "success" in info:
             counters.episode_success.append(info["success"])
         if "pair" in info:
-            counters.object_pairs.append(info["pair"])
+            counters.success_per_pair[info["pair"]].append(info["success"])
 
     @staticmethod
     def recurrent(args: Args):
