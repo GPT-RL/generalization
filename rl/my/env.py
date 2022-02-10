@@ -185,15 +185,24 @@ class Env(MiniWorldEnv):
             if done:
                 info.update(pair=(self._mission, self._dist_name))
 
-            cached = pickle.loads(R.get(f"{self.timestep},{self.rank}"))
-            if not cached.mission == obs.mission:
+            cached_obs, cached_action = pickle.loads(
+                R.get(f"{self.timestep},{self.rank}")
+            )
+            if not action == cached_action:
                 print("####################################################")
-                print(self.timestep, j, cached.mission, obs.mission)
+                print(self.timestep, j, action, cached_action)
                 print("####################################################")
                 sys.stdout.flush()
                 time.sleep(1)
                 breakpoint()
-            if not np.array_equal(cached.image, obs.image):
+            if not cached_obs.mission == obs.mission:
+                print("####################################################")
+                print(self.timestep, j, cached_obs.mission, obs.mission)
+                print("####################################################")
+                sys.stdout.flush()
+                time.sleep(1)
+                breakpoint()
+            if not np.array_equal(cached_obs.image, obs.image):
                 print("####################################################")
                 print(self.timestep, j)
                 print("####################################################")
