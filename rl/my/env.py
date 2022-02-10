@@ -178,16 +178,19 @@ class Env(MiniWorldEnv):
 
         image = super().reset()
         info = {}
-        while True:
+        for j in itertools.count():
             obs = self.make_obs(image)
             if done:
                 info.update(pair=(self._mission, self._dist_name))
 
-            cached = pickle.loads(R.get(str(self.timestep)))
+            cached = pickle.loads(R.get(f"{self.timestep},{self.rank}"))
             if not cached.mission == obs.mission:
+                print(self.timestep, j, cached.mission, obs.mission)
                 breakpoint()
             if not np.array_equal(cached.image, obs.image):
+                print(self.timestep, j)
                 breakpoint()
+            print(self.timestep, self.rank, j)
             self.timestep += 1
             action = yield obs, reward, done, info
             action = cast(MiniWorldEnv.Actions, action)
