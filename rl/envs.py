@@ -135,10 +135,10 @@ class RenderWrapper(gym.Wrapper):
         super().__init__(env)
 
     def step(self, action):
-        self.render(mode=self.mode)
+        self.render(mode=self.mode, pause=False)
         s, r, t, i = super().step(action)
         if t:
-            self.render(mode=self.mode)
+            self.render(mode=self.mode, pause=r == 0)
         return s, r, t, i
 
 
