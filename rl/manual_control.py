@@ -23,6 +23,7 @@ if __name__ == "__main__":
 
     env = Env(
         meshes=meshes,
+        seed=args.seed,
         size=args.room_size,
     )
     if args.no_time_limit:

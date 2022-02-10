@@ -28,6 +28,7 @@ class Args(Tap):
     room_size: float = 8
     obj_pattern: str = "*/*/*.obj"
     png_pattern: str = "*/*/*.png"
+    seed: int = 0
 
 
 class Mesh(NamedTuple):
@@ -87,7 +88,7 @@ class Env(MiniWorldEnv):
         assert size >= 2
         self.size = size
 
-        self.meshes = meshes
+        self.meshes = sorted(meshes, key=lambda m: m.name)
 
         params = deepcopy(DEFAULT_PARAMS)
         params.set("cam_pitch", pitch, pitch, pitch)
