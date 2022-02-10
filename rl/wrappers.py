@@ -66,14 +66,6 @@ class MissionWrapper(gym.Wrapper, abc.ABC):
         raise NotImplementedError
 
 
-class StringTuple(gym.Space):
-    def sample(self):
-        return []
-
-    def contains(self, x):
-        return isinstance(x, tuple) and all([isinstance(y, str) for y in x])
-
-
 class FeatureWrapper(MissionWrapper):
     def __init__(self, env: gym.Env, features: Dict[str, List[str]]):
         super().__init__(env)
@@ -85,6 +77,19 @@ class FeatureWrapper(MissionWrapper):
 
     def change_mission(self, mission: str) -> List[str]:
         return self.features[mission]
+
+
+class RenderWrapper(gym.Wrapper):
+    def __init__(self, env, mode="human"):
+        self.mode = mode
+        super().__init__(env)
+
+    def step(self, action):
+        self.render(mode=self.mode, pause=False)
+        s, r, t, i = super().step(action)
+        if t:
+            self.render(mode=self.mode, pause=r == 0)
+        return s, r, t, i
 
 
 class RolloutsWrapper(gym.ObservationWrapper):
@@ -122,6 +127,14 @@ class SuccessWrapper(gym.Wrapper):
         if t:
             i.update(success=r > 0)
         return s, r, t, i
+
+
+class StringTuple(gym.Space):
+    def sample(self):
+        return []
+
+    def contains(self, x):
+        return isinstance(x, tuple) and all([isinstance(y, str) for y in x])
 
 
 class TokenizerWrapper(gym.ObservationWrapper):

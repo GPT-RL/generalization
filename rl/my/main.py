@@ -12,7 +12,7 @@ import heatmap
 import line_chart
 import numpy as np
 import pandas as pd
-from envs import RenderWrapper, VecPyTorch
+from envs import VecPyTorch
 from my import env
 from my.agent import Agent
 from my.env import DESCRIPTION, EXCLUDED, Env, Mesh
@@ -23,6 +23,7 @@ from transformers import GPT2Tokenizer
 from wrappers import (
     FeatureWrapper,
     ImageNormalizerWrapper,
+    RenderWrapper,
     RolloutsWrapper,
     SuccessWrapper,
     TokenizerWrapper,
@@ -129,7 +130,6 @@ class Trainer(base_main.Trainer):
     ):
         success_per_pair = deepcopy(counters.success_per_pair)
         for (mission, distractor), v in success_per_pair.items():
-            print(mission, distractor, len(v))
             if len(v) >= 100:
                 super().log(
                     log={
