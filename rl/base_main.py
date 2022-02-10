@@ -430,6 +430,7 @@ class Trainer:
         if cuda:
             torch.backends.cudnn.benchmark = False
             torch.backends.cudnn.deterministic = True
+            torch.use_deterministic_algorithms(True)
 
         torch.set_num_threads(1)
         device = cls.device(cuda)
