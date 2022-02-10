@@ -129,7 +129,6 @@ class Trainer(base_main.Trainer):
         counters: Counters = None,
         total_num_steps: int = None,
     ):
-        breakpoint()
         success_per_pair = defaultdict(list)
         assert len(counters.episode_success) == len(counters.object_pairs)
         for success, pairs in zip(counters.episode_success, counters.object_pairs):
