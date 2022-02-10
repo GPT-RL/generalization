@@ -1,5 +1,6 @@
 import itertools
 import math
+import pickle
 import string
 from copy import deepcopy
 from dataclasses import asdict, dataclass
@@ -8,6 +9,7 @@ from typing import List, NamedTuple, Optional, TypeVar, Union, cast
 
 import gym
 import numpy as np
+import redis
 from art import text2art
 from colors import color
 from gym import Space, spaces
@@ -68,6 +70,9 @@ class String(gym.Space):
         return isinstance(x, str)
 
 
+R = redis.Redis()
+
+
 class Env(MiniWorldEnv):
     """
     Environment in which the goal is to go to a red box
@@ -87,6 +92,7 @@ class Env(MiniWorldEnv):
         self.rank = rank
         assert size >= 2
         self.size = size
+        self.timestep = 0
 
         self.meshes = sorted(meshes, key=lambda m: m.name)
 
@@ -176,6 +182,9 @@ class Env(MiniWorldEnv):
             obs = self.make_obs(image)
             if done:
                 info.update(pair=(self._mission, self._dist_name))
+
+            R.set(str(self.step), pickle.dumps(obs))
+            self.timestep += 1
             action = yield obs, reward, done, info
             action = cast(MiniWorldEnv.Actions, action)
             assert not done
