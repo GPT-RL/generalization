@@ -143,7 +143,7 @@ class Trainer(base_main.Trainer):
             }
             if logger.run_id is not None:
                 _log.update({RUN_ID: logger.run_id})
-            super().log(logger=logger, log=_log, total_num_steps=total_num_steps)
+            # super().log(logger=logger, log=_log, total_num_steps=total_num_steps)
 
         log.update({EPISODE_SUCCESS: np.mean(counters.episode_success)})
         super().log(
