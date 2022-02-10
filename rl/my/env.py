@@ -183,7 +183,11 @@ class Env(MiniWorldEnv):
             if done:
                 info.update(pair=(self._mission, self._dist_name))
 
-            R.set(str(self.step), pickle.dumps(obs))
+            cached = pickle.loads(R.get(str(self.timestep)))
+            if not cached.mission == obs.mission:
+                breakpoint()
+            if not np.array_equal(cached.image, obs.image):
+                breakpoint()
             self.timestep += 1
             action = yield obs, reward, done, info
             action = cast(MiniWorldEnv.Actions, action)
