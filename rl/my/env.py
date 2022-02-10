@@ -24,6 +24,7 @@ PATH = "path"
 
 class Args(Tap):
     data_path: str = Path(Path.home(), ".cache/data/ycb")
+    image_size: int = 128
     names: Optional[str] = None
     room_size: float = 8
     obj_pattern: str = "*/*/*.obj"
@@ -76,9 +77,9 @@ class Env(MiniWorldEnv):
 
     def __init__(
         self,
+        image_size: int,
         meshes: List[Mesh],
         size: float,
-        image_size: int = 128,
         max_episode_steps: int = 180,
         pitch: float = -30,
         rank: int = 0,

@@ -167,6 +167,7 @@ class Trainer(base_main.Trainer):
         def _thunk(
             all_missions: list,
             features: Dict[str, List[str]],
+            image_size: int,
             meshes: List[Mesh],
             rank: int,
             room_size: int,
@@ -175,7 +176,7 @@ class Trainer(base_main.Trainer):
             **_,
         ):
 
-            _env = Env(meshes=meshes, rank=rank, seed=seed, size=room_size)
+            _env = Env(image_size=image_size, meshes=meshes, rank=rank, size=room_size)
             _env = SuccessWrapper(_env)
             if render:
                 _env = RenderWrapper(_env, mode="ascii")

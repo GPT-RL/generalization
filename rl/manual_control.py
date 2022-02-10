@@ -22,6 +22,7 @@ if __name__ == "__main__":
     meshes = get_meshes(data_path=Path(args.data_path), names=args.names)
 
     env = Env(
+        image_size=args.image_size,
         meshes=meshes,
         seed=args.seed,
         size=args.room_size,
