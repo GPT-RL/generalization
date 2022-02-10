@@ -14,6 +14,8 @@ try:
 except ValueError:
     device = None
 pyglet.options["headless_device"] = device
+os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
+
 from gpt_main import Args, ArgsType, Trainer  # noqa: E402
 
 if __name__ == "__main__":
