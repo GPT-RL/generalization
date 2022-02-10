@@ -2,6 +2,8 @@ import itertools
 import math
 import pickle
 import string
+import sys
+import time
 from copy import deepcopy
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -185,10 +187,18 @@ class Env(MiniWorldEnv):
 
             cached = pickle.loads(R.get(f"{self.timestep},{self.rank}"))
             if not cached.mission == obs.mission:
+                print("####################################################")
                 print(self.timestep, j, cached.mission, obs.mission)
+                print("####################################################")
+                sys.stdout.flush()
+                time.sleep(1)
                 breakpoint()
             if not np.array_equal(cached.image, obs.image):
+                print("####################################################")
                 print(self.timestep, j)
+                print("####################################################")
+                sys.stdout.flush()
+                time.sleep(1)
                 breakpoint()
             print(self.timestep, self.rank, j)
             self.timestep += 1
