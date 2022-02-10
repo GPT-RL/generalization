@@ -79,15 +79,15 @@ class Env(MiniWorldEnv):
         self,
         image_size: int,
         meshes: List[Mesh],
-        size: float,
+        room_size: float,
         max_episode_steps: int = 180,
         pitch: float = -30,
         rank: int = 0,
         **kwargs,
     ):
         self.rank = rank
-        assert size >= 2
-        self.size = size
+        assert room_size >= 2
+        self.size = room_size
 
         self.meshes = sorted(meshes, key=lambda m: m.name)
 

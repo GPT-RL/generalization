@@ -2,6 +2,7 @@ import functools
 import re
 from collections import defaultdict
 from dataclasses import dataclass, field
+from inspect import signature
 from pathlib import Path
 from typing import Dict, List, Literal, Optional, Set, Tuple, cast
 
@@ -167,16 +168,17 @@ class Trainer(base_main.Trainer):
         def _thunk(
             all_missions: list,
             features: Dict[str, List[str]],
-            image_size: int,
-            meshes: List[Mesh],
-            rank: int,
-            room_size: int,
-            seed: int,
             tokenizer: GPT2Tokenizer,
-            **_,
+            **_kwargs,
         ):
 
-            _env = Env(image_size=image_size, meshes=meshes, rank=rank, size=room_size)
+            _env = Env(
+                **{
+                    k: v
+                    for k, v in _kwargs.items()
+                    if k in signature(Env.__init__).parameters
+                }
+            )
             _env = SuccessWrapper(_env)
             if render:
                 _env = RenderWrapper(_env, mode="ascii")
