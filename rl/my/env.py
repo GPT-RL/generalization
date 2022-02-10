@@ -183,7 +183,7 @@ class Env(MiniWorldEnv):
             if done:
                 info.update(pair=(self._mission, self._dist_name))
 
-            R.set(str(self.timestep), pickle.dumps(obs))
+            R.set(f"{self.timestep},{self.rank}", pickle.dumps(obs))
             self.timestep += 1
             action = yield obs, reward, done, info
             action = cast(MiniWorldEnv.Actions, action)
