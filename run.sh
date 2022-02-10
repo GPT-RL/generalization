@@ -4,6 +4,7 @@ name=$(basename "$PWD")_agent
 docker build -t "$name" .
 docker run --rm -it \
 	--env-file .env \
+	--net host \
 	--gpus "$1" \
 	-e HOST_MACHINE="$(hostname -s)" \
 	-e TERM=xterm-256color \
