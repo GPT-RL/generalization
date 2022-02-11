@@ -217,6 +217,33 @@ class Env(MiniWorldEnv):
     def make_obs(self, image: np.ndarray) -> Obs:
         return Obs(image=image, mission=self._mission)
 
+    def move_agent(self, fwd_dist, fwd_drift):
+        """
+        Move the agent forward
+        """
+
+        next_pos = (
+            self.agent.pos
+            + self.agent.dir_vec * fwd_dist
+            + self.agent.right_vec * fwd_drift
+        )
+
+        # if self.intersect(self.agent, next_pos, self.agent.radius):
+        #     return False
+
+        carrying = self.agent.carrying
+        if carrying:
+            next_carrying_pos = self._get_carry_pos(next_pos, carrying)
+
+            if self.intersect(carrying, next_carrying_pos, carrying.radius):
+                return False
+
+            carrying.pos = next_carrying_pos
+
+        self.agent.pos = next_pos
+
+        return True
+
     def render(self, mode="human", pause=True, **kwargs):
         if mode == "ascii":
             self._render(pause=pause)
