@@ -24,7 +24,7 @@ from wrappers import (
     EPISODE_SUCCESS,
     FAIL_SEED_SUCCESS,
     FAIL_SEED_USAGE,
-    SUCCESS_AVERAGE,
+    NUM_FAIL_SEEDS,
     FailureReplayWrapper,
     FeatureWrapper,
     ImageNormalizerWrapper,
@@ -70,7 +70,7 @@ class Counters(base_main.Counters):
     episode_success: List[bool] = field(default_factory=list)
     fail_seed_success: List[bool] = field(default_factory=list)
     fail_seed_usage: List[bool] = field(default_factory=list)
-    success_average: List[float] = field(default_factory=list)
+    num_fail_seeds: List[float] = field(default_factory=list)
     success_per_pair: DefaultDict[Tuple[str, str], List[float]] = field(
         default_factory=lambda: defaultdict(list)
     )
@@ -115,7 +115,7 @@ class Trainer(base_main.Trainer):
             line_chart.spec(x=base_main.STEP, y=EPISODE_SUCCESS, **kwargs),
             line_chart.spec(x=base_main.STEP, y=FAIL_SEED_SUCCESS, **kwargs),
             line_chart.spec(x=base_main.STEP, y=FAIL_SEED_USAGE, **kwargs),
-            line_chart.spec(x=base_main.STEP, y=SUCCESS_AVERAGE, **kwargs),
+            line_chart.spec(x=base_main.STEP, y=NUM_FAIL_SEEDS, **kwargs),
             line_chart.spec(x=base_main.STEP, y=TEST_EPISODE_SUCCESS, **kwargs),
             heatmap.spec(
                 x=DISTRACTOR,
@@ -157,15 +157,15 @@ class Trainer(base_main.Trainer):
             log.update({FAIL_SEED_SUCCESS: np.mean(counters.fail_seed_success)})
         if counters.fail_seed_usage:
             log.update({FAIL_SEED_USAGE: np.mean(counters.fail_seed_usage)})
-        if counters.success_average:
-            log.update({SUCCESS_AVERAGE: np.mean(counters.success_average)})
+        if counters.num_fail_seeds:
+            log.update({NUM_FAIL_SEEDS: np.mean(counters.num_fail_seeds)})
         if counters.test_episode_success:
             log.update({TEST_EPISODE_SUCCESS: np.mean(counters.test_episode_success)})
         super().log(log=log, logger=logger, step=step, counters=counters)
         counters.episode_success = []
         counters.fail_seed_success = []
         counters.fail_seed_usage = []
-        counters.success_average = []
+        counters.num_fail_seeds = []
         counters.test_episode_success = []
 
     @classmethod
@@ -300,8 +300,8 @@ class Trainer(base_main.Trainer):
         elif FAIL_SEED_SUCCESS in info:
             counters.fail_seed_success.append(info[FAIL_SEED_SUCCESS])
             counters.fail_seed_usage.append(True)
-        if SUCCESS_AVERAGE in info:
-            counters.success_average.append(info[SUCCESS_AVERAGE])
+        if NUM_FAIL_SEEDS in info:
+            counters.num_fail_seeds.append(info[NUM_FAIL_SEEDS])
 
     @staticmethod
     def recurrent(args: Args):

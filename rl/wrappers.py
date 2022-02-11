@@ -18,7 +18,7 @@ T = TypeVar("T")  # Declare type variable
 EPISODE_SUCCESS = "episode success"
 FAIL_SEED_SUCCESS = "fail seed success"
 FAIL_SEED_USAGE = "fail seed usage"
-SUCCESS_AVERAGE = "success average"
+NUM_FAIL_SEEDS = "number of fail seeds"
 
 
 @dataclass
@@ -162,7 +162,7 @@ class FailureReplayWrapper(SuccessWrapper):
     def step(self, action):
         s, r, t, i = super().step(action)
         if t:
-            i.update({SUCCESS_AVERAGE: float(np.mean(self.successes))})
+            i.update({NUM_FAIL_SEEDS: len(self.fail_seeds)})
             if self.using_fail_seed:
                 success = i.pop(EPISODE_SUCCESS)
                 i.update({FAIL_SEED_SUCCESS: success})
