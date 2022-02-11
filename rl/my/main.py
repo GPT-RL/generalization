@@ -74,6 +74,7 @@ class Counters(base_main.Counters):
     success_per_pair: DefaultDict[Tuple[str, str], List[float]] = field(
         default_factory=lambda: defaultdict(list)
     )
+    test_episode_success: List[bool] = field(default_factory=list)
 
 
 def get_data_path_meshes(
@@ -158,11 +159,14 @@ class Trainer(base_main.Trainer):
             log.update({FAIL_SEED_USAGE: np.mean(counters.fail_seed_usage)})
         if counters.success_average:
             log.update({SUCCESS_AVERAGE: np.mean(counters.success_average)})
+        if counters.test_episode_success:
+            log.update({TEST_EPISODE_SUCCESS: np.mean(counters.test_episode_success)})
         super().log(log=log, logger=logger, step=step, counters=counters)
         counters.episode_success = []
         counters.fail_seed_success = []
         counters.fail_seed_usage = []
         counters.success_average = []
+        counters.test_episode_success = []
 
     @classmethod
     def make_agent(cls, envs: VecPyTorch, args: ArgsType) -> Agent:
@@ -182,6 +186,7 @@ class Trainer(base_main.Trainer):
             all_missions: list,
             features: Dict[str, List[str]],
             seed: int,
+            test: bool,
             tokenizer: GPT2Tokenizer,
             **_kwargs,
         ):
@@ -193,7 +198,8 @@ class Trainer(base_main.Trainer):
                     if k in signature(Env.__init__).parameters
                 },
             )
-            _env = FailureReplayWrapper(_env, seed=seed)
+            if not test:
+                _env = FailureReplayWrapper(_env, seed=seed)
             if render:
                 _env = RenderWrapper(_env, mode="ascii")
             _env = ImageNormalizerWrapper(_env)
@@ -282,12 +288,15 @@ class Trainer(base_main.Trainer):
         return cls._num_eval_processes(args.num_processes, args.num_test_envs)
 
     @classmethod
-    def process_info(cls, counters: Counters, info: dict):
-        super().process_info(counters, info)
+    def process_info(cls, counters: Counters, info: dict, test: bool):
+        super().process_info(counters, info, test)
         if EPISODE_SUCCESS in info:
-            counters.episode_success.append(info[EPISODE_SUCCESS])
-            counters.fail_seed_usage.append(False)
-            counters.success_per_pair[info[PAIR]].append(info[EPISODE_SUCCESS])
+            if test:
+                counters.test_episode_success.append(info[EPISODE_SUCCESS])
+            else:
+                counters.episode_success.append(info[EPISODE_SUCCESS])
+                counters.fail_seed_usage.append(False)
+                counters.success_per_pair[info[PAIR]].append(info[EPISODE_SUCCESS])
         elif FAIL_SEED_SUCCESS in info:
             counters.fail_seed_success.append(info[FAIL_SEED_SUCCESS])
             counters.fail_seed_usage.append(True)

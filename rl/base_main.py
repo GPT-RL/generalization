@@ -176,7 +176,7 @@ class Trainer:
 
     @classmethod
     def evaluate(
-        cls, agent, envs, num_processes, device, start, total_num_steps, logger, test
+        cls, agent, envs, num_processes, device, start, total_num_steps, logger
     ):
 
         counters = cls.build_counters()
@@ -202,21 +202,16 @@ class Trainer:
             )
 
             for info in infos:
-                cls.process_info(counters, info)
+                cls.process_info(counters, info, test=True)
 
         envs.close()
         now = time.time()
         log = {
             TIME: now * 1000000,
             HOURS: (now - start) / 3600,
+            TEST_EPISODE_LENGTH: np.mean(counters.episode_lengths),
+            TEST_EPISODE_RETURN: np.mean(counters.episode_rewards),
         }
-        if test:
-            log.update(
-                {
-                    TEST_EPISODE_RETURN: np.mean(counters.episode_rewards),
-                    TEST_EPISODE_LENGTH: np.mean(counters.episode_lengths),
-                }
-            )
 
         cls.log(log=log, logger=logger, step=total_num_steps, counters=counters)
 
@@ -260,7 +255,7 @@ class Trainer:
         return args.num_processes
 
     @classmethod
-    def process_info(cls, counters: Counters, info: dict):
+    def process_info(cls, counters: Counters, info: dict, test: bool):
         if "episode" in info.keys():
             counters.episode_rewards.append(info["episode"]["r"])
             counters.episode_lengths.append(info["episode"]["l"])
@@ -465,7 +460,6 @@ class Trainer:
                         envs=cls.make_vec_envs(
                             device=device,
                             run_id=logger.run_id,
-                            test=True,
                             **args.as_dict(),
                         ),
                         num_processes=cls.num_eval_processes(args),
@@ -509,7 +503,7 @@ class Trainer:
                     obs, reward, done, infos = envs.step(action)
 
                     for info in infos:
-                        cls.process_info(counters, info)
+                        cls.process_info(counters, info, test=False)
 
                     # If done then clean the history of observations.
                     masks = torch.FloatTensor(
