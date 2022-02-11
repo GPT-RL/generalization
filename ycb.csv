@@ -60,7 +60,7 @@ Dice,"is white,is box-shaped",16.2,False,062_dice/google_16k/textured.obj,
 Washers( 7 sizes),"is metal,is round,flat",,True,037_scissors/google_16k/textured.obj,
 Rope,,,True,016_pear/google_16k/textured.obj,
 Chain,,130.0,False,059_chain/google_16k/textured.obj,
-Rubicks Cube,"is box-shaped,part red,part yellow,part green",57.0,False,077_rubiks_cube/google_16k/textured.obj,
+Rubicks Cube,"is box-shaped,part red,part yellow,part green",57.0,False,077_rubiks_cube/google_16k/textured.obj,rubik's cube
 Clear Box( x2),,149.0,True,026_sponge/google_16k/textured.obj,Clear box
 Box Lid,,,True,062_dice/google_16k/textured.obj,
 Colored Wood Blocks,,26.0,False,070-b_colored_wood_blocks/google_16k/textured.obj,
