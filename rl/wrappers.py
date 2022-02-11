@@ -184,7 +184,12 @@ class TokenizerWrapper(gym.ObservationWrapper):
         tokenizer: GPT2Tokenizer,
     ):
         self.tokenizer: GPT2Tokenizer = tokenizer
-        ns, ds = zip(*[self.encode(m, tokenizer).shape for m in all_missions])
+        ns, ds = zip(
+            *[
+                self.encode(tuple(m) if isinstance(m, list) else m, tokenizer).shape
+                for m in all_missions
+            ]
+        )
         n = max(ns)
         d = max(ds)
 

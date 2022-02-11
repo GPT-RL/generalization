@@ -230,11 +230,12 @@ class Trainer(base_main.Trainer):
             df = df[~df[EXCLUDED]].drop(EXCLUDED, axis=1)
             features = df.apply(
                 func=lambda r: []
-                if r[DESCRIPTION].isna()
+                if pd.isna(r[DESCRIPTION])
                 else r[DESCRIPTION].split(","),
                 axis=1,
             )
             features = features.to_dict()
+            features = {k.lower(): v for k, v in features.items() if v}
             meshes: List[Mesh] = [m for m in meshes if m.name in features]
             all_missions = list(features.values())
         else:
