@@ -15,6 +15,11 @@ from transformers import GPT2Tokenizer
 
 T = TypeVar("T")  # Declare type variable
 
+EPISODE_SUCCESS = "episode success"
+FAIL_SEED_SUCCESS = "fail seed success"
+FAIL_SEED_USAGE = "fail seed usage"
+SUCCESS_AVERAGE = "success average"
+
 
 @dataclass
 class TrainTest(Generic[T]):
@@ -126,7 +131,7 @@ class SuccessWrapper(gym.Wrapper):
     def step(self, action):
         s, r, t, i = super().step(action)
         if t:
-            i.update(success=r > 0)
+            i.update({EPISODE_SUCCESS: r > 0})
         return s, r, t, i
 
 
@@ -157,11 +162,12 @@ class FailureReplayWrapper(SuccessWrapper):
     def step(self, action):
         s, r, t, i = super().step(action)
         if t:
+            i.update({SUCCESS_AVERAGE: float(np.mean(self.successes))})
             if self.using_fail_seed:
-                success = i.pop("success")
-                i.update(fail_seed_success=success)
+                success = i.pop(EPISODE_SUCCESS)
+                i.update({FAIL_SEED_SUCCESS: success})
             else:
-                success = i["success"]
+                success = i[EPISODE_SUCCESS]
                 self.successes += [success]
                 if not success and len(self.fail_seeds) < 100:
                     self.fail_seeds += [self.current_seed]

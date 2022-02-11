@@ -20,6 +20,7 @@ from tap import Tap
 EXCLUDED = "excluded"
 DESCRIPTION = "description"
 NAME = "name"
+PAIR = "pair"
 PATH = "path"
 
 
@@ -189,7 +190,7 @@ class Env(MiniWorldEnv):
         while True:
             obs = self.make_obs(image)
             if done:
-                info.update(pair=(self._mission, self._dist_name))
+                info.update({PAIR: (self._mission, self._dist_name)})
             action = yield obs, reward, done, info
             action = cast(MiniWorldEnv.Actions, action)
             assert not done

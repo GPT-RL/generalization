@@ -15,12 +15,16 @@ import pandas as pd
 from envs import VecPyTorch
 from my import env
 from my.agent import Agent
-from my.env import DESCRIPTION, EXCLUDED, Env, Mesh
+from my.env import DESCRIPTION, EXCLUDED, PAIR, Env, Mesh
 from my.mesh_paths import get_meshes
 from run_logger import HasuraLogger
 from stable_baselines3.common.monitor import Monitor
 from transformers import GPT2Tokenizer
 from wrappers import (
+    EPISODE_SUCCESS,
+    FAIL_SEED_SUCCESS,
+    FAIL_SEED_USAGE,
+    SUCCESS_AVERAGE,
     FailureReplayWrapper,
     FeatureWrapper,
     ImageNormalizerWrapper,
@@ -30,12 +34,8 @@ from wrappers import (
     TrainTest,
 )
 
-EPISODE_SUCCESS = "episode success"
-FAIL_SEED_SUCCESS = "fail seed success"
-FAIL_SEED_USAGE = "fail seed usage"
 DISTRACTOR = "distractor"
 MISSION = "mission"
-PAIR = "object pair"
 PAIR_SUCCESS = "object pair success"
 TEST_EPISODE_SUCCESS = "test episode success"
 
@@ -70,6 +70,7 @@ class Counters(base_main.Counters):
     episode_success: List[bool] = field(default_factory=list)
     fail_seed_success: List[bool] = field(default_factory=list)
     fail_seed_usage: List[bool] = field(default_factory=list)
+    success_average: List[float] = field(default_factory=list)
     success_per_pair: DefaultDict[Tuple[str, str], List[float]] = field(
         default_factory=lambda: defaultdict(list)
     )
@@ -113,6 +114,7 @@ class Trainer(base_main.Trainer):
             line_chart.spec(x=base_main.STEP, y=EPISODE_SUCCESS, **kwargs),
             line_chart.spec(x=base_main.STEP, y=FAIL_SEED_SUCCESS, **kwargs),
             line_chart.spec(x=base_main.STEP, y=FAIL_SEED_USAGE, **kwargs),
+            line_chart.spec(x=base_main.STEP, y=SUCCESS_AVERAGE, **kwargs),
             line_chart.spec(x=base_main.STEP, y=TEST_EPISODE_SUCCESS, **kwargs),
             heatmap.spec(
                 x=DISTRACTOR,
@@ -151,6 +153,7 @@ class Trainer(base_main.Trainer):
         log.update({EPISODE_SUCCESS: np.mean(counters.episode_success)})
         log.update({FAIL_SEED_SUCCESS: np.mean(counters.fail_seed_success)})
         log.update({FAIL_SEED_USAGE: np.mean(counters.fail_seed_usage)})
+        log.update({SUCCESS_AVERAGE: np.mean(counters.success_average)})
         super().log(log=log, logger=logger, step=step, counters=counters)
         counters.episode_success = []
 
@@ -274,13 +277,15 @@ class Trainer(base_main.Trainer):
     @classmethod
     def process_info(cls, counters: Counters, info: dict):
         super().process_info(counters, info)
-        if "success" in info:
-            counters.episode_success.append(info["success"])
+        if EPISODE_SUCCESS in info:
+            counters.episode_success.append(info[EPISODE_SUCCESS])
             counters.fail_seed_usage.append(False)
-            counters.success_per_pair[info["pair"]].append(info["success"])
-        elif "fail_seed_success" in info:
-            counters.fail_seed_success.append(info["fail_seed_success"])
+            counters.success_per_pair[info[PAIR]].append(info[EPISODE_SUCCESS])
+        elif FAIL_SEED_SUCCESS in info:
+            counters.fail_seed_success.append(info[FAIL_SEED_SUCCESS])
             counters.fail_seed_usage.append(True)
+        if SUCCESS_AVERAGE in info:
+            counters.success_average.append(info[SUCCESS_AVERAGE])
 
     @staticmethod
     def recurrent(args: Args):
