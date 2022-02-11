@@ -150,12 +150,19 @@ class Trainer(base_main.Trainer):
                 )
                 counters.success_per_pair[mission, distractor] = []
 
-        log.update({EPISODE_SUCCESS: np.mean(counters.episode_success)})
-        log.update({FAIL_SEED_SUCCESS: np.mean(counters.fail_seed_success)})
-        log.update({FAIL_SEED_USAGE: np.mean(counters.fail_seed_usage)})
-        log.update({SUCCESS_AVERAGE: np.mean(counters.success_average)})
+        if counters.episode_success:
+            log.update({EPISODE_SUCCESS: np.mean(counters.episode_success)})
+        if counters.fail_seed_success:
+            log.update({FAIL_SEED_SUCCESS: np.mean(counters.fail_seed_success)})
+        if counters.fail_seed_usage:
+            log.update({FAIL_SEED_USAGE: np.mean(counters.fail_seed_usage)})
+        if counters.success_average:
+            log.update({SUCCESS_AVERAGE: np.mean(counters.success_average)})
         super().log(log=log, logger=logger, step=step, counters=counters)
         counters.episode_success = []
+        counters.fail_seed_success = []
+        counters.fail_seed_usage = []
+        counters.success_average = []
 
     @classmethod
     def make_agent(cls, envs: VecPyTorch, args: ArgsType) -> Agent:
