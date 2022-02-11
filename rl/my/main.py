@@ -21,16 +21,18 @@ from run_logger import HasuraLogger
 from stable_baselines3.common.monitor import Monitor
 from transformers import GPT2Tokenizer
 from wrappers import (
+    FailureReplayWrapper,
     FeatureWrapper,
     ImageNormalizerWrapper,
     RenderWrapper,
     RolloutsWrapper,
-    SuccessWrapper,
     TokenizerWrapper,
     TrainTest,
 )
 
 EPISODE_SUCCESS = "episode success"
+FAIL_SEED_SUCCESS = "fail seed success"
+FAIL_SEED_USAGE = "fail seed usage"
 DISTRACTOR = "distractor"
 MISSION = "mission"
 PAIR = "object pair"
@@ -66,6 +68,8 @@ class ArgsType(base_main.ArgsType, Args):
 @dataclass
 class Counters(base_main.Counters):
     episode_success: List[bool] = field(default_factory=list)
+    fail_seed_success: List[bool] = field(default_factory=list)
+    fail_seed_usage: List[bool] = field(default_factory=list)
     success_per_pair: DefaultDict[Tuple[str, str], List[float]] = field(
         default_factory=lambda: defaultdict(list)
     )
@@ -107,6 +111,8 @@ class Trainer(base_main.Trainer):
         kwargs = dict(visualizer_url=args.visualizer_url)
         return [
             line_chart.spec(x=base_main.STEP, y=EPISODE_SUCCESS, **kwargs),
+            line_chart.spec(x=base_main.STEP, y=FAIL_SEED_SUCCESS, **kwargs),
+            line_chart.spec(x=base_main.STEP, y=FAIL_SEED_USAGE, **kwargs),
             line_chart.spec(x=base_main.STEP, y=TEST_EPISODE_SUCCESS, **kwargs),
             heatmap.spec(
                 x=DISTRACTOR,
@@ -143,6 +149,8 @@ class Trainer(base_main.Trainer):
                 counters.success_per_pair[mission, distractor] = []
 
         log.update({EPISODE_SUCCESS: np.mean(counters.episode_success)})
+        log.update({FAIL_SEED_SUCCESS: np.mean(counters.fail_seed_success)})
+        log.update({FAIL_SEED_USAGE: np.mean(counters.fail_seed_usage)})
         super().log(log=log, logger=logger, step=step, counters=counters)
         counters.episode_success = []
 
@@ -163,18 +171,19 @@ class Trainer(base_main.Trainer):
         def _thunk(
             all_missions: list,
             features: Dict[str, List[str]],
+            seed: int,
             tokenizer: GPT2Tokenizer,
             **_kwargs,
         ):
-
             _env = Env(
+                seed=seed,
                 **{
                     k: v
                     for k, v in _kwargs.items()
                     if k in signature(Env.__init__).parameters
-                }
+                },
             )
-            _env = SuccessWrapper(_env)
+            _env = FailureReplayWrapper(_env, seed=seed)
             if render:
                 _env = RenderWrapper(_env, mode="ascii")
             _env = ImageNormalizerWrapper(_env)
@@ -266,8 +275,11 @@ class Trainer(base_main.Trainer):
         super().process_info(counters, info)
         if "success" in info:
             counters.episode_success.append(info["success"])
-        if "pair" in info:
+            counters.fail_seed_usage.append(False)
             counters.success_per_pair[info["pair"]].append(info["success"])
+        elif "fail_seed_success" in info:
+            counters.fail_seed_success.append(info["fail_seed_success"])
+            counters.fail_seed_usage.append(True)
 
     @staticmethod
     def recurrent(args: Args):

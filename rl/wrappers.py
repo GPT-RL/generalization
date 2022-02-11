@@ -1,4 +1,5 @@
 import abc
+import sys
 import typing
 from dataclasses import astuple, dataclass, replace
 from functools import lru_cache
@@ -126,6 +127,44 @@ class SuccessWrapper(gym.Wrapper):
         s, r, t, i = super().step(action)
         if t:
             i.update(success=r > 0)
+        return s, r, t, i
+
+
+class FailureReplayWrapper(SuccessWrapper):
+    def __init__(self, env, seed: int, tgt_success_prob: float = 0.5):
+        self.tgt_success_prob = tgt_success_prob
+        self.successes = []
+        self.fail_seeds = []
+        self.rng = np.random.default_rng(seed=seed)
+        super().__init__(env)
+
+    def reset(self, **kwargs):
+        if self.successes and self.fail_seeds:
+            prior_success_prob = float(np.mean(self.successes))
+            no_fail_seed_prob = self.tgt_success_prob / max(prior_success_prob, 1e-5)
+            use_fail_seeds_prob = 1 - no_fail_seed_prob
+        else:
+            use_fail_seeds_prob = 0
+        self.using_fail_seed = self.rng.random() < use_fail_seeds_prob
+        if self.using_fail_seed:
+            i = self.rng.choice(len(self.fail_seeds))
+            self.current_seed = self.fail_seeds.pop(i)
+        else:
+            self.current_seed = self.rng.choice(sys.maxsize)
+        self.env.seed(self.current_seed)
+        return super().reset(**kwargs)
+
+    def step(self, action):
+        s, r, t, i = super().step(action)
+        if t:
+            if self.using_fail_seed:
+                success = i.pop("success")
+                i.update(fail_seed_success=success)
+            else:
+                success = i["success"]
+                self.successes += [success]
+                if not success and len(self.fail_seeds) < 100:
+                    self.fail_seeds += [self.current_seed]
         return s, r, t, i
 
 
