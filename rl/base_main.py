@@ -179,9 +179,7 @@ class Trainer:
         cls, agent, envs, num_processes, device, start, total_num_steps, logger, test
     ):
 
-        episode_rewards = []
-        episode_lengths = []
-        episode_success = []
+        counters = cls.build_counters()
 
         obs = envs.reset()
         recurrent_hidden_states = torch.zeros(
@@ -189,7 +187,7 @@ class Trainer:
         )
         masks = torch.zeros(num_processes, 1, device=device)
 
-        while len(episode_rewards) < 100:
+        while len(counters.episode_rewards) < 100:
             with torch.no_grad():
                 _, action, _, recurrent_hidden_states = agent.forward(
                     obs, recurrent_hidden_states, masks
@@ -204,38 +202,27 @@ class Trainer:
             )
 
             for info in infos:
-                if "episode" in info.keys():
-                    episode_rewards.append(info["episode"]["r"])
-                    episode_lengths.append(info["episode"]["l"])
-                if "success" in info.keys():
-                    episode_success.append(info["success"])
+                cls.process_info(counters, info)
 
         envs.close()
         now = time.time()
         log = {
             TIME: now * 1000000,
             HOURS: (now - start) / 3600,
-            STEP: total_num_steps,
         }
         if test:
             log.update(
                 {
-                    TEST_EPISODE_RETURN: np.mean(episode_rewards),
-                    TEST_EPISODE_LENGTH: np.mean(episode_lengths),
+                    TEST_EPISODE_RETURN: np.mean(counters.episode_rewards),
+                    TEST_EPISODE_LENGTH: np.mean(counters.episode_lengths),
                 }
             )
 
-        logging.info(pformat(log))
-        if logger.run_id is not None:
-            log.update({RUN_ID: logger.run_id})
-        logging.info(pformat(log))
-        if logger.run_id is not None:
-            logger.log(log)
+        cls.log(log=log, logger=logger, step=total_num_steps, counters=counters)
 
         logging.info(
-            " Evaluation using {} episodes: mean reward {:.5f}\n".format(
-                len(episode_rewards), np.mean(episode_rewards)
-            )
+            f" Evaluation using {len(counters.episode_rewards)} episodes: "
+            f"mean reward {np.mean(counters.episode_rewards):.5f}\n "
         )
 
     @classmethod
