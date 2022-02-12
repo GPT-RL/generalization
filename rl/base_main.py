@@ -467,7 +467,6 @@ class Trainer:
                         start=start,
                         total_num_steps=cls.total_num_steps(j, args),
                         logger=logger,
-                        test=True,
                     )
                 # save for every interval-th episode or for the last epoch
                 if (
