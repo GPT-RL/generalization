@@ -1,20 +1,20 @@
 import functools
-from typing import List, Literal, Set, cast
+from inspect import signature
+from typing import Literal, Set, cast
 
 import base_main
 import numpy as np
 from envs import RenderWrapper, VecPyTorch
-from gym_minigrid.minigrid import COLORS
 from my.agent import Agent
 from my.env import (
+    OBJECTS,
     ActionInObsWrapper,
     FullyObsWrapper,
+    OmitActionWrapper,
     PickupEnv,
-    PlantAnimalWrapper,
     RolloutsWrapper,
     SuccessWrapper,
     TokenizerWrapper,
-    alt_type,
 )
 from stable_baselines3.common.monitor import Monitor
 from transformers import GPT2Tokenizer
@@ -31,11 +31,9 @@ class Args(base_main.Args):
         "EleutherAI/gpt-neo-1.3B",
         "EleutherAI/gpt-neo-2.7B",
     ] = "gpt2-large"  # what size of pretrained GPT to use
-    env: str = "plant-animal"  # env ID for gym
     room_size: int = 5
     second_layer: bool = False
     strict: bool = True
-    prefix_length: int = 4
 
     def configure(self) -> None:
         self.add_subparsers(dest="logger_args")
@@ -68,44 +66,34 @@ class Trainer(base_main.Trainer):
     @classmethod
     def make_env(cls, env, allow_early_resets, render: bool = False, *args, **kwargs):
         def _thunk(
-            env_id: str,
-            room_size: int,
-            seed: int,
-            prefixes: dict,
-            strict: bool,
             test: bool,
             test_objects: Set[str],
             tokenizer: GPT2Tokenizer,
-            **_,
+            **_kwargs,
         ):
-            if env_id == "plant-animal":
-                objects = set(PlantAnimalWrapper.replacements)
-                objects = test_objects if test else objects - test_objects
-                objects = [o.split() for o in objects]
-                objects = [(t, c) for (c, t) in objects]
-                kwargs = {}
-                if test:
-                    (c1, t1), (c2, t2) = objects
-                    cross_product = [(c1, t2), (c2, t1)]
-                    objects.extend(cross_product)
-                    kwargs.update(prohibited=set(cross_product))
 
-                _env = PickupEnv(
-                    objects=objects,
-                    room_size=room_size,
-                    strict=strict,
-                    seed=seed,
-                    **kwargs,
-                )
-                _env = PlantAnimalWrapper(_env, prefixes)
-                missions: List[str] = _env.missions  # + [
-                #     "a really long string that I just added for testing purposes. a really long string that I just "
-                #     "added for testing purposes. "
-                # ]
-                longest_mission = max(missions, key=len)
+            objects = test_objects if test else set(OBJECTS) - test_objects
+            objects = [o.split() for o in objects]
+            objects = [(t, c) for (c, t) in objects]
+            if test:
+                (c1, t1), (c2, t2) = objects
+                cross_product = [(c1, t2), (c2, t1)]
+                objects.extend(cross_product)
+                _kwargs.update(prohibited=set(cross_product))
 
-            else:
-                raise RuntimeError(f"{env_id} is not a valid env_id")
+            _env = PickupEnv(
+                objects=objects,
+                **{
+                    k: v
+                    for k, v in _kwargs.items()
+                    if k in signature(PickupEnv.__init__).parameters
+                },
+            )
+            _env = OmitActionWrapper(_env)
+            #     "a really long string that I just added for testing purposes. a really long string that I just "
+            #     "added for testing purposes. "
+            # ]
+            longest_mission: str = max(OBJECTS, key=len)
 
             _env = FullyObsWrapper(_env)
             _env = ActionInObsWrapper(_env)
@@ -123,19 +111,7 @@ class Trainer(base_main.Trainer):
 
             return _env
 
-        return functools.partial(_thunk, env_id=env, **kwargs)
-
-    # noinspection PyShadowingBuiltins
-    @staticmethod
-    @functools.lru_cache(maxsize=2)
-    def stock_prefix(type: str, prefix_length: int, seed: int):
-        if prefix_length == 0:
-            return ""
-        rng = np.random.default_rng(seed=seed)
-        colors = rng.choice(list(COLORS), replace=False, size=prefix_length)
-        return ". ".join(
-            [f"{color} {alt_type(type)}: {color} {type}" for color in colors]
-        )
+        return functools.partial(_thunk, **kwargs)
 
     @staticmethod
     @functools.lru_cache(maxsize=1)
@@ -143,15 +119,9 @@ class Trainer(base_main.Trainer):
         return GPT2Tokenizer.from_pretrained(pretrained_model)
 
     @classmethod
-    def make_vec_envs(
-        cls, *args, pretrained_model: str, prefix_length: int, seed: int, **kwargs
-    ):
-        prefixes = {
-            ty: cls.stock_prefix(ty, prefix_length=prefix_length, seed=seed)
-            for ty in ["ball", "box"]
-        }
+    def make_vec_envs(cls, *args, pretrained_model: str, seed: int, **kwargs):
         rng = np.random.default_rng(seed=seed)
-        colors, _ = zip(*[o.split() for o in PlantAnimalWrapper.replacements])
+        colors, _ = zip(*[o.split() for o in OBJECTS])
         test_color1, test_color2 = rng.choice(list(colors), size=2, replace=False)
         test_objects = {f"{test_color1} box", f"{test_color2} ball"}
 
@@ -159,7 +129,6 @@ class Trainer(base_main.Trainer):
             *args,
             **kwargs,
             seed=seed,
-            prefixes=prefixes,
             test_objects=test_objects,
             tokenizer=cls.tokenizer(pretrained_model),
         )

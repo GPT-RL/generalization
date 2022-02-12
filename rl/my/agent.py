@@ -8,7 +8,7 @@ import torch.nn.functional as F
 from agent import NNBase
 from gym import Space
 from gym.spaces import Box, Dict, Discrete, MultiDiscrete
-from my.env import Spaces
+from my.env import Obs
 from transformers import BertConfig, GPT2Config, GPT2Tokenizer, GPTNeoConfig
 from utils import init
 
@@ -23,7 +23,7 @@ def get_size(space: Space):
 
 class Agent(agent.Agent):
     def __init__(self, observation_space, **kwargs):
-        spaces = Spaces(*observation_space.spaces)
+        spaces = Obs(*observation_space.spaces)
         super().__init__(
             obs_shape=spaces.image.shape, observation_space=observation_space, **kwargs
         )
@@ -60,7 +60,7 @@ class Base(NNBase):
             recurrent_input_size=hidden_size,
             hidden_size=hidden_size,
         )
-        self.observation_spaces = Spaces(*observation_space.spaces)
+        self.observation_spaces = Obs(*observation_space.spaces)
         self.num_directions = self.observation_spaces.direction.n
         self.num_actions = self.observation_spaces.action.n
 
@@ -158,7 +158,7 @@ class Base(NNBase):
         )
 
     def forward(self, inputs, rnn_hxs, masks):
-        inputs = Spaces(
+        inputs = Obs(
             *torch.split(
                 inputs,
                 [get_size(space) for space in astuple(self.observation_spaces)],

@@ -1,5 +1,4 @@
 import abc
-import re
 import typing
 from abc import ABC
 from dataclasses import astuple, dataclass
@@ -19,11 +18,43 @@ from gym_minigrid.wrappers import ImgObsWrapper
 from torch.nn.utils.rnn import pad_sequence
 from transformers import GPT2Tokenizer
 
+green_animal = "green box"
+orange_animal = "yellow box"
+green_plant = "green ball"
+orange_plant = "yellow ball"
+white_animal = "grey box"
+white_plant = "grey ball"
+purple_animal = "purple box"
+purple_plant = "purple ball"
+# pink_animal = "pink box"
+# pink_plant = "pink ball"
+black_animal = "blue box"
+black_plant = "blue ball"
+red_animal = "red box"
+red_plant = "red ball"
+OBJECTS: typing.List[str] = [
+    red_animal,
+    red_plant,
+    black_animal,
+    black_plant,
+    # pink_animal,
+    # pink_plant,
+    purple_animal,
+    purple_plant,
+    white_animal,
+    white_plant,
+    green_animal,
+    green_plant,
+    orange_animal,
+    orange_plant,
+]
+
+
 T = TypeVar("T")  # Declare type variable
 
 
 @dataclass
-class Spaces:
+class Obs:
     image: T
     direction: T
     mission: T
@@ -133,14 +164,6 @@ class RenderEnv(RoomGridLevel, ABC):
         return s, self.__reward, self.__done, i
 
 
-class RenderColorEnv(RenderEnv, ABC):
-    @staticmethod
-    def color_obj(color: str, string: str):
-        if re.match("([v^><]|wall) *", string):
-            return string
-        return color.ljust(len(string))
-
-
 class PickupEnv(RenderEnv, ReproducibleEnv):
     def __init__(
         self,
@@ -151,6 +174,7 @@ class PickupEnv(RenderEnv, ReproducibleEnv):
         num_dists: int = 1,
         prohibited=None,
     ):
+        self.missions = OBJECTS
         self.prohibited = prohibited
         self.objects = sorted(objects)
         self.strict = strict
@@ -178,10 +202,6 @@ class PickupEnv(RenderEnv, ReproducibleEnv):
         self.instrs = PickupInstr(ObjDesc(*goal_object), strict=self.strict)
 
 
-class RenderColorPickupEnv(RenderColorEnv, PickupEnv):
-    pass
-
-
 class MissionWrapper(gym.Wrapper, abc.ABC):
     def __init__(self, env):
         self._mission = None
@@ -207,159 +227,9 @@ class MissionWrapper(gym.Wrapper, abc.ABC):
         raise NotImplementedError
 
 
-mapping = {
-    "green box": "green animal",
-    "yellow box": "orange animal",
-    "green ball": "green food",
-    "yellow ball": "orange food",
-    "grey box": "white animal",
-    "grey ball": "white food",
-    "purple box": "purple animal",
-    "purple ball": "purple food",
-    "blue box": "black animal",
-    "blue ball": "black food",
-    "red box": "red animal",
-    "red ball": "red food",
-}
-
-
-# noinspection PyShadowingBuiltins
-def alt_type(type: str):
-    if type == "ball":
-        return "box"
-    elif type == "box":
-        return "ball"
-    else:
-        raise RuntimeError()
-
-
-class PlantAnimalWrapper(MissionWrapper):
-    green_animal = "green box"
-    orange_animal = "yellow box"
-    green_plant = "green ball"
-    orange_plant = "yellow ball"
-    white_animal = "grey box"
-    white_plant = "grey ball"
-    purple_animal = "purple box"
-    purple_plant = "purple ball"
-    # pink_animal = "pink box"
-    # pink_plant = "pink ball"
-    black_animal = "blue box"
-    black_plant = "blue ball"
-    red_animal = "red box"
-    red_plant = "red ball"
-    replacements = {
-        red_animal: [
-            "rooster",
-            "lobster",
-            "crab",
-            "ladybug",
-            "cardinal",
-        ],
-        red_plant: [
-            "cherry",
-            "tomato",
-            "chili",
-            "apple",
-            "raspberry",
-            "cranberry",
-            "strawberry",
-            "pomegranate",
-            "radish",
-            "beet",
-            "rose",
-        ],
-        black_animal: [
-            "gorilla",
-            "crow",
-            "panther",
-            "raven",
-            "bat",
-        ],
-        black_plant: ["black plant"],
-        # pink_animal: ["flamingo", "pig"],
-        # pink_plant: ["lychee", "dragonfruit"],
-        purple_animal: ["purple animal"],
-        purple_plant: [
-            "grape",
-            "eggplant",
-            "plum",
-            "shallot",
-            "lilac",
-        ],
-        white_animal: [
-            "polar bear",
-            "swan",
-            "ermine",
-            "sheep",
-            "seagull",
-        ],
-        white_plant: [
-            "coconut",
-            "cauliflower",
-            "onion",
-            "garlic",
-        ],
-        green_animal: [
-            "iguana",
-            "frog",
-            "grasshopper",
-            "turtle",
-            "mantis",
-            "lizard",
-            "caterpillar",
-        ],
-        green_plant: [
-            "lime",
-            "kiwi",
-            "broccoli",
-            "lettuce",
-            "kale",
-            "spinach",
-            "avocado",
-            "cucumber",
-            "basil",
-            "pea",
-            "arugula",
-            "celery",
-        ],
-        orange_animal: [
-            "tiger",
-            "lion",
-            "orangutan",
-            "goldfish",
-            "clownfish",
-            "fox",
-        ],
-        orange_plant: [
-            "peach",
-            "yam",
-            "tangerine",
-            "carrot",
-            "papaya",
-            "clementine",
-            "kumquat",
-            "pumpkin",
-            "marigold",
-        ],
-    }
-
-    def __init__(self, env, prefixes: dict):
-        self.prefixes = prefixes
-        self.missions = [self.new_mission(m) for m in self.replacements]
-        super().__init__(env)
-
+class OmitActionWrapper(MissionWrapper):
     def change_mission(self, mission: str) -> str:
-        mission = mission.replace("pick up the ", "")
-        mission = self.new_mission(mission)
-        return mission
-
-    def new_mission(self, mission):
-        color, type = mission.split()
-        prefix = self.prefixes[type]
-        if prefix != "":
-            mission = f"{prefix}. {color} {alt_type(type)}: {color}"
-        return mission
+        return mission.replace("pick up the", "")
 
 
 class ActionInObsWrapper(gym.Wrapper):
@@ -394,7 +264,7 @@ class RolloutsWrapper(gym.ObservationWrapper):
         super().__init__(env)
         spaces = {**self.observation_space.spaces}
         self.original_observation_space = Tuple(
-            astuple(Spaces(**self.observation_space.spaces))
+            astuple(Obs(**self.observation_space.spaces))
         )
 
         def sizes():
@@ -415,7 +285,7 @@ class RolloutsWrapper(gym.ObservationWrapper):
     def observation(self, observation):
         obs = np.concatenate(
             astuple(
-                Spaces(
+                Obs(
                     image=observation["image"].flatten(),
                     direction=np.array([observation["direction"]]),
                     action=np.array([int(observation["action"])]),
@@ -445,6 +315,7 @@ class TokenizerWrapper(gym.ObservationWrapper):
         padded = (
             pad_sequence(tokens, padding_value=tokenizer.eos_token_id).squeeze(-1).T
         )
+
         return padded.numpy()
 
     def observation(self, observation):
@@ -467,7 +338,8 @@ class TokenizerWrapper(gym.ObservationWrapper):
         encoded = cls.encode(mission, tokenizer)
         n1, d1 = encoded.shape
         n2, d2 = mission_shape
-        assert n2 >= n1 and d2 >= d1
+        if not (n2 >= n1 and d2 >= d1):
+            breakpoint()
         padded = np.pad(
             encoded,
             [(0, n2 - n1), (0, d2 - d1)],
@@ -475,21 +347,6 @@ class TokenizerWrapper(gym.ObservationWrapper):
         )
         # assert mission_space.contains(padded)
         return padded
-
-
-class MissionEnumeratorWrapper(gym.ObservationWrapper):
-    def __init__(self, env, missions: typing.Iterable[str]):
-        self.missions = list(missions)
-        self.cache = {k: i for i, k in enumerate(self.missions)}
-        super().__init__(env)
-        spaces = {**self.observation_space.spaces}
-        self.observation_space = Dict(
-            spaces=dict(**spaces, mission=Discrete(len(self.cache)))
-        )
-
-    def observation(self, observation):
-        observation.update(mission=self.cache[observation["mission"]])
-        return observation
 
 
 class DirectionWrapper(gym.Wrapper):
