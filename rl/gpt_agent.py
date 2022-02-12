@@ -114,7 +114,6 @@ class Base(my.agent.Base):
             )
 
     def embed(self, inputs):
-        inputs = inputs.reshape(-1, *self.observation_spaces.mission.nvec.shape)
         n, l, e = inputs.shape
         flattened = inputs.reshape(n * l, e)
         states = self.gpt_forward_pass(flattened)

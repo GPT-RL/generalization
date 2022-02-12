@@ -33,6 +33,7 @@ class Args(base_main.Args):
     ] = "gpt2-large"  # what size of pretrained GPT to use
     room_size: int = 5
     second_layer: bool = False
+    split_words: bool = False
     strict: bool = True
 
     def configure(self) -> None:
@@ -66,12 +67,16 @@ class Trainer(base_main.Trainer):
     @classmethod
     def make_env(cls, env, allow_early_resets, render: bool = False, *args, **kwargs):
         def _thunk(
+            split_words: bool,
             test: bool,
             test_objects: Set[str],
             tokenizer: GPT2Tokenizer,
             **_kwargs,
         ):
 
+            all_missions = (
+                [tuple(o.split()) for o in OBJECTS] if split_words else OBJECTS
+            )
             objects = test_objects if test else set(OBJECTS) - test_objects
             objects = [o.split() for o in objects]
             objects = [(t, c) for (c, t) in objects]
@@ -82,6 +87,7 @@ class Trainer(base_main.Trainer):
                 _kwargs.update(prohibited=set(cross_product))
 
             _env = PickupEnv(
+                missions=all_missions,
                 objects=objects,
                 **{
                     k: v
@@ -89,11 +95,10 @@ class Trainer(base_main.Trainer):
                     if k in signature(PickupEnv.__init__).parameters
                 },
             )
-            _env = OmitActionWrapper(_env)
+            _env = OmitActionWrapper(_env, split_words)
             #     "a really long string that I just added for testing purposes. a really long string that I just "
             #     "added for testing purposes. "
             # ]
-            longest_mission: str = max(OBJECTS, key=len)
 
             _env = FullyObsWrapper(_env)
             _env = ActionInObsWrapper(_env)
@@ -101,7 +106,7 @@ class Trainer(base_main.Trainer):
             _env = TokenizerWrapper(
                 _env,
                 tokenizer=tokenizer,
-                longest_mission=longest_mission,
+                all_missions=all_missions,
             )
             _env = RolloutsWrapper(_env)
 

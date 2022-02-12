@@ -175,7 +175,8 @@ class Base(NNBase):
         action = inputs.action.long()
         action = F.one_hot(action, num_classes=self.num_actions).squeeze(1)
 
-        mission = self.embed(inputs.mission.long())
+        mission = inputs.mission.reshape(-1, *self.observation_spaces.mission.shape)
+        mission = self.embed(mission.long())
         x = torch.cat([image, directions, action, mission], dim=-1)
         x = self.merge(x)
         if self.is_recurrent:
@@ -183,4 +184,14 @@ class Base(NNBase):
         return self.critic_linear(x), x, rnn_hxs
 
     def embed(self, inputs):
-        return self.embeddings.forward(inputs)
+        *shape_, _ = inputs.shape
+
+        inputs = inputs.reshape(-1, inputs.size(-1))
+        outputs = self.embeddings.forward(inputs)
+        outputs = outputs.reshape(*shape_, -1)
+        if outputs.size(1) > 1:
+            outputs = outputs.mean(1)
+        else:
+            outputs = outputs.squeeze(1)
+
+        return outputs

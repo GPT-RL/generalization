@@ -1,7 +1,8 @@
 import abc
+import string
 import typing
 from abc import ABC
-from dataclasses import astuple, dataclass
+from dataclasses import asdict, astuple, dataclass, replace
 from functools import lru_cache
 from typing import Generator, Optional, TypeVar
 
@@ -11,10 +12,12 @@ import numpy as np
 from babyai.levels.levelgen import RoomGridLevel
 from babyai.levels.verifier import ObjDesc, PickupInstr
 from colors import color as ansi_color
+from gym import Space
 from gym.spaces import Box, Dict, Discrete, MultiDiscrete, Tuple
 from gym_minigrid.minigrid import COLORS, OBJECT_TO_IDX, MiniGridEnv, WorldObj
 from gym_minigrid.window import Window
 from gym_minigrid.wrappers import ImgObsWrapper
+from torch import Tensor
 from torch.nn.utils.rnn import pad_sequence
 from transformers import GPT2Tokenizer
 
@@ -59,6 +62,15 @@ class Obs:
     direction: T
     mission: T
     action: T
+
+    def to_space(self):
+        return gym.spaces.Dict(**asdict(self))
+
+    def to_obs(self, observation_space: Space = None, check: bool = False):
+        obs = asdict(self)
+        if observation_space and check:
+            assert observation_space.contains(obs), (observation_space, obs)
+        return obs
 
 
 @dataclass
@@ -138,8 +150,8 @@ class RenderEnv(RoomGridLevel, ABC):
 
     def render(self, mode="human", pause=True, **kwargs):
         if mode == "human":
-            for string in self.render_string():
-                print(string)
+            for render_string in self.render_string():
+                print(render_string)
             print(self.mission)
             print("Reward:", self.__reward)
             print("Done:", self.__done)
@@ -164,9 +176,26 @@ class RenderEnv(RoomGridLevel, ABC):
         return s, self.__reward, self.__done, i
 
 
+class String(gym.Space):
+    def sample(self):
+        return "".join(self.np_random.choice(string.ascii_letters) for _ in range(10))
+
+    def contains(self, x):
+        return isinstance(x, str)
+
+
+class StringTuple(gym.Space):
+    def sample(self):
+        return []
+
+    def contains(self, x):
+        return isinstance(x, tuple) and all([isinstance(y, str) for y in x])
+
+
 class PickupEnv(RenderEnv, ReproducibleEnv):
     def __init__(
         self,
+        missions: list,
         objects: typing.Iterable[typing.Tuple[str, str]],
         room_size: int,
         seed: int,
@@ -174,7 +203,7 @@ class PickupEnv(RenderEnv, ReproducibleEnv):
         num_dists: int = 1,
         prohibited=None,
     ):
-        self.missions = OBJECTS
+        self.missions = missions
         self.prohibited = prohibited
         self.objects = sorted(objects)
         self.strict = strict
@@ -184,6 +213,9 @@ class PickupEnv(RenderEnv, ReproducibleEnv):
             num_rows=1,
             num_cols=1,
             seed=seed,
+        )
+        self.observation_space = Dict(
+            dict(mission=String(), **self.observation_space.spaces)
         )
 
     def gen_mission(self):
@@ -228,8 +260,15 @@ class MissionWrapper(gym.Wrapper, abc.ABC):
 
 
 class OmitActionWrapper(MissionWrapper):
-    def change_mission(self, mission: str) -> str:
-        return mission.replace("pick up the", "")
+    def __init__(self, env, split_words: bool):
+        super().__init__(env)
+        self.split_words = split_words
+
+    def change_mission(self, mission: str) -> typing.Union[str, typing.Tuple[str]]:
+        mission = mission.replace("pick up the", "")
+        if self.split_words:
+            return tuple(mission.split())
+        return mission
 
 
 class ActionInObsWrapper(gym.Wrapper):
@@ -298,55 +337,88 @@ class RolloutsWrapper(gym.ObservationWrapper):
 
 
 class TokenizerWrapper(gym.ObservationWrapper):
-    def __init__(self, env, tokenizer: GPT2Tokenizer, longest_mission: str):
+    def __init__(
+        self,
+        env: gym.Env,
+        all_missions: list,
+        tokenizer: GPT2Tokenizer,
+    ):
         self.tokenizer: GPT2Tokenizer = tokenizer
-        encoded = self.encode(longest_mission, tokenizer)
-        super().__init__(env)
-        spaces = {**self.observation_space.spaces}
-        self.observation_space = Dict(
-            spaces=dict(**spaces, mission=MultiDiscrete(50257 * np.ones_like(encoded)))
+        ns, ds = zip(
+            *[
+                self.encode(
+                    mission=tuple(m) if isinstance(m, list) else m, tokenizer=tokenizer
+                ).shape
+                for m in all_missions
+            ]
         )
+        n = max(ns)
+        d = max(ds)
+
+        super().__init__(env)
+        spaces = Obs(**self.observation_space.spaces)
+
+        self.obs_spaces = replace(
+            spaces,
+            mission=MultiDiscrete((1 + tokenizer.eos_token_id) * np.ones((n, d))),
+        )
+        self.observation_space = self.obs_spaces.to_space()
 
     @staticmethod
-    @lru_cache()
-    def encode(mission, tokenizer):
-        words = mission.split()
-        tokens = [tokenizer.encode(w, return_tensors="pt").T for w in words]
-        padded = (
-            pad_sequence(tokens, padding_value=tokenizer.eos_token_id).squeeze(-1).T
-        )
+    def encode(
+        mission: typing.Union[typing.Tuple[str], str],
+        tokenizer: GPT2Tokenizer,
+    ):
+        if isinstance(mission, tuple):
 
-        return padded.numpy()
+            def get_tokens():
+                for w in mission:
+                    encoded = tokenizer.encode(w, return_tensors="pt")
+                    encoded = typing.cast(Tensor, encoded)
+                    yield encoded.T
 
-    def observation(self, observation):
-        mission = self.new_mission(
-            self.tokenizer,
-            observation["mission"],
-            tuple(self.observation_space.spaces["mission"].nvec.shape),
-        )
-        observation.update(mission=mission)
-        return observation
+            tokens = list(get_tokens())
+            padded = (
+                pad_sequence(tokens, padding_value=tokenizer.eos_token_id).squeeze(-1).T
+            )
+            return padded.numpy()
+        elif isinstance(mission, str):
+            return tokenizer.encode(mission, return_tensors="np")
+        else:
+            breakpoint()
+            raise RuntimeError(str(type(mission)))
 
     @classmethod
     @lru_cache()
     def new_mission(
         cls,
-        tokenizer: GPT2Tokenizer,
-        mission: str,
+        mission: typing.Union[typing.Tuple[str], str],
         mission_shape: typing.Tuple[int, int],
+        tokenizer: GPT2Tokenizer,
     ):
-        encoded = cls.encode(mission, tokenizer)
+        encoded = cls.encode(mission=mission, tokenizer=tokenizer)
         n1, d1 = encoded.shape
         n2, d2 = mission_shape
-        if not (n2 >= n1 and d2 >= d1):
-            breakpoint()
+
+        assert n2 >= n1 and d2 >= d1
         padded = np.pad(
             encoded,
             [(0, n2 - n1), (0, d2 - d1)],
             constant_values=tokenizer.eos_token_id,
         )
-        # assert mission_space.contains(padded)
-        return padded
+        return padded.reshape(mission_shape)
+
+    def observation(self, observation):
+        observation = Obs(**observation)
+        mission = observation.mission
+        if isinstance(mission, list):
+            mission = tuple(mission)
+        mission = self.new_mission(
+            mission=mission,
+            mission_shape=tuple(self.obs_spaces.mission.nvec.shape),
+            tokenizer=self.tokenizer,
+        )
+        return replace(observation, mission=mission).to_obs(self.observation_space)
 
 
 class DirectionWrapper(gym.Wrapper):
@@ -440,6 +512,7 @@ def main(args: "Args"):
 
     room_objects = [("ball", col) for col in ("black", "white")]
     env = PickupEnv(
+        missions=room_objects,
         room_size=args.room_size,
         seed=args.seed,
         objects=room_objects,

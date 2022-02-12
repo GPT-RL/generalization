@@ -35,7 +35,9 @@ class Trainer(my.main.Trainer):
             missions, *_ = envs.get_attr("missions")
             mission_shape = tuple(Obs(*observation_space.spaces).mission.nvec.shape)
             tokens = [
-                TokenizerWrapper.new_mission(tokenizer, mission, mission_shape)
+                TokenizerWrapper.new_mission(
+                    tokenizer=tokenizer, mission=mission, mission_shape=mission_shape
+                )
                 for mission in missions
             ]
             missions = torch.Tensor(tokens).long()
