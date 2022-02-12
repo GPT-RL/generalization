@@ -1,21 +1,18 @@
 import logging
 from typing import cast
 
+import gym
 import my.main
 import torch
-from envs import VecPyTorch
 from gpt_agent import Agent
-from my.env import Obs, TokenizerWrapper
+from gym.spaces import Discrete
 
 
 class Args(my.main.Args):
-    multihead_attention: bool = False
-    freeze_keys: bool = False
+    gpt: bool = False
     randomize_parameters: bool = False
-    attn_temp: float = 5
     train_ln: bool = False
     train_wpe: bool = False
-    gpt: bool = False
 
 
 class ArgsType(Args, my.main.ArgsType):
@@ -24,24 +21,14 @@ class ArgsType(Args, my.main.ArgsType):
 
 class Trainer(my.main.Trainer):
     @classmethod
-    def make_agent(cls, envs: VecPyTorch, args: ArgsType) -> Agent:
-        action_space = envs.action_space
-        observation_space, *_ = envs.get_attr("original_observation_space")
-        missions = None
-        cuda = cls.cuda(args)
-        device = cls.device(cuda)
-        if args.multihead_attention:
-            tokenizer = cls.tokenizer(args.pretrained_model)
-            missions, *_ = envs.get_attr("missions")
-            mission_shape = tuple(Obs(*observation_space.spaces).mission.nvec.shape)
-            tokens = [
-                TokenizerWrapper.new_mission(
-                    tokenizer=tokenizer, mission=mission, mission_shape=mission_shape
-                )
-                for mission in missions
-            ]
-            missions = torch.Tensor(tokens).long()
-
+    def _make_agent(
+        cls,
+        action_space: Discrete,
+        args: Args,
+        device: torch.device,
+        missions: list,
+        observation_space: gym.spaces.Dict,
+    ):
         return Agent(
             action_space=action_space,
             attn_temp=args.attn_temp,

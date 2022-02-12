@@ -8,7 +8,9 @@ import torch.nn.functional as F
 from agent import NNBase
 from gym import Space
 from gym.spaces import Box, Dict, Discrete, MultiDiscrete
+from multihead_attention import MultiheadAttention
 from my.env import Obs
+from torch.nn import Parameter
 from transformers import BertConfig, GPT2Config, GPT2Tokenizer, GPTNeoConfig
 from utils import init
 
@@ -50,9 +52,14 @@ class GRUEmbed(nn.Module):
 class Base(NNBase):
     def __init__(
         self,
-        pretrained_model: str,
+        attn_temp: float,
+        device: torch.DeviceObjType,
+        freeze_keys: bool,
         hidden_size: int,
+        missions: torch.Tensor,
+        multihead_attention: bool,
         observation_space: Dict,
+        pretrained_model: str,
         recurrent: bool,
     ):
         super().__init__(
@@ -63,6 +70,7 @@ class Base(NNBase):
         self.observation_spaces = Obs(*observation_space.spaces)
         self.num_directions = self.observation_spaces.direction.n
         self.num_actions = self.observation_spaces.action.n
+        self.multihead_attention = multihead_attention
 
         self.pad_token_id = GPT2Tokenizer.from_pretrained(pretrained_model).eos_token_id
 
@@ -151,9 +159,18 @@ class Base(NNBase):
 
         self.critic_linear = init_(nn.Linear(hidden_size, 1))
 
+        if multihead_attention:
+            self.embeddings.to(device)
+            missions = missions.to(device)
+            outputs = self.embed(missions)
+            outputs = outputs.reshape(-1, outputs.size(-1))
+            self.keys = Parameter(attn_temp * outputs, requires_grad=not freeze_keys)
+            self.values = nn.Embedding(*outputs.shape)
+            self.multihead_attn = MultiheadAttention(self.embedding_size, num_heads=1)
+
     def build_embeddings(self):
-        num_embeddings = int(self.observation_spaces.mission.nvec[0])
-        return nn.EmbeddingBag(
+        num_embeddings = int(self.observation_spaces.mission.nvec.flatten()[0])
+        return nn.Embedding(
             num_embeddings, self.embedding_size, padding_idx=self.pad_token_id
         )
 
@@ -176,7 +193,25 @@ class Base(NNBase):
         action = F.one_hot(action, num_classes=self.num_actions).squeeze(1)
 
         mission = inputs.mission.reshape(-1, *self.observation_spaces.mission.shape)
-        mission = self.embed(mission.long())
+
+        n, l, e = mission.shape
+        flattened = mission.reshape(n * l, e)
+        states = self.embed(flattened.long())
+        states = states.mean(1).reshape(n, l, -1)
+        if self.multihead_attention:
+            query = states.transpose(0, 1)
+            n = query.size(1)
+            key = self.keys.unsqueeze(1).repeat(1, n, 1)
+            value = self.values.weight.unsqueeze(1).repeat(1, n, 1)
+            attn_output, _ = self.multihead_attn.forward(
+                query=query, key=key, value=value
+            )
+            # print((100 * _.max(dim=-1).values).round())
+            # breakpoint()
+            mission = attn_output.mean(0)
+        else:
+            mission = states.mean(1)
+
         x = torch.cat([image, directions, action, mission], dim=-1)
         x = self.merge(x)
         if self.is_recurrent:
@@ -184,14 +219,4 @@ class Base(NNBase):
         return self.critic_linear(x), x, rnn_hxs
 
     def embed(self, inputs):
-        *shape_, _ = inputs.shape
-
-        inputs = inputs.reshape(-1, inputs.size(-1))
-        outputs = self.embeddings.forward(inputs)
-        outputs = outputs.reshape(*shape_, -1)
-        if outputs.size(1) > 1:
-            outputs = outputs.mean(1)
-        else:
-            outputs = outputs.squeeze(1)
-
-        return outputs
+        return self.embeddings.forward(inputs)

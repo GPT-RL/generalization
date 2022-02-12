@@ -3,13 +3,17 @@ from inspect import signature
 from typing import Literal, Set, cast
 
 import base_main
+import gym
 import numpy as np
+import torch
 from envs import RenderWrapper, VecPyTorch
+from gym.spaces import Discrete
 from my.agent import Agent
 from my.env import (
     OBJECTS,
     ActionInObsWrapper,
     FullyObsWrapper,
+    Obs,
     OmitActionWrapper,
     PickupEnv,
     RolloutsWrapper,
@@ -21,6 +25,9 @@ from transformers import GPT2Tokenizer
 
 
 class Args(base_main.Args):
+    attn_temp: float = 5
+    freeze_keys: bool = False
+    multihead_attention: bool = False
     pretrained_model: Literal[
         "gpt2",
         "gpt2-medium",
@@ -50,11 +57,47 @@ class Trainer(base_main.Trainer):
     def make_agent(cls, envs: VecPyTorch, args: ArgsType) -> Agent:
         action_space = envs.action_space
         observation_space, *_ = envs.get_attr("original_observation_space")
+        missions = None
+        cuda = cls.cuda(args)
+        device = cls.device(cuda)
+        if args.multihead_attention:
+            tokenizer = cls.tokenizer(args.pretrained_model)
+            missions, *_ = envs.get_attr("missions")
+            mission_shape = tuple(Obs(*observation_space.spaces).mission.nvec.shape)
+            tokens = [
+                TokenizerWrapper.new_mission(
+                    tokenizer=tokenizer, mission=mission, mission_shape=mission_shape
+                )
+                for mission in missions
+            ]
+            missions = torch.Tensor(tokens).long()
+        return cls._make_agent(
+            action_space=action_space,
+            args=args,
+            device=device,
+            missions=missions,
+            observation_space=observation_space,
+        )
+
+    @classmethod
+    def _make_agent(
+        cls,
+        action_space: Discrete,
+        args: Args,
+        device: torch.device,
+        missions: list,
+        observation_space: gym.spaces.Dict,
+    ):
         return Agent(
             action_space=action_space,
-            pretrained_model=args.pretrained_model,
+            attn_temp=args.attn_temp,
+            device=device,
+            freeze_keys=args.freeze_keys,
             hidden_size=args.hidden_size,
+            multihead_attention=args.multihead_attention,
             observation_space=observation_space,
+            missions=missions,
+            pretrained_model=args.pretrained_model,
             recurrent=cls.recurrent(args),
         )
 

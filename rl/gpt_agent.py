@@ -6,9 +6,7 @@ from typing import cast
 import my.agent
 import my.main
 import torch
-from multihead_attention import MultiheadAttention
-from torch import Tensor, nn
-from torch.nn import Parameter
+from torch import Tensor
 from utils import build_gpt
 
 
@@ -56,31 +54,17 @@ class Base(my.agent.Base):
     def __init__(
         self,
         *args,
-        attn_temp: float,
-        device: torch.DeviceObjType,
-        freeze_keys: bool,
-        multihead_attention: bool,
-        missions: torch.Tensor,
         pretrained_model: str,
         randomize_parameters: bool,
         train_ln: bool,
         train_wpe: bool,
         **kwargs,
     ):
-        self.multihead_attention = multihead_attention
         self._embedding_size = pretrained_model
         self.randomize_parameters = randomize_parameters
         self.train_wpe = train_wpe
         self.train_ln = train_ln
         super().__init__(*args, pretrained_model=pretrained_model, **kwargs)
-        if multihead_attention:
-            self.embeddings.to(device)
-            missions = missions.to(device)
-            outputs = self.gpt_forward_pass(missions)
-            outputs = outputs.reshape(-1, outputs.size(-1))
-            self.keys = Parameter(attn_temp * outputs, requires_grad=not freeze_keys)
-            self.values = nn.Embedding(*outputs.shape)
-            self.multihead_attn = MultiheadAttention(self.embedding_size, num_heads=1)
 
     def build_embeddings(self):
         gpt = build_gpt(self._embedding_size, self.randomize_parameters)
@@ -113,21 +97,5 @@ class Base(my.agent.Base):
                 dim=0,
             )
 
-    def embed(self, inputs):
-        n, l, e = inputs.shape
-        flattened = inputs.reshape(n * l, e)
-        states = self.gpt_forward_pass(flattened)
-        states = states.mean(1).reshape(n, l, -1)
-        if self.multihead_attention:
-            query = states.transpose(0, 1)
-            n = query.size(1)
-            key = self.keys.unsqueeze(1).repeat(1, n, 1)
-            value = self.values.weight.unsqueeze(1).repeat(1, n, 1)
-            attn_output, _ = self.multihead_attn.forward(
-                query=query, key=key, value=value
-            )
-            # print((100 * _.max(dim=-1).values).round())
-            # breakpoint()
-            return attn_output.mean(0)
-        else:
-            return states.mean(1)
+    def embed(self, inputs: torch.Tensor):
+        return self.gpt_forward_pass(inputs)
