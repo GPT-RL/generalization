@@ -598,9 +598,9 @@ def main(args: "Args"):
 
 
 if __name__ == "__main__":
-    import babyai_main
+    import my.main
 
-    class Args(babyai_main.Args):
+    class Args(my.main.Args):
         tile_size: int = 32
         agent_view: bool = False
         test: bool = False

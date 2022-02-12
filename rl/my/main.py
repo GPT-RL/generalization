@@ -1,10 +1,12 @@
 import functools
 from typing import List, Literal, Set, cast
 
-import main
+import base_main
 import numpy as np
-from babyai_agent import Agent
-from babyai_env import (
+from envs import RenderWrapper, VecPyTorch
+from gym_minigrid.minigrid import COLORS
+from my.agent import Agent
+from my.env import (
     ActionInObsWrapper,
     FullyObsWrapper,
     PickupEnv,
@@ -14,13 +16,11 @@ from babyai_env import (
     TokenizerWrapper,
     alt_type,
 )
-from envs import RenderWrapper, VecPyTorch
-from gym_minigrid.minigrid import COLORS
 from stable_baselines3.common.monitor import Monitor
 from transformers import GPT2Tokenizer
 
 
-class Args(main.Args):
+class Args(base_main.Args):
     pretrained_model: Literal[
         "gpt2",
         "gpt2-medium",
@@ -39,14 +39,14 @@ class Args(main.Args):
 
     def configure(self) -> None:
         self.add_subparsers(dest="logger_args")
-        main.configure_logger_args(self)
+        base_main.configure_logger_args(self)
 
 
-class ArgsType(main.ArgsType, Args):
+class ArgsType(base_main.ArgsType, Args):
     pass
 
 
-class Trainer(main.Trainer):
+class Trainer(base_main.Trainer):
     @classmethod
     def make_agent(cls, envs: VecPyTorch, args: ArgsType) -> Agent:
         action_space = envs.action_space
