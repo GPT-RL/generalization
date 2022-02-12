@@ -113,9 +113,11 @@ class Trainer(base_main.Trainer):
         kwargs = dict(visualizer_url=args.visualizer_url)
         return [
             line_chart.spec(x=base_main.STEP, y=EPISODE_SUCCESS, **kwargs),
-            line_chart.spec(x=base_main.STEP, y=FAIL_SEED_SUCCESS, **kwargs),
+            line_chart.spec(
+                x=base_main.STEP, y=NUM_FAIL_SEEDS, scale_type="log", **kwargs
+            ),
             line_chart.spec(x=base_main.STEP, y=FAIL_SEED_USAGE, **kwargs),
-            line_chart.spec(x=base_main.STEP, y=NUM_FAIL_SEEDS, **kwargs),
+            line_chart.spec(x=base_main.STEP, y=FAIL_SEED_SUCCESS, **kwargs),
             line_chart.spec(x=base_main.STEP, y=TEST_EPISODE_SUCCESS, **kwargs),
             heatmap.spec(
                 x=DISTRACTOR,
