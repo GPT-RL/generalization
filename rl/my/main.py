@@ -54,6 +54,7 @@ class Args(base_main.Args, env.Args):
         "EleutherAI/gpt-neo-2.7B",
     ] = "gpt2-large"  # what size of pretrained GPT to use
     prefix_length: int = 0
+    tgt_success_prob: float = 0.5
     use_features: bool = False
 
     def configure(self) -> None:
@@ -189,6 +190,7 @@ class Trainer(base_main.Trainer):
             features: Dict[str, List[str]],
             seed: int,
             test: bool,
+            tgt_success_prob: float,
             tokenizer: GPT2Tokenizer,
             **_kwargs,
         ):
@@ -201,7 +203,9 @@ class Trainer(base_main.Trainer):
                 },
             )
             if not test:
-                _env = FailureReplayWrapper(_env, seed=seed)
+                _env = FailureReplayWrapper(
+                    _env, seed=seed, tgt_success_prob=tgt_success_prob
+                )
             if render:
                 _env = RenderWrapper(_env, mode="ascii")
             _env = ImageNormalizerWrapper(_env)

@@ -136,18 +136,27 @@ class SuccessWrapper(gym.Wrapper):
 
 
 class FailureReplayWrapper(SuccessWrapper):
-    def __init__(self, env, seed: int, tgt_success_prob: float = 0.5):
+    def __init__(self, env, seed: int, tgt_success_prob: float):
         self.tgt_success_prob = tgt_success_prob
-        self.successes = []
+        self.regular_successes = []
+        self.fail_seed_successes = []
         self.fail_seeds = []
         self.rng = np.random.default_rng(seed=seed)
         super().__init__(env)
 
     def reset(self, **kwargs):
-        if self.successes and self.fail_seeds:
-            prior_success_prob = float(np.mean(self.successes))
-            no_fail_seed_prob = self.tgt_success_prob / max(prior_success_prob, 1e-5)
-            use_fail_seeds_prob = 1 - no_fail_seed_prob
+        regular_success_prob = float(np.mean(self.regular_successes))
+        fail_seed_success_prob = (
+            np.mean(self.fail_seed_successes) if self.fail_seed_successes else 0
+        )
+        if (
+            self.regular_successes
+            and self.fail_seeds
+            and regular_success_prob != fail_seed_success_prob
+        ):
+            use_fail_seeds_prob = (self.tgt_success_prob - regular_success_prob) / (
+                fail_seed_success_prob - regular_success_prob
+            )
         else:
             use_fail_seeds_prob = 0
         self.using_fail_seed = self.rng.random() < use_fail_seeds_prob
@@ -166,9 +175,11 @@ class FailureReplayWrapper(SuccessWrapper):
             if self.using_fail_seed:
                 success = i.pop(EPISODE_SUCCESS)
                 i.update({FAIL_SEED_SUCCESS: success})
+                if not success and len(self.fail_seeds) < 100:
+                    self.fail_seed_successes += [success]
             else:
                 success = i[EPISODE_SUCCESS]
-                self.successes += [success]
+                self.regular_successes += [success]
                 if not success and len(self.fail_seeds) < 100:
                     self.fail_seeds += [self.current_seed]
         return s, r, t, i
