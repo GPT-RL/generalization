@@ -12,10 +12,10 @@ from my.agent import Agent
 from my.env import (
     OBJECTS,
     ActionInObsWrapper,
+    BabyAIEnv,
     FullyObsWrapper,
     Obs,
     OmitActionWrapper,
-    PickupEnv,
     RolloutsWrapper,
     SuccessWrapper,
     TokenizerWrapper,
@@ -25,9 +25,11 @@ from transformers import GPT2Tokenizer
 
 
 class Args(base_main.Args):
+    action_kinds: str = "pickup"
     attn_temp: float = 5
     freeze_keys: bool = False
     multihead_attention: bool = False
+    num_rows: int = 1
     pretrained_model: Literal[
         "gpt2",
         "gpt2-medium",
@@ -110,6 +112,7 @@ class Trainer(base_main.Trainer):
     @classmethod
     def make_env(cls, env, allow_early_resets, render: bool = False, *args, **kwargs):
         def _thunk(
+            action_kinds: str,
             split_words: bool,
             test: bool,
             test_objects: Set[str],
@@ -129,13 +132,14 @@ class Trainer(base_main.Trainer):
                 objects.extend(cross_product)
                 _kwargs.update(prohibited=set(cross_product))
 
-            _env = PickupEnv(
+            _env = BabyAIEnv(
+                action_kinds=action_kinds.split(","),
                 missions=all_missions,
                 objects=objects,
                 **{
                     k: v
                     for k, v in _kwargs.items()
-                    if k in signature(PickupEnv.__init__).parameters
+                    if k in signature(BabyAIEnv.__init__).parameters
                 },
             )
             _env = OmitActionWrapper(_env, split_words)

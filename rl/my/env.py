@@ -9,8 +9,17 @@ from typing import Generator, Optional, TypeVar
 import gym
 import gym_minigrid
 import numpy as np
-from babyai.levels.levelgen import RoomGridLevel
-from babyai.levels.verifier import ObjDesc, PickupInstr
+from babyai.levels.levelgen import LevelGen
+from babyai.levels.verifier import (
+    OBJ_TYPES_NOT_DOOR,
+    AfterInstr,
+    AndInstr,
+    BeforeInstr,
+    GoToInstr,
+    OpenInstr,
+    PickupInstr,
+    PutNextInstr,
+)
 from colors import color as ansi_color
 from gym import Space
 from gym.spaces import Box, Dict, Discrete, MultiDiscrete, Tuple
@@ -84,12 +93,15 @@ class Agent(WorldObj):
         pass
 
 
-class ReproducibleEnv(RoomGridLevel, ABC):
+class ReproducibleEnv(LevelGen, ABC):
     def _rand_elem(self, iterable):
-        return super()._rand_elem(sorted(iterable))
+        iterable = list(iterable)
+        nones = [x for x in iterable if x is None]
+        non_nones = [x for x in iterable if x is not None]
+        return super()._rand_elem(sorted(non_nones) + nones)
 
 
-class RenderEnv(RoomGridLevel, ABC):
+class RenderEnv(LevelGen, ABC):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.__reward = None
@@ -192,26 +204,37 @@ class StringTuple(gym.Space):
         return isinstance(x, tuple) and all([isinstance(y, str) for y in x])
 
 
-class PickupEnv(RenderEnv, ReproducibleEnv):
+class BabyAIEnv(RenderEnv, ReproducibleEnv):
     def __init__(
         self,
+        action_kinds: typing.List[str],
         missions: list,
+        num_rows: int,
         objects: typing.Iterable[typing.Tuple[str, str]],
         room_size: int,
         seed: int,
         strict: bool,
+        instr_kinds=None,
         num_dists: int = 1,
         prohibited=None,
     ):
+        if instr_kinds is None:
+            instr_kinds = ["action"]
+        self.action_kinds = action_kinds
         self.missions = missions
         self.prohibited = prohibited
         self.objects = sorted(objects)
         self.strict = strict
-        self.num_dists = num_dists
         super().__init__(
             room_size=room_size,
-            num_rows=1,
+            num_rows=num_rows,
             num_cols=1,
+            num_dists=num_dists,
+            locked_room_prob=0,
+            locations=False,
+            unblocking=False,
+            action_kinds=action_kinds,
+            instr_kinds=instr_kinds,
             seed=seed,
         )
         self.observation_space = Dict(
@@ -231,7 +254,68 @@ class PickupEnv(RenderEnv, ReproducibleEnv):
                 self.add_object(0, 0, *obj)
 
         self.check_objs_reachable()
-        self.instrs = PickupInstr(ObjDesc(*goal_object), strict=self.strict)
+        self.instrs = self.rand_instr(
+            action_kinds=self.action_kinds, instr_kinds=self.instr_kinds
+        )
+
+    def rand_instr(self, action_kinds, instr_kinds, depth=0):
+        """
+        Generate random instructions
+        """
+
+        kind = self._rand_elem(instr_kinds)
+
+        if kind == "action":
+            action = self._rand_elem(action_kinds)
+
+            if action == "goto":
+                return GoToInstr(self.rand_obj())
+            elif action == "pickup":
+                return PickupInstr(
+                    self.rand_obj(types=OBJ_TYPES_NOT_DOOR), strict=self.strict
+                )
+            elif action == "open":
+                return OpenInstr(self.rand_obj(types=["door"]), strict=self.strict)
+            elif action == "putnext":
+                return PutNextInstr(
+                    self.rand_obj(types=OBJ_TYPES_NOT_DOOR),
+                    self.rand_obj(),
+                    strict=self.strict,
+                )
+
+            assert False
+
+        elif kind == "and":
+            instr_a = self.rand_instr(
+                action_kinds=action_kinds, instr_kinds=["action"], depth=depth + 1
+            )
+            instr_b = self.rand_instr(
+                action_kinds=action_kinds, instr_kinds=["action"], depth=depth + 1
+            )
+            return AndInstr(instr_a, instr_b)
+
+        elif kind == "seq":
+            instr_a = self.rand_instr(
+                action_kinds=action_kinds,
+                instr_kinds=["action", "and"],
+                depth=depth + 1,
+            )
+            instr_b = self.rand_instr(
+                action_kinds=action_kinds,
+                instr_kinds=["action", "and"],
+                depth=depth + 1,
+            )
+
+            kind = self._rand_elem(["before", "after"])
+
+            if kind == "before":
+                return BeforeInstr(instr_a, instr_b, strict=self.strict)
+            elif kind == "after":
+                return AfterInstr(instr_a, instr_b, strict=self.strict)
+
+            assert False
+
+        assert False
 
 
 class MissionWrapper(gym.Wrapper, abc.ABC):
@@ -265,7 +349,7 @@ class OmitActionWrapper(MissionWrapper):
         self.split_words = split_words
 
     def change_mission(self, mission: str) -> typing.Union[str, typing.Tuple[str]]:
-        mission = mission.replace("pick up the", "")
+        mission = mission.replace("pick up the ", "").replace("pick up a ", "")
         if self.split_words:
             return tuple(mission.split())
         return mission
@@ -400,6 +484,8 @@ class TokenizerWrapper(gym.ObservationWrapper):
         n1, d1 = encoded.shape
         n2, d2 = mission_shape
 
+        if not (n2 >= n1 and d2 >= d1):
+            breakpoint()
         assert n2 >= n1 and d2 >= d1
         padded = np.pad(
             encoded,
@@ -511,7 +597,7 @@ def main(args: "Args"):
             return
 
     room_objects = [("ball", col) for col in ("black", "white")]
-    env = PickupEnv(
+    env = BabyAIEnv(
         missions=room_objects,
         room_size=args.room_size,
         seed=args.seed,
