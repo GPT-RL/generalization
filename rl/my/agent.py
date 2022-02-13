@@ -49,6 +49,15 @@ class GRUEmbed(nn.Module):
         return self.projection(hidden)
 
 
+class Lambda(nn.Module):
+    def __init__(self, f: callable):
+        super().__init__()
+        self.f = f
+
+    def forward(self, x):
+        return self.f(x)
+
+
 class Base(NNBase):
     def __init__(
         self,
@@ -110,10 +119,10 @@ class Base(NNBase):
             lambda x: nn.init.constant_(x, 0),
             nn.init.calculate_gain("relu"),
         )
-        image_shape = self.observation_spaces.image.shape
+        image_shape = _, _, d = self.observation_spaces.image.shape
+        max_idx = 1 + int(self.observation_spaces.image.high.max())
         if len(image_shape) == 3:
-            h, w, d = image_shape
-            dummy_input = torch.zeros(1, d, h, w)
+            dummy_input = torch.zeros(1, *image_shape)
 
             # self.image_net = nn.Sequential(
             #     init_(nn.Conv2d(d, 32, 8, stride=4)),
@@ -127,8 +136,14 @@ class Base(NNBase):
             # try:
             #     output = self.image_net(dummy_input)
             # except RuntimeError:
+
             self.image_net = nn.Sequential(
-                init_(nn.Conv2d(d, 32, 3, 2)),
+                Lambda(lambda x: x.long()),
+                Lambda(lambda x: F.one_hot(x, num_classes=max_idx)),
+                nn.Flatten(start_dim=3),
+                Lambda(lambda x: x.transpose(1, 3)),
+                Lambda(lambda x: x.float()),
+                init_(nn.Conv2d(d * max_idx, 32, 3, 2)),
                 nn.ReLU(),
                 nn.Flatten(),
             )
@@ -136,7 +151,7 @@ class Base(NNBase):
         else:
             dummy_input = torch.zeros(image_shape)
             self.image_net = nn.Sequential(
-                nn.Linear(int(np.prod(image_shape)), hidden_size), nn.ReLU()
+                nn.Linear(int(np.prod(image_shape) * max_idx), hidden_size), nn.ReLU()
             )
             output = self.image_net(dummy_input)
 
@@ -184,8 +199,6 @@ class Base(NNBase):
         )
 
         image = inputs.image.reshape(-1, *self.observation_spaces.image.shape)
-        if len(image.shape) == 4:
-            image = image.permute(0, 3, 1, 2)
         image = self.image_net(image)
         directions = inputs.direction.long()
         directions = F.one_hot(directions, num_classes=self.num_directions).squeeze(1)

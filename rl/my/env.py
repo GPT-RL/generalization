@@ -23,7 +23,14 @@ from babyai.levels.verifier import (
 from colors import color as ansi_color
 from gym import Space
 from gym.spaces import Box, Dict, Discrete, MultiDiscrete, Tuple
-from gym_minigrid.minigrid import COLORS, OBJECT_TO_IDX, MiniGridEnv, WorldObj
+from gym_minigrid.minigrid import (
+    COLORS,
+    IDX_TO_COLOR,
+    OBJECT_TO_IDX,
+    STATE_TO_IDX,
+    MiniGridEnv,
+    WorldObj,
+)
 from gym_minigrid.window import Window
 from gym_minigrid.wrappers import ImgObsWrapper
 from torch import Tensor
@@ -237,6 +244,10 @@ class BabyAIEnv(RenderEnv, ReproducibleEnv):
             instr_kinds=instr_kinds,
             seed=seed,
         )
+        image_space = self.observation_space.spaces["image"]
+        max_idx = max([*IDX_TO_COLOR, *OBJECT_TO_IDX.values(), *STATE_TO_IDX.values()])
+        high = max_idx * np.ones_like(image_space.high).astype(int)
+        self.observation_space.spaces.update(image=Box(low=image_space.low, high=high))
         self.observation_space = Dict(
             dict(mission=String(), **self.observation_space.spaces)
         )
@@ -520,7 +531,11 @@ class DirectionWrapper(gym.Wrapper):
 
 class FullyObsWrapper(gym_minigrid.wrappers.FullyObsWrapper):
     def __init__(self, env):
+        image_space_high = env.observation_space.spaces["image"].high
         super().__init__(env)
+        image_space = self.observation_space.spaces["image"]
+        high = np.ones_like(image_space.high) * int(image_space_high.max())
+        self.observation_space.spaces.update(image=Box(low=image_space.low, high=high))
         self.observation_space = Dict(
             spaces=dict(
                 **self.observation_space.spaces,
