@@ -35,7 +35,7 @@ class Trainer(my.main.Trainer):
             device=device,
             freeze_keys=args.freeze_keys,
             hidden_size=args.hidden_size,
-            multihead_attention=args.multihead_attention,
+            qkv=args.qkv,
             observation_space=observation_space,
             missions=missions,
             pretrained_model=args.pretrained_model,

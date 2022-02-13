@@ -28,7 +28,7 @@ class Args(base_main.Args):
     action_kinds: str = "pickup"
     attn_temp: float = 5
     freeze_keys: bool = False
-    multihead_attention: bool = False
+    qkv: bool = False
     num_rows: int = 1
     pretrained_model: Literal[
         "gpt2",
@@ -62,7 +62,7 @@ class Trainer(base_main.Trainer):
         missions = None
         cuda = cls.cuda(args)
         device = cls.device(cuda)
-        if args.multihead_attention:
+        if args.qkv:
             tokenizer = cls.tokenizer(args.pretrained_model)
             missions, *_ = envs.get_attr("missions")
             mission_shape = tuple(Obs(*observation_space.spaces).mission.nvec.shape)
@@ -96,7 +96,7 @@ class Trainer(base_main.Trainer):
             device=device,
             freeze_keys=args.freeze_keys,
             hidden_size=args.hidden_size,
-            multihead_attention=args.multihead_attention,
+            qkv=args.qkv,
             observation_space=observation_space,
             missions=missions,
             pretrained_model=args.pretrained_model,
