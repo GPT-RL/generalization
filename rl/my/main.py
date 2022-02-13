@@ -15,8 +15,8 @@ from my.env import (
     BabyAIEnv,
     FullyObsWrapper,
     Obs,
-    OmitActionWrapper,
     RolloutsWrapper,
+    SplitWordsWrapper,
     SuccessWrapper,
     TokenizerWrapper,
 )
@@ -120,9 +120,24 @@ class Trainer(base_main.Trainer):
             **_kwargs,
         ):
 
-            all_missions = (
-                [tuple(o.split()) for o in OBJECTS] if split_words else OBJECTS
-            )
+            action_kinds = action_kinds.split(",")
+
+            def all_missions():
+                for action in action_kinds:
+                    for obj in OBJECTS:
+                        if action == "pickup":
+                            yield f"pick up the {obj}"
+                        elif action == "open":
+                            yield f"open up the {obj}"
+                        elif action == "goto":
+                            yield f"got to the {obj}"
+                        elif action == "putnext":
+                            for obj2 in OBJECTS:
+                                yield f"put the {obj} next to the {obj2}"
+
+            all_missions = list(all_missions())
+            if split_words:
+                all_missions = [tuple(m.split()) for m in all_missions]
             objects = test_objects if test else set(OBJECTS) - test_objects
             objects = [o.split() for o in objects]
             objects = [(t, c) for (c, t) in objects]
@@ -133,7 +148,7 @@ class Trainer(base_main.Trainer):
                 _kwargs.update(prohibited=set(cross_product))
 
             _env = BabyAIEnv(
-                action_kinds=action_kinds.split(","),
+                action_kinds=action_kinds,
                 missions=all_missions,
                 objects=objects,
                 **{
@@ -142,10 +157,11 @@ class Trainer(base_main.Trainer):
                     if k in signature(BabyAIEnv.__init__).parameters
                 },
             )
-            _env = OmitActionWrapper(_env, split_words)
             #     "a really long string that I just added for testing purposes. a really long string that I just "
             #     "added for testing purposes. "
             # ]
+            if split_words:
+                _env = SplitWordsWrapper(_env)
 
             _env = FullyObsWrapper(_env)
             _env = ActionInObsWrapper(_env)

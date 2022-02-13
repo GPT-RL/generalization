@@ -343,16 +343,12 @@ class MissionWrapper(gym.Wrapper, abc.ABC):
         raise NotImplementedError
 
 
-class OmitActionWrapper(MissionWrapper):
-    def __init__(self, env, split_words: bool):
+class SplitWordsWrapper(MissionWrapper):
+    def __init__(self, env):
         super().__init__(env)
-        self.split_words = split_words
 
     def change_mission(self, mission: str) -> typing.Union[str, typing.Tuple[str]]:
-        mission = mission.replace("pick up the ", "").replace("pick up a ", "")
-        if self.split_words:
-            return tuple(mission.split())
-        return mission
+        return tuple(mission.split())
 
 
 class ActionInObsWrapper(gym.Wrapper):
