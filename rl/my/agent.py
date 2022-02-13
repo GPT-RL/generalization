@@ -57,7 +57,7 @@ class Base(NNBase):
         freeze_keys: bool,
         hidden_size: int,
         missions: torch.Tensor,
-        multihead_attention: bool,
+        qkv: bool,
         observation_space: Dict,
         pretrained_model: str,
         recurrent: bool,
@@ -70,7 +70,7 @@ class Base(NNBase):
         self.observation_spaces = Obs(*observation_space.spaces)
         self.num_directions = self.observation_spaces.direction.n
         self.num_actions = self.observation_spaces.action.n
-        self.multihead_attention = multihead_attention
+        self.qkv = qkv
 
         self.pad_token_id = GPT2Tokenizer.from_pretrained(pretrained_model).eos_token_id
 
@@ -159,14 +159,14 @@ class Base(NNBase):
 
         self.critic_linear = init_(nn.Linear(hidden_size, 1))
 
-        if multihead_attention:
+        if qkv:
             self.embeddings.to(device)
             missions = missions.to(device)
             outputs = self.embed(missions)
             outputs = outputs.reshape(-1, outputs.size(-1))
             self.keys = Parameter(attn_temp * outputs, requires_grad=not freeze_keys)
             self.values = nn.Embedding(*outputs.shape)
-            self.multihead_attn = MultiheadAttention(self.embedding_size, num_heads=1)
+            self.qkv_attn = MultiheadAttention(self.embedding_size, num_heads=1)
 
     def build_embeddings(self):
         num_embeddings = int(self.observation_spaces.mission.nvec.flatten()[0])
@@ -198,14 +198,12 @@ class Base(NNBase):
         flattened = mission.reshape(n * l, e)
         states = self.embed(flattened.long())
         states = states.mean(1).reshape(n, l, -1)
-        if self.multihead_attention:
+        if self.qkv:
             query = states.transpose(0, 1)
             n = query.size(1)
             key = self.keys.unsqueeze(1).repeat(1, n, 1)
             value = self.values.weight.unsqueeze(1).repeat(1, n, 1)
-            attn_output, _ = self.multihead_attn.forward(
-                query=query, key=key, value=value
-            )
+            attn_output, _ = self.qkv_attn.forward(query=query, key=key, value=value)
             # print((100 * _.max(dim=-1).values).round())
             # breakpoint()
             mission = attn_output.mean(0)
