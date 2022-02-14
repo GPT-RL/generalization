@@ -8,11 +8,8 @@ import torch.nn.functional as F
 from agent import NNBase
 from gym import Space
 from gym.spaces import Box, Dict, Discrete, MultiDiscrete
-from multihead_attention import MultiheadAttention
 from my.env import Obs
-from torch.nn import Parameter
 from transformers import BertConfig, GPT2Config, GPT2Tokenizer, GPTNeoConfig
-from utils import init
 
 
 def get_size(space: Space):
@@ -58,6 +55,65 @@ class Lambda(nn.Module):
         return self.f(x)
 
 
+# From https://github.com/ikostrikov/pytorch-a2c-ppo-acktr/blob/master/model.py
+def initialize_parameters(m):
+    classname = m.__class__.__name__
+    if classname.find("Linear") != -1:
+        m.weight.data.normal_(0, 1)
+        m.weight.data *= 1 / torch.sqrt(m.weight.data.pow(2).sum(1, keepdim=True))
+        if m.bias is not None:
+            m.bias.data.fill_(0)
+
+
+# Inspired by FiLMedBlock from https://arxiv.org/abs/1709.07871
+class FiLM(nn.Module):
+    def __init__(self, in_features, out_features, in_channels, imm_channels):
+        super().__init__()
+        self.conv1 = nn.Conv2d(
+            in_channels=in_channels,
+            out_channels=imm_channels,
+            kernel_size=(3, 3),
+            padding=1,
+        )
+        self.bn1 = nn.BatchNorm2d(imm_channels)
+        self.conv2 = nn.Conv2d(
+            in_channels=imm_channels,
+            out_channels=out_features,
+            kernel_size=(3, 3),
+            padding=1,
+        )
+        self.bn2 = nn.BatchNorm2d(out_features)
+
+        self.weight = nn.Linear(in_features, out_features)
+        self.bias = nn.Linear(in_features, out_features)
+
+        self.apply(initialize_parameters)
+
+    def forward(self, x, y):
+        x = F.relu(self.bn1(self.conv1(x)))
+        x = self.conv2(x)
+        weight = self.weight(y).unsqueeze(2).unsqueeze(3)
+        bias = self.bias(y).unsqueeze(2).unsqueeze(3)
+        out = x * weight + bias
+        return F.relu(self.bn2(out))
+
+
+class ImageBOWEmbedding(nn.Module):
+    def __init__(self, max_value, embedding_dim):
+        super().__init__()
+        self.max_value = max_value
+        self.embedding_dim = embedding_dim
+        self.embedding = nn.Embedding(3 * max_value, embedding_dim)
+        self.apply(initialize_parameters)
+
+    def forward(self, inputs):
+        offsets = torch.Tensor([0, self.max_value, 2 * self.max_value]).to(
+            inputs.device
+        )
+        inputs = (inputs + offsets[None, :, None, None]).long()
+        return self.embedding(inputs).sum(1).permute(0, 3, 1, 2)
+
+
 class Base(NNBase):
     def __init__(
         self,
@@ -73,8 +129,8 @@ class Base(NNBase):
     ):
         super().__init__(
             recurrent=recurrent,
-            recurrent_input_size=hidden_size,
-            hidden_size=hidden_size,
+            recurrent_input_size=128,
+            hidden_size=128,
         )
         self.observation_spaces = Obs(*observation_space.spaces)
         self.num_directions = self.observation_spaces.direction.n
@@ -111,86 +167,150 @@ class Base(NNBase):
         else:
             raise RuntimeError(f"Invalid model name: {pretrained_model}")
 
-        self.embeddings = self.build_embeddings()
+        image_dim = 128
+        memory_dim = 128
+        instr_dim = 128
+        lang_model = "gru"
+        use_memory = False
+        arch = "bow_endpool_res"
+        aux_info = None
+        endpool = "endpool" in arch
+        use_bow = "bow" in arch
+        pixel = "pixel" in arch
+        self.res = "res" in arch
 
-        init_ = lambda m: init(
-            m,
-            nn.init.orthogonal_,
-            lambda x: nn.init.constant_(x, 0),
-            nn.init.calculate_gain("relu"),
-        )
-        image_shape = _, _, d = self.observation_spaces.image.shape
-        max_idx = 1 + int(self.observation_spaces.image.high.max())
-        if len(image_shape) == 3:
-            dummy_input = torch.zeros(1, *image_shape)
+        # Decide which components are enabled
+        self.use_instr = True
+        self.use_memory = use_memory
+        self.arch = arch
+        self.lang_model = lang_model
+        self.aux_info = aux_info
+        if self.res and image_dim != 128:
+            raise ValueError(f"image_dim is {image_dim}, expected 128")
+        self.image_dim = image_dim
+        self.memory_dim = memory_dim
+        self.instr_dim = instr_dim
 
-            # self.image_net = nn.Sequential(
-            #     init_(nn.Conv2d(d, 32, 8, stride=4)),
-            #     nn.ReLU(),
-            #     init_(nn.Conv2d(32, 64, 4, stride=2)),
-            #     nn.ReLU(),
-            #     init_(nn.Conv2d(64, 32, 3, stride=1)),
-            #     nn.ReLU(),
-            #     nn.Flatten(),
-            # )
-            # try:
-            #     output = self.image_net(dummy_input)
-            # except RuntimeError:
+        for part in self.arch.split("_"):
+            if part not in ["original", "bow", "pixels", "endpool", "res"]:
+                raise ValueError("Incorrect architecture name: {}".format(self.arch))
 
-            self.image_net = nn.Sequential(
-                Lambda(lambda x: x.long()),
-                Lambda(lambda x: F.one_hot(x, num_classes=max_idx)),
-                nn.Flatten(start_dim=3),
-                Lambda(lambda x: x.transpose(1, 3)),
-                Lambda(lambda x: x.float()),
-                init_(nn.Conv2d(d * max_idx, 32, 3, 2)),
+        # if not self.use_instr:
+        #     raise ValueError("FiLM architecture can be used when instructions are enabled")
+        self.image_conv = nn.Sequential(
+            *[
+                *(
+                    [
+                        ImageBOWEmbedding(
+                            int(self.observation_spaces.image.high.max()), 128
+                        )
+                    ]
+                    if use_bow
+                    else []
+                ),
+                *(
+                    [
+                        nn.Conv2d(
+                            in_channels=3,
+                            out_channels=128,
+                            kernel_size=(8, 8),
+                            stride=8,
+                            padding=0,
+                        )
+                    ]
+                    if pixel
+                    else []
+                ),
+                nn.Conv2d(
+                    in_channels=128 if use_bow or pixel else 3,
+                    out_channels=128,
+                    kernel_size=(3, 3) if endpool else (2, 2),
+                    stride=1,
+                    padding=1,
+                ),
+                nn.BatchNorm2d(128),
                 nn.ReLU(),
-                nn.Flatten(),
-            )
-            output = self.image_net(dummy_input)
-        else:
-            dummy_input = torch.zeros(image_shape)
-            self.image_net = nn.Sequential(
-                nn.Linear(int(np.prod(image_shape) * max_idx), hidden_size), nn.ReLU()
-            )
-            output = self.image_net(dummy_input)
+                *([] if endpool else [nn.MaxPool2d(kernel_size=(2, 2), stride=2)]),
+                nn.Conv2d(
+                    in_channels=128, out_channels=128, kernel_size=(3, 3), padding=1
+                ),
+                nn.BatchNorm2d(128),
+                nn.ReLU(),
+                *([] if endpool else [nn.MaxPool2d(kernel_size=(2, 2), stride=2)]),
+            ]
+        )
+        self.film_pool = nn.MaxPool2d(
+            kernel_size=self.observation_spaces.image.shape[-2:] if endpool else (2, 2),
+            stride=2,
+        )
 
-        self.merge = nn.Sequential(
-            init_(
-                nn.Linear(
-                    output.size(-1)
-                    + self.num_directions
-                    + self.num_actions
-                    + self.embedding_size,
-                    hidden_size,
+        # Define instruction embedding
+        if self.use_instr:
+            if self.lang_model in ["gru", "bigru", "attgru"]:
+                self.word_embedding = nn.Embedding(
+                    int(self.observation_spaces.mission.nvec.max()), self.instr_dim
                 )
-            ),
-            nn.ReLU(),
+                if self.lang_model in ["gru", "bigru", "attgru"]:
+                    gru_dim = self.instr_dim
+                    if self.lang_model in ["bigru", "attgru"]:
+                        gru_dim //= 2
+                    self.instr_rnn = nn.GRU(
+                        self.instr_dim,
+                        gru_dim,
+                        batch_first=True,
+                        bidirectional=(self.lang_model in ["bigru", "attgru"]),
+                    )
+                    self.final_instr_dim = self.instr_dim
+                else:
+                    kernel_dim = 64
+                    kernel_sizes = [3, 4]
+                    self.instr_convs = nn.ModuleList(
+                        [
+                            nn.Conv2d(1, kernel_dim, (K, self.instr_dim))
+                            for K in kernel_sizes
+                        ]
+                    )
+                    self.final_instr_dim = kernel_dim * len(kernel_sizes)
+
+            if self.lang_model == "attgru":
+                self.memory2key = nn.Linear(self.memory_size, self.final_instr_dim)
+
+            num_module = 2
+            self.controllers = []
+            for ni in range(num_module):
+                mod = FiLM(
+                    in_features=self.final_instr_dim,
+                    out_features=128 if ni < num_module - 1 else self.image_dim,
+                    in_channels=128,
+                    imm_channels=128,
+                )
+                self.controllers.append(mod)
+                self.add_module("FiLM_" + str(ni), mod)
+
+        # Define memory and resize image embedding
+        self.embedding_size = self.image_dim
+        if self.use_memory:
+            self.memory_rnn = nn.LSTMCell(self.image_dim, self.memory_dim)
+            self.embedding_size = self.semi_memory_size
+
+        # Initialize parameters correctly
+        self.apply(initialize_parameters)
+
+        # Define critic's model
+        self.critic = nn.Sequential(
+            nn.Linear(self.embedding_size, 64), nn.Tanh(), nn.Linear(64, 1)
         )
 
-        init_ = lambda m: init(
-            m, nn.init.orthogonal_, lambda x: nn.init.constant_(x, 0)
-        )
+    @property
+    def memory_size(self):
+        return 2 * self.semi_memory_size
 
-        self.critic_linear = init_(nn.Linear(hidden_size, 1))
-
-        if qkv:
-            self.embeddings.to(device)
-            missions = missions.to(device)
-            outputs = self.embed(missions)
-            outputs = outputs.reshape(-1, outputs.size(-1))
-            self.keys = Parameter(attn_temp * outputs, requires_grad=not freeze_keys)
-            self.values = nn.Embedding(*outputs.shape)
-            self.qkv_attn = MultiheadAttention(self.embedding_size, num_heads=1)
-
-    def build_embeddings(self):
-        num_embeddings = int(self.observation_spaces.mission.nvec.flatten()[0])
-        return nn.Embedding(
-            num_embeddings, self.embedding_size, padding_idx=self.pad_token_id
-        )
+    @property
+    def semi_memory_size(self):
+        return self.memory_dim
 
     def forward(self, inputs, rnn_hxs, masks):
-        inputs = Obs(
+        obs = Obs(
             *torch.split(
                 inputs,
                 [get_size(space) for space in astuple(self.observation_spaces)],
@@ -198,36 +318,29 @@ class Base(NNBase):
             )
         )
 
-        image = inputs.image.reshape(-1, *self.observation_spaces.image.shape)
-        image = self.image_net(image)
-        directions = inputs.direction.long()
-        directions = F.one_hot(directions, num_classes=self.num_directions).squeeze(1)
-        action = inputs.action.long()
-        action = F.one_hot(action, num_classes=self.num_actions).squeeze(1)
+        instr_embedding = self._get_instr_embedding(obs.mission.long())
 
-        mission = inputs.mission.reshape(-1, *self.observation_spaces.mission.shape)
+        image = obs.image.reshape(-1, *self.observation_spaces.image.shape)
+        x = torch.transpose(torch.transpose(image, 1, 3), 2, 3)
 
-        n, l, e = mission.shape
-        flattened = mission.reshape(n * l, e)
-        states = self.embed(flattened.long())
-        states = states.mean(1).reshape(n, l, -1)
-        if self.qkv:
-            query = states.transpose(0, 1)
-            n = query.size(1)
-            key = self.keys.unsqueeze(1).repeat(1, n, 1)
-            value = self.values.weight.unsqueeze(1).repeat(1, n, 1)
-            attn_output, _ = self.qkv_attn.forward(query=query, key=key, value=value)
-            # print((100 * _.max(dim=-1).values).round())
-            # breakpoint()
-            mission = attn_output.mean(0)
-        else:
-            mission = states.mean(1)
+        if "pixel" in self.arch:
+            x /= 256.0
+        x = self.image_conv(x)
+        if self.use_instr:
+            for controller in self.controllers:
+                out = controller(x, instr_embedding)
+                if self.res:
+                    out += x
+                x = out
+        x = x.max(-1).values.max(-1).values
+        x = F.relu(x)
+        x = x.reshape(x.shape[0], -1)
 
-        x = torch.cat([image, directions, action, mission], dim=-1)
-        x = self.merge(x)
-        if self.is_recurrent:
-            x, rnn_hxs = self._forward_gru(x, rnn_hxs, masks)
-        return self.critic_linear(x), x, rnn_hxs
+        return self.critic(x), x, rnn_hxs
 
-    def embed(self, inputs):
-        return self.embeddings.forward(inputs)
+    def _get_instr_embedding(self, instr):
+        lengths = (instr != 0).sum(1).long()
+        if self.lang_model == "gru":
+            out, _ = self.instr_rnn(self.word_embedding(instr))
+            hidden = out[range(len(lengths)), lengths - 1, :]
+            return hidden
