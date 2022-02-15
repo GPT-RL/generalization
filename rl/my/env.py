@@ -1,6 +1,8 @@
 import itertools
 import math
 import string
+import typing
+from collections import OrderedDict
 from copy import deepcopy
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -97,7 +99,9 @@ class Env(MiniWorldEnv):
         assert room_size >= 2
         self.size = room_size
 
-        self.meshes = sorted(meshes, key=lambda m: m.name)
+        self.meshes = OrderedDict(
+            [(m.name, m) for m in sorted(meshes, key=lambda m: m.name)]
+        )
 
         params = deepcopy(DEFAULT_PARAMS)
         params.set("cam_pitch", pitch, pitch, pitch)
@@ -127,8 +131,13 @@ class Env(MiniWorldEnv):
             floor_tex=self.floor_tex,
         )
         while True:
-            meshes = self.rand.subset(self.meshes, num_elems=2)
-            self._mission, self._dist_name = [m.name for m in meshes]
+            if self._mesh_names is None:
+                self._mission, self._dist_name = mesh_names = self.rand.subset(
+                    list(self.meshes), num_elems=2
+                )
+            else:
+                mesh_names = self._mission, self._dist_name = self._mesh_names
+            meshes = [self.meshes[n] for n in mesh_names]
 
             try:
                 self.goal, self.dist = [
@@ -255,7 +264,8 @@ class Env(MiniWorldEnv):
         else:
             return super().render(mode=mode, **kwargs)
 
-    def reset(self) -> dict:
+    def reset(self, mesh_names: typing.Tuple[str, str] = None) -> dict:
+        self._mesh_names = mesh_names
         self._iterator = self.generator()
         obs, _, _, _ = next(self._iterator)
         return self.to_obs(obs)

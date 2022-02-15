@@ -1,5 +1,4 @@
 import abc
-import sys
 import typing
 from dataclasses import astuple, dataclass, replace
 from functools import lru_cache
@@ -8,7 +7,7 @@ from typing import Dict, Generic, List, TypeVar
 import gym
 import numpy as np
 from gym.spaces import Box, Discrete, MultiDiscrete
-from my.env import Obs
+from my.env import PAIR, Obs
 from torch import Tensor
 from torch.nn.utils.rnn import pad_sequence
 from transformers import GPT2Tokenizer
@@ -139,38 +138,35 @@ class FailureReplayWrapper(SuccessWrapper):
     def __init__(self, env, seed: int, tgt_success_prob: float = 0.5):
         self.tgt_success_prob = tgt_success_prob
         self.successes = []
-        self.fail_seeds = []
+        self.fail_pairs = []
         self.rng = np.random.default_rng(seed=seed)
         super().__init__(env)
 
     def reset(self, **kwargs):
-        if self.successes and self.fail_seeds:
+        if self.successes and self.fail_pairs:
             prior_success_prob = float(np.mean(self.successes))
             no_fail_seed_prob = self.tgt_success_prob / max(prior_success_prob, 1e-5)
             use_fail_seeds_prob = 1 - no_fail_seed_prob
+            i = self.rng.choice(len(self.fail_pairs))
         else:
             use_fail_seeds_prob = 0
-        self.using_fail_seed = self.rng.random() < use_fail_seeds_prob
-        if self.using_fail_seed:
-            i = self.rng.choice(len(self.fail_seeds))
-            self.current_seed = self.fail_seeds.pop(i)
-        else:
-            self.current_seed = self.rng.choice(sys.maxsize)
-        self.env.seed(self.current_seed)
-        return super().reset(**kwargs)
+            i = None
+        self.using_fail_pair = self.rng.random() < use_fail_seeds_prob
+        mesh_names = self.fail_pairs.pop(i) if self.using_fail_pair else None
+        return super().reset(**kwargs, mesh_names=mesh_names)
 
     def step(self, action):
         s, r, t, i = super().step(action)
         if t:
-            i.update({NUM_FAIL_SEEDS: len(self.fail_seeds)})
-            if self.using_fail_seed:
+            i.update({NUM_FAIL_SEEDS: len(self.fail_pairs)})
+            if self.using_fail_pair:
                 success = i.pop(EPISODE_SUCCESS)
                 i.update({FAIL_SEED_SUCCESS: success})
             else:
                 success = i[EPISODE_SUCCESS]
                 self.successes += [success]
-                if not success and len(self.fail_seeds) < 100:
-                    self.fail_seeds += [self.current_seed]
+                if not success and len(self.fail_pairs) < 100:
+                    self.fail_pairs += [i[PAIR]]
         return s, r, t, i
 
 
