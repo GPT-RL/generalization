@@ -1,6 +1,6 @@
 import functools
 import re
-from collections import defaultdict
+from collections import Counter, defaultdict
 from copy import deepcopy
 from dataclasses import dataclass, field
 from inspect import signature
@@ -37,6 +37,7 @@ from wrappers import (
 DISTRACTOR = "distractor"
 MISSION = "mission"
 PAIR_SUCCESS = "object pair success"
+PAIR_COUNT = "object pair count"
 TEST_EPISODE_SUCCESS = "test episode success"
 
 
@@ -72,6 +73,7 @@ class Counters(base_main.Counters):
     fail_seed_success: List[bool] = field(default_factory=list)
     fail_seed_usage: List[bool] = field(default_factory=list)
     num_fail_seeds: List[float] = field(default_factory=list)
+    pairs: List[Tuple[str, str]] = field(default_factory=list)
     success_per_pair: DefaultDict[Tuple[str, str], List[float]] = field(
         default_factory=lambda: defaultdict(list)
     )
@@ -112,6 +114,7 @@ class Trainer(base_main.Trainer):
     @classmethod
     def charts(cls, args: Args):
         kwargs = dict(visualizer_url=args.visualizer_url)
+        history_len = args.num_processes * args.num_steps * args.log_interval * 100
         return [
             line_chart.spec(x=base_main.STEP, y=EPISODE_SUCCESS, **kwargs),
             line_chart.spec(
@@ -124,10 +127,13 @@ class Trainer(base_main.Trainer):
                 x=DISTRACTOR,
                 y=MISSION,
                 color=PAIR_SUCCESS,
-                history_len=args.num_processes
-                * args.num_steps
-                * args.log_interval
-                * 100,
+                history_len=history_len,
+            ),
+            heatmap.spec(
+                x=DISTRACTOR,
+                y=MISSION,
+                color=PAIR_COUNT,
+                history_len=history_len,
             ),
             *super().charts(args=args),
         ]
@@ -140,6 +146,20 @@ class Trainer(base_main.Trainer):
         step: int,
         counters: Counters = None,
     ):
+        if len(counters.pairs) >= 10_000:
+            counter = Counter(counters.pairs)
+            for (mission, distractor), count in counter.items():
+                super().log(
+                    log={
+                        PAIR_COUNT: count / len(counters.pairs),
+                        MISSION: mission,
+                        DISTRACTOR: distractor,
+                    },
+                    logger=logger,
+                    step=step,
+                )
+            counters.pairs = []
+
         success_per_pair = deepcopy(counters.success_per_pair)
         for (mission, distractor), v in success_per_pair.items():
             if len(v) >= 100:
@@ -303,6 +323,7 @@ class Trainer(base_main.Trainer):
                 counters.episode_success.append(info[EPISODE_SUCCESS])
                 counters.fail_seed_usage.append(False)
                 counters.success_per_pair[info[PAIR]].append(info[EPISODE_SUCCESS])
+                counters.pairs.append(info[PAIR])
         elif FAIL_SEED_SUCCESS in info:
             counters.fail_seed_success.append(info[FAIL_SEED_SUCCESS])
             counters.fail_seed_usage.append(True)
