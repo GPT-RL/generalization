@@ -153,8 +153,6 @@ class FailureReplayWrapper(SuccessWrapper):
             i = None
         self.using_fail_pair = self.rng.random() < use_fail_seeds_prob
         mesh_names = self.fail_pairs.pop(i) if self.using_fail_pair else None
-        if self.using_fail_pair:
-            print(use_fail_seeds_prob, mesh_names)
         return super().reset(**kwargs, mesh_names=mesh_names)
 
     def step(self, action):
@@ -167,8 +165,10 @@ class FailureReplayWrapper(SuccessWrapper):
             else:
                 success = i[EPISODE_SUCCESS]
                 self.successes += [success]
-                if not success and len(self.fail_pairs) < 100:
+                if not success:
                     self.fail_pairs += [i[PAIR]]
+                while len(self.fail_pairs) > 100:
+                    self.fail_pairs.pop(0)
         return s, r, t, i
 
 
