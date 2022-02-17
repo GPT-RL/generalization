@@ -1,5 +1,6 @@
 import abc
 import typing
+from collections import deque
 from dataclasses import astuple, dataclass, replace
 from functools import lru_cache
 from typing import Dict, Generic, List, TypeVar
@@ -11,13 +12,11 @@ from my.env import PAIR, Obs
 from torch import Tensor
 from torch.nn.utils.rnn import pad_sequence
 from transformers import GPT2Tokenizer
+from utils import softmax
 
 T = TypeVar("T")  # Declare type variable
 
 EPISODE_SUCCESS = "episode success"
-FAIL_SEED_SUCCESS = "fail seed success"
-FAIL_SEED_USAGE = "fail seed usage"
-NUM_FAIL_SEEDS = "number of fail seeds"
 
 
 @dataclass
@@ -135,40 +134,29 @@ class SuccessWrapper(gym.Wrapper):
 
 
 class FailureReplayWrapper(SuccessWrapper):
-    def __init__(self, env, seed: int, tgt_success_prob: float = 0.5):
-        self.tgt_success_prob = tgt_success_prob
-        self.successes = []
-        self.fail_pairs = []
+    def __init__(self, env, seed: int, objects: List[str], temp: float):
+        self.temp = temp
+        self.counter = {
+            (o1, o2): deque([0], maxlen=100)
+            for o1 in objects
+            for o2 in objects
+            if o1 != o2
+        }
         self.rng = np.random.default_rng(seed=seed)
         super().__init__(env)
 
     def reset(self, **kwargs):
-        if self.successes and self.fail_pairs:
-            prior_success_prob = float(np.mean(self.successes))
-            no_fail_seed_prob = self.tgt_success_prob / max(prior_success_prob, 1e-5)
-            use_fail_seeds_prob = 1 - no_fail_seed_prob
-            i = self.rng.choice(len(self.fail_pairs))
-        else:
-            use_fail_seeds_prob = 0
-            i = None
-        self.using_fail_pair = self.rng.random() < use_fail_seeds_prob
-        mesh_names = self.fail_pairs.pop(i) if self.using_fail_pair else None
+        pairs, deques = zip(*self.counter.items())
+        averages = np.array([np.mean(d) for d in deques])
+        averages = np.maximum(averages, 1e-5)
+        p = softmax(self.temp / averages)
+        mesh_names = self.rng.choice(pairs, p=p)
         return super().reset(**kwargs, mesh_names=mesh_names)
 
     def step(self, action):
         s, r, t, i = super().step(action)
         if t:
-            i.update({NUM_FAIL_SEEDS: len(self.fail_pairs)})
-            if self.using_fail_pair:
-                success = i.pop(EPISODE_SUCCESS)
-                i.update({FAIL_SEED_SUCCESS: success})
-            else:
-                success = i[EPISODE_SUCCESS]
-                self.successes += [success]
-                if not success:
-                    self.fail_pairs += [i[PAIR]]
-                while len(self.fail_pairs) > 100:
-                    self.fail_pairs.pop(0)
+            self.counter[i[PAIR]].append(r)
         return s, r, t, i
 
 
