@@ -2,10 +2,10 @@ import functools
 import re
 from collections import Counter, defaultdict
 from copy import deepcopy
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from inspect import signature
 from pathlib import Path
-from typing import DefaultDict, Dict, List, Literal, Optional, Set, Tuple, cast
+from typing import DefaultDict, List, Literal, Optional, Set, Tuple, cast
 
 import base_main
 import heatmap
@@ -23,7 +23,6 @@ from transformers import GPT2Tokenizer
 from wrappers import (
     EPISODE_SUCCESS,
     FailureReplayWrapper,
-    FeatureWrapper,
     ImageNormalizerWrapper,
     RenderWrapper,
     RolloutsWrapper,
@@ -190,7 +189,6 @@ class Trainer(base_main.Trainer):
     def make_env(cls, env, allow_early_resets, render: bool = False, *args, **kwargs):
         def _thunk(
             all_missions: list,
-            features: Dict[str, List[str]],
             meshes: List[Mesh],
             seed: int,
             test: bool,
@@ -210,15 +208,13 @@ class Trainer(base_main.Trainer):
             if not test:
                 _env = FailureReplayWrapper(
                     _env,
-                    seed=seed,
                     objects=[m.name for m in meshes],
+                    seed=seed,
                     temp=temp,
                 )
             if render:
                 _env = RenderWrapper(_env, mode="ascii")
             _env = ImageNormalizerWrapper(_env)
-            if features:
-                _env = FeatureWrapper(_env, features)
             _env = TokenizerWrapper(
                 _env,
                 tokenizer=tokenizer,
@@ -265,7 +261,7 @@ class Trainer(base_main.Trainer):
                 axis=1,
             )
             features = features.to_dict()
-            features = {k.lower(): v for k, v in features.items() if v}
+            features = {k.lower(): ",".join(v) for k, v in features.items() if v}
             meshes: List[Mesh] = [m for m in meshes if m.name in features]
             all_missions = list(features.values())
         else:
@@ -279,6 +275,8 @@ class Trainer(base_main.Trainer):
         names: Set[str] = names.test if test else names.train
         assert len(names) > 1
         meshes = [m for m in meshes if m.name in names]
+        if use_features:
+            meshes = [replace(m, name=features[m.name]) for m in meshes]
 
         return super().make_vec_envs(
             all_missions=all_missions,

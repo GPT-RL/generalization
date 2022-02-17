@@ -460,6 +460,7 @@ class Trainer:
                         envs=cls.make_vec_envs(
                             device=device,
                             run_id=logger.run_id,
+                            test=True,
                             **args.as_dict(),
                         ),
                         num_processes=cls.num_eval_processes(args),

@@ -2,11 +2,11 @@ import itertools
 import math
 import string
 import typing
-from collections import OrderedDict
+from collections import defaultdict
 from copy import deepcopy
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import List, NamedTuple, Optional, TypeVar, Union, cast
+from typing import List, Optional, TypeVar, Union, cast
 
 import gym
 import numpy as np
@@ -38,7 +38,8 @@ class Args(Tap):
     seed: int = 0
 
 
-class Mesh(NamedTuple):
+@dataclass
+class Mesh:
     obj: Union[Path, str]
     png: Optional[Path]
     name: str
@@ -75,6 +76,14 @@ class String(gym.Space):
         return isinstance(x, str)
 
 
+class StringTuple(gym.Space):
+    def sample(self):
+        return []
+
+    def contains(self, x):
+        return isinstance(x, tuple) and all([isinstance(y, str) for y in x])
+
+
 class Env(MiniWorldEnv):
     """
     Environment in which the goal is to go to a red box
@@ -99,9 +108,9 @@ class Env(MiniWorldEnv):
         assert room_size >= 2
         self.size = room_size
 
-        self.meshes = OrderedDict(
-            [(m.name, m) for m in sorted(meshes, key=lambda m: m.name)]
-        )
+        self.meshes = defaultdict(list)
+        for m in sorted(meshes, key=lambda m: m.name):
+            self.meshes[m.name].append(m)
 
         params = deepcopy(DEFAULT_PARAMS)
         params.set("cam_pitch", pitch, pitch, pitch)
@@ -133,11 +142,11 @@ class Env(MiniWorldEnv):
         while True:
             if self._mesh_names is None:
                 self._mission, self._dist_name = mesh_names = self.rand.subset(
-                    list(self.meshes), num_elems=2
+                    sorted(list(self.meshes)), num_elems=2
                 )
             else:
                 mesh_names = self._mission, self._dist_name = self._mesh_names
-            meshes = [self.meshes[n] for n in mesh_names]
+            meshes = [self.rand.choice(self.meshes[n]) for n in mesh_names]
 
             try:
                 self.goal, self.dist = [

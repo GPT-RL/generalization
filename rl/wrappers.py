@@ -8,7 +8,7 @@ from typing import Dict, Generic, List, TypeVar
 import gym
 import numpy as np
 from gym.spaces import Box, Discrete, MultiDiscrete
-from my.env import PAIR, Obs
+from my.env import PAIR, Obs, StringTuple
 from torch import Tensor
 from torch.nn.utils.rnn import pad_sequence
 from transformers import GPT2Tokenizer
@@ -134,7 +134,7 @@ class SuccessWrapper(gym.Wrapper):
 
 
 class FailureReplayWrapper(SuccessWrapper):
-    def __init__(self, env, seed: int, objects: List[str], temp: float):
+    def __init__(self, env, objects: List[str], seed: int, temp: float):
         self.temp = temp
         self.counter = {
             (o1, o2): deque([0], maxlen=100)
@@ -160,14 +160,6 @@ class FailureReplayWrapper(SuccessWrapper):
         return s, r, t, i
 
 
-class StringTuple(gym.Space):
-    def sample(self):
-        return []
-
-    def contains(self, x):
-        return isinstance(x, tuple) and all([isinstance(y, str) for y in x])
-
-
 class TokenizerWrapper(gym.ObservationWrapper):
     def __init__(
         self,
@@ -177,10 +169,7 @@ class TokenizerWrapper(gym.ObservationWrapper):
     ):
         self.tokenizer: GPT2Tokenizer = tokenizer
         ns, ds = zip(
-            *[
-                self.encode(tuple(m) if isinstance(m, list) else m, tokenizer).shape
-                for m in all_missions
-            ]
+            *[self.encode(tuple(m.split(",")), tokenizer).shape for m in all_missions]
         )
         n = max(ns)
         d = max(ds)
