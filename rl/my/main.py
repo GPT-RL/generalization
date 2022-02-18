@@ -22,8 +22,12 @@ from stable_baselines3.common.monitor import Monitor
 from transformers import GPT2Tokenizer
 from wrappers import (
     EPISODE_SUCCESS,
+    FAIL_SEED_SUCCESS,
+    FAIL_SEED_USAGE,
+    NUM_FAIL_SEEDS,
     FailureReplayWrapper,
     ImageNormalizerWrapper,
+    PairsSelectorWrapper,
     RenderWrapper,
     RolloutsWrapper,
     SuccessWrapper,
@@ -52,7 +56,8 @@ class Args(base_main.Args, env.Args):
         "EleutherAI/gpt-neo-2.7B",
     ] = "gpt2-large"  # what size of pretrained GPT to use
     prefix_length: int = 0
-    temp: float = 1
+    temp: float = None
+    tgt_success_prob: float = None
     use_features: bool = False
 
     def configure(self) -> None:
@@ -109,23 +114,28 @@ class Trainer(base_main.Trainer):
     def charts(cls, args: Args):
         kwargs = dict(visualizer_url=args.visualizer_url)
         history_len = args.num_processes * args.num_steps * args.log_interval * 100
-        return [
-            line_chart.spec(x=base_main.STEP, y=EPISODE_SUCCESS, **kwargs),
-            line_chart.spec(x=base_main.STEP, y=TEST_EPISODE_SUCCESS, **kwargs),
-            heatmap.spec(
-                x=DISTRACTOR,
-                y=MISSION,
-                color=PAIR_SUCCESS,
-                history_len=history_len,
-            ),
-            heatmap.spec(
-                x=DISTRACTOR,
-                y=MISSION,
-                color=PAIR_COUNT,
-                history_len=history_len,
-            ),
-            *super().charts(args=args),
-        ]
+        return (
+            [
+                line_chart.spec(x=base_main.STEP, y=y, **kwargs)
+                for y in [
+                    EPISODE_SUCCESS,
+                    TEST_EPISODE_SUCCESS,
+                    NUM_FAIL_SEEDS,
+                    FAIL_SEED_USAGE,
+                    FAIL_SEED_SUCCESS,
+                ]
+            ]
+            + [
+                heatmap.spec(
+                    x=DISTRACTOR,
+                    y=MISSION,
+                    color=color,
+                    history_len=history_len,
+                )
+                for color in [PAIR_SUCCESS, PAIR_COUNT]
+            ]
+            + super().charts(args=args)
+        )
 
     @classmethod
     def log(
@@ -194,6 +204,7 @@ class Trainer(base_main.Trainer):
             seed: int,
             test: bool,
             temp: float,
+            tgt_success_prob: float,
             tokenizer: GPT2Tokenizer,
             **_kwargs,
         ):
@@ -206,16 +217,21 @@ class Trainer(base_main.Trainer):
                     if k in signature(Env.__init__).parameters
                 },
             )
-            _env = (
-                SuccessWrapper(_env)
-                if test
-                else FailureReplayWrapper(
+            if test or tgt_success_prob is None and temp is None:
+                _env = SuccessWrapper(_env)
+            elif tgt_success_prob is not None and temp is None:
+                _env = FailureReplayWrapper(
+                    _env, seed=seed, tgt_success_prob=tgt_success_prob
+                )
+            elif tgt_success_prob is None and temp is not None:
+                _env = PairsSelectorWrapper(
                     _env,
                     objects=[m.name for m in meshes],
                     seed=seed,
                     temp=temp,
                 )
-            )
+            else:
+                raise RuntimeError("Either temp or tgt_success_prob must be None.")
             if render:
                 _env = RenderWrapper(_env, mode="ascii")
             _env = ImageNormalizerWrapper(_env)
