@@ -26,6 +26,7 @@ from wrappers import (
     ImageNormalizerWrapper,
     RenderWrapper,
     RolloutsWrapper,
+    SuccessWrapper,
     TokenizerWrapper,
     TrainTest,
 )
@@ -205,13 +206,16 @@ class Trainer(base_main.Trainer):
                     if k in signature(Env.__init__).parameters
                 },
             )
-            if not test:
-                _env = FailureReplayWrapper(
+            _env = (
+                SuccessWrapper(_env)
+                if test
+                else FailureReplayWrapper(
                     _env,
                     objects=[m.name for m in meshes],
                     seed=seed,
                     temp=temp,
                 )
+            )
             if render:
                 _env = RenderWrapper(_env, mode="ascii")
             _env = ImageNormalizerWrapper(_env)

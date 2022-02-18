@@ -168,9 +168,7 @@ class TokenizerWrapper(gym.ObservationWrapper):
         tokenizer: GPT2Tokenizer,
     ):
         self.tokenizer: GPT2Tokenizer = tokenizer
-        ns, ds = zip(
-            *[self.encode(tuple(m.split(",")), tokenizer).shape for m in all_missions]
-        )
+        ns, ds = zip(*[self.encode(m, tokenizer).shape for m in all_missions])
         n = max(ns)
         d = max(ds)
 
@@ -183,28 +181,23 @@ class TokenizerWrapper(gym.ObservationWrapper):
         )
         self.observation_space = self.obs_spaces.to_space()
 
-    @staticmethod
+    @classmethod
     def encode(
+        cls,
         mission: typing.Union[typing.Tuple[str], str],
         tokenizer: GPT2Tokenizer,
     ):
-        if isinstance(mission, tuple):
+        def get_tokens():
+            for w in mission.split(","):
+                encoded = tokenizer.encode(w, return_tensors="pt")
+                encoded = typing.cast(Tensor, encoded)
+                yield encoded.T
 
-            def get_tokens():
-                for w in mission:
-                    encoded = tokenizer.encode(w, return_tensors="pt")
-                    encoded = typing.cast(Tensor, encoded)
-                    yield encoded.T
-
-            tokens = list(get_tokens())
-            padded = (
-                pad_sequence(tokens, padding_value=tokenizer.eos_token_id).squeeze(-1).T
-            )
-            return padded.numpy()
-        elif isinstance(mission, str):
-            return tokenizer.encode(mission, return_tensors="np")
-        else:
-            raise RuntimeError()
+        tokens = list(get_tokens())
+        padded = (
+            pad_sequence(tokens, padding_value=tokenizer.eos_token_id).squeeze(-1).T
+        )
+        return padded.numpy()
 
     @classmethod
     @lru_cache()

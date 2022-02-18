@@ -166,6 +166,7 @@ class Env(MiniWorldEnv):
                 break
             except PlacementError:
                 print("Failed to place:", self._mission, self._dist_name)
+                self._mesh_names = None
                 continue
 
         self.place_agent()

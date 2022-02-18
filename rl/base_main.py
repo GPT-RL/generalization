@@ -148,23 +148,18 @@ class Trainer:
     @classmethod
     def charts(cls, args: Args):
         kwargs = dict(visualizer_url=args.visualizer_url)
-        charts = [
-            spec(x=HOURS, y=EPISODE_RETURN, **kwargs),
-            *[
-                spec(x=STEP, y=y, **kwargs)
-                for y in (
-                    EPISODE_RETURN,
-                    FPS,
-                    ENTROPY,
-                    GRADIENT_NORM,
-                    SAVE_COUNT,
-                )
-            ],
+        return [
+            spec(x=HOURS, y=y, **kwargs) for y in [EPISODE_RETURN, TEST_EPISODE_RETURN]
+        ] + [
+            spec(x=STEP, y=y, **kwargs)
+            for y in (
+                EPISODE_RETURN,
+                FPS,
+                ENTROPY,
+                GRADIENT_NORM,
+                SAVE_COUNT,
+            )
         ]
-        test_charts = [
-            spec(x=x, y=TEST_EPISODE_RETURN, **kwargs) for x in [STEP, HOURS]
-        ]
-        return charts if args.test_interval is None else test_charts + charts
 
     @classmethod
     def cuda(cls, args):
