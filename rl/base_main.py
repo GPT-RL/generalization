@@ -171,7 +171,7 @@ class Trainer:
 
     @classmethod
     def evaluate(
-        cls, agent, envs, num_processes, device, start, total_num_steps, logger
+        cls, agent, args, envs, num_processes, device, start, total_num_steps, logger
     ):
 
         counters = cls.build_counters()
@@ -208,7 +208,9 @@ class Trainer:
             TEST_EPISODE_RETURN: np.mean(counters.episode_rewards),
         }
 
-        cls.log(log=log, logger=logger, step=total_num_steps, counters=counters)
+        cls.log(
+            args=args, log=log, logger=logger, step=total_num_steps, counters=counters
+        )
 
         logging.info(
             f" Evaluation using {len(counters.episode_rewards)} episodes: "
@@ -235,7 +237,14 @@ class Trainer:
         agent.load_state_dict(torch.load(load_path))
 
     @classmethod
-    def log(cls, log: dict, logger: HasuraLogger, step: int, counters: Counters = None):
+    def log(
+        cls,
+        args: Args,
+        log: dict,
+        logger: HasuraLogger,
+        step: int,
+        counters: Counters = None,
+    ):
         log.update(step=step)
         logging.info(pformat(log))
         if logger.run_id is not None:
@@ -452,6 +461,7 @@ class Trainer:
                 if args.test_interval is not None and j % args.test_interval == 0:
                     cls.evaluate(
                         agent=agent,
+                        args=args,
                         envs=cls.make_vec_envs(
                             device=device,
                             run_id=logger.run_id,
@@ -564,6 +574,7 @@ class Trainer:
                         }
 
                         cls.log(
+                            args=args,
                             log=log,
                             logger=logger,
                             step=total_num_steps,

@@ -15,7 +15,7 @@ import pandas as pd
 from envs import VecPyTorch
 from my import env
 from my.agent import Agent
-from my.env import DESCRIPTION, EXCLUDED, PAIR, Env, Mesh
+from my.env import EXCLUDED, PAIR, Env, Mesh
 from my.mesh_paths import get_meshes
 from run_logger import HasuraLogger
 from stable_baselines3.common.monitor import Monitor
@@ -58,7 +58,7 @@ class Args(base_main.Args, env.Args):
     prefix_length: int = 0
     temp: float = None
     tgt_success_prob: float = None
-    use_features: bool = False
+    attributes: str = "name"
 
     def configure(self) -> None:
         self.add_subparsers(dest="logger_args")
@@ -138,15 +138,22 @@ class Trainer(base_main.Trainer):
     @classmethod
     def log(
         cls,
+        args: Args,
         log: dict,
         logger: HasuraLogger,
         step: int,
         counters: Counters = None,
     ):
-        if len(counters.pairs) >= 10_000:
-            counter = Counter(counters.pairs)
-            for (mission, distractor), count in counter.items():
+        n_objects = 60 if args.names is None else len(args.names)
+        if args.num_test_names is not None:
+            n_objects -= args.num_test_names
+        n_pairs = n_objects ** 2
+        timesteps_per_log = args.num_processes * args.num_steps * args.log_interval
+        if len(counters.pairs) >= n_pairs * timesteps_per_log / 10_000:
+            counter_per_pair = Counter(counters.pairs)
+            for (mission, distractor), count in counter_per_pair.items():
                 super().log(
+                    args=args,
                     log={
                         PAIR_COUNT: count / len(counters.pairs),
                         MISSION: mission,
@@ -159,8 +166,9 @@ class Trainer(base_main.Trainer):
 
         success_per_pair = deepcopy(counters.success_per_pair)
         for (mission, distractor), v in success_per_pair.items():
-            if len(v) >= 100:
+            if len(v) >= timesteps_per_log / 100:
                 super().log(
+                    args=args,
                     log={
                         PAIR_SUCCESS: np.mean(v),
                         MISSION: mission,
@@ -175,7 +183,7 @@ class Trainer(base_main.Trainer):
             log.update({EPISODE_SUCCESS: np.mean(counters.episode_success)})
         if counters.test_episode_success:
             log.update({TEST_EPISODE_SUCCESS: np.mean(counters.test_episode_success)})
-        super().log(log=log, logger=logger, step=step, counters=counters)
+        super().log(args=args, log=log, logger=logger, step=step, counters=counters)
         counters.episode_success = []
         counters.fail_seed_success = []
         counters.fail_seed_usage = []
@@ -248,6 +256,7 @@ class Trainer(base_main.Trainer):
     @classmethod
     def make_vec_envs(
         cls,
+        attributes: str,
         data_path: str,
         pretrained_model: str,
         names: Optional[str],
@@ -260,7 +269,6 @@ class Trainer(base_main.Trainer):
         seed: int,
         sync_envs: bool,
         test: bool,
-        use_features: bool,
         **kwargs,
     ):
         if test:
@@ -268,23 +276,27 @@ class Trainer(base_main.Trainer):
 
         meshes = get_meshes(data_path=Path(data_path).expanduser(), names=names)
 
-        if use_features:
-            df = pd.read_csv("ycb.csv", index_col="name")
-            df = df[[DESCRIPTION, EXCLUDED]]
-            df = df[~df[EXCLUDED]].drop(EXCLUDED, axis=1)
-            features = df.apply(
-                func=lambda r: []
-                if pd.isna(r[DESCRIPTION])
-                else r[DESCRIPTION].split(","),
-                axis=1,
-            )
-            features = features.to_dict()
-            features = {k.lower(): ",".join(v) for k, v in features.items() if v}
-            meshes: List[Mesh] = [m for m in meshes if m.name in features]
-            all_missions = list(features.values())
-        else:
-            features = None
-            all_missions = [m.name for m in meshes]
+        df = pd.read_csv("ycb.csv")
+        df = df.set_index("name", drop=False)
+        columns = attributes.split(",")
+        df = df[[*columns, EXCLUDED]]
+        df = df[~df[EXCLUDED]].drop(EXCLUDED, axis=1)
+
+        def process_row(r: pd.Series):
+            def gen():
+                for column in r:
+                    if not pd.isna(column):
+                        yield from column.split(",")
+
+            return list(gen())
+
+        features = df.apply(process_row, axis=1)
+        features = features[features.apply(lambda x: bool(x))]
+
+        features = features.to_dict()
+        features = {k.lower(): ",".join(v) for k, v in features.items() if v}
+        meshes: List[Mesh] = [m for m in meshes if m.name in features]
+        all_missions = list(features.values())
 
         rng = np.random.default_rng(seed=seed)
         names: TrainTest[Set[str]] = cls.train_test_split(
@@ -293,8 +305,7 @@ class Trainer(base_main.Trainer):
         names: Set[str] = names.test if test else names.train
         assert len(names) > 1
         meshes = [m for m in meshes if m.name in names]
-        if use_features:
-            meshes = [replace(m, name=features[m.name]) for m in meshes]
+        meshes = [replace(m, name=features[m.name]) for m in meshes]
 
         return super().make_vec_envs(
             all_missions=all_missions,
