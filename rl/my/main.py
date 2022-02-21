@@ -138,15 +138,22 @@ class Trainer(base_main.Trainer):
     @classmethod
     def log(
         cls,
+        args: Args,
         log: dict,
         logger: HasuraLogger,
         step: int,
         counters: Counters = None,
     ):
-        if len(counters.pairs) >= 10_000:
-            counter = Counter(counters.pairs)
-            for (mission, distractor), count in counter.items():
+        n_objects = 60 if args.names is None else len(args.names)
+        if args.num_test_names is not None:
+            n_objects -= args.num_test_names
+        n_pairs = n_objects ** 2
+        timesteps_per_log = args.num_processes * args.num_steps * args.log_interval
+        if len(counters.pairs) >= n_pairs * timesteps_per_log:
+            counter_per_pair = Counter(counters.pairs)
+            for (mission, distractor), count in counter_per_pair.items():
                 super().log(
+                    args=args,
                     log={
                         PAIR_COUNT: count / len(counters.pairs),
                         MISSION: mission,
@@ -159,8 +166,9 @@ class Trainer(base_main.Trainer):
 
         success_per_pair = deepcopy(counters.success_per_pair)
         for (mission, distractor), v in success_per_pair.items():
-            if len(v) >= 100:
+            if len(v) >= timesteps_per_log:
                 super().log(
+                    args=args,
                     log={
                         PAIR_SUCCESS: np.mean(v),
                         MISSION: mission,
@@ -175,7 +183,7 @@ class Trainer(base_main.Trainer):
             log.update({EPISODE_SUCCESS: np.mean(counters.episode_success)})
         if counters.test_episode_success:
             log.update({TEST_EPISODE_SUCCESS: np.mean(counters.test_episode_success)})
-        super().log(log=log, logger=logger, step=step, counters=counters)
+        super().log(args=args, log=log, logger=logger, step=step, counters=counters)
         counters.episode_success = []
         counters.fail_seed_success = []
         counters.fail_seed_usage = []
