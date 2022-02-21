@@ -113,7 +113,6 @@ class Trainer(base_main.Trainer):
     @classmethod
     def charts(cls, args: Args):
         kwargs = dict(visualizer_url=args.visualizer_url)
-        history_len = args.num_processes * args.num_steps * args.log_interval * 100
         return (
             [
                 line_chart.spec(x=base_main.STEP, y=y, **kwargs)
@@ -130,7 +129,6 @@ class Trainer(base_main.Trainer):
                     x=DISTRACTOR,
                     y=MISSION,
                     color=color,
-                    history_len=history_len,
                 )
                 for color in [PAIR_SUCCESS, PAIR_COUNT]
             ]

@@ -1,4 +1,4 @@
-def spec(x, y, color, history_len):
+def spec(x, y, color):
     return {
         "$schema": "https://vega.github.io/schema/vega/v5.json",
         "axes": [
@@ -35,10 +35,6 @@ def spec(x, y, color, history_len):
                     "type": "formula",
                     "as": "sliderStep",
                     "expr": " datum.maxStep * sliderValue",
-                },
-                {
-                    "expr": f"datum['step'] >  datum.sliderStep - {history_len}",
-                    "type": "filter",
                 },
                 {"expr": "datum['step'] <=  datum.sliderStep", "type": "filter"},
             ],
