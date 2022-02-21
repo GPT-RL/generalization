@@ -147,6 +147,13 @@ class Env(MiniWorldEnv):
             else:
                 mesh_names = self._mission, self._dist_name = self._mesh_names
             meshes = [self.rand.choice(self.meshes[n]) for n in mesh_names]
+            positions = np.array(
+                [
+                    [0.7 * self.size, 0, 0.25 * self.size],
+                    [0.25 * self.size, 0, 0.7 * self.size],
+                ]
+            )
+            self.rand.np_random.shuffle(positions)
 
             try:
                 self.goal, self.dist = [
@@ -158,8 +165,9 @@ class Env(MiniWorldEnv):
                             tex_name=str(mesh.png) if mesh.png else None,
                         ),
                         name=mesh.name,
+                        pos=pos,
                     )
-                    for mesh in meshes
+                    for mesh, pos in zip(meshes, positions)
                 ]
                 for ent in self.entities:
                     ent.radius = self.radius
@@ -169,7 +177,7 @@ class Env(MiniWorldEnv):
                 self._mesh_names = None
                 continue
 
-        self.place_agent()
+        self.place_entity(self.agent, pos=np.array([1, 0, 1]), dir=-np.pi / 4)
 
     @staticmethod
     def ascii_of_image(image: np.ndarray):
