@@ -1,73 +1,73 @@
-name,description,height,excluded,path,gpt name,Unnamed: 0,dimensions,path,size
-Cheez-it Cracker box,"is red,has letters on it,is rectangular,is box-shaped",158.0,False,003_cracker_box/google_16k/textured.obj,Cheez-it box,0,[ 60. 158. 210.],003_cracker_box/google_16k/textured.obj,large
-Domino Sugar box,"is rectangular,is box-shaped,is part yellow,is part white",89.0,False,004_sugar_box/google_16k/textured.obj,,1,[ 38.  89. 175.],004_sugar_box/google_16k/textured.obj,medium
-Jell-O Chocolate Pudding box,"is mostly brown,has letters on it,is rectangular,is box-shaped",110.0,False,008_pudding_box/google_16k/textured.obj,Chocolate Jell-O box,2,[ 35. 110.  89.],008_pudding_box/google_16k/textured.obj,small
-Jell-O Strawberry Gelatin box,"is red,has letters on it,is rectangular,is box-shaped",110.0,False,009_gelatin_box/google_16k/textured.obj,Strawberry Jell-O box,3,[28. 85. 73.],009_gelatin_box/google_16k/textured.obj,small
-Spam Potted Meat can,"has letters on it,is rectangular,is part blue,is part gold",97.0,False,010_potted_meat_can/google_16k/textured.obj,can of spam,4,[50. 97. 82.],010_potted_meat_can/google_16k/textured.obj,medium
-Master Chef Coffee can,"is blue,has letters on it,is cylindrical",102.0,False,002_master_chef_can/google_16k/textured.obj,,5,[102. 139.],002_master_chef_can/google_16k/textured.obj,small
-Starkist Tuna Fish can,"is blue,has letters on it,is cylindrical",85.0,False,007_tuna_fish_can/google_16k/textured.obj,,6,[85. 33.],007_tuna_fish_can/google_16k/textured.obj,small
-Pringles Chips can,"is red,has letters on it,is cylindrical",85.0,True,007_tuna_fish_can/google_16k/textured.obj,,7,[ 75. 250.],007_tuna_fish_can/google_16k/textured.obj,small
-French's Mustard bottle,"is yellow,has letters on it,is a bottle",85.0,False,006_mustard_bottle/google_16k/textured.obj,,8,[ 50.  85. 175.],006_mustard_bottle/google_16k/textured.obj,medium
-Tomato Soup can,"is red,has letters on it,is cylindrical",66.0,False,005_tomato_soup_can/google_16k/textured.obj,,9,[ 66. 101.],005_tomato_soup_can/google_16k/textured.obj,small
-Plastic banana,"is yellow,is curved",190.0,False,011_banana/google_16k/textured.obj,banana,10,[ 36. 190.],011_banana/google_16k/textured.obj,small
-Plastic strawberry,"is red,is round",55.0,False,012_strawberry/google_16k/textured.obj,strawberry,11,[43.8 55. ],012_strawberry/google_16k/textured.obj,small
-Plastic apple,"is red,is round",75.0,False,013_apple/google_16k/textured.obj,apple,12,[75.],013_apple/google_16k/textured.obj,small
-Plastic lemon,"is yellow,is round",68.0,False,014_lemon/google_16k/textured.obj,lemon,13,[54. 68.],014_lemon/google_16k/textured.obj,small
-Plastic peach,"is orange,is red,is round",59.0,False,015_peach/google_16k/textured.obj,peach,14,[59.],015_peach/google_16k/textured.obj,small
-Plastic pear,is green,100.0,False,016_pear/google_16k/textured.obj,pear,15,[ 66.2 100. ],016_pear/google_16k/textured.obj,small
-Plastic orange,"is orange,is round",73.0,False,017_orange/google_16k/textured.obj,orange,16,[73.],017_orange/google_16k/textured.obj,small
-Plastic plum,"is purple,is round",52.0,False,018_plum/google_16k/textured.obj,plum,17,[52.],018_plum/google_16k/textured.obj,small
-Windex Spray bottle,"is blue,is a bottle,has letters on it",105.0,False,022_windex_bottle/google_16k/textured.obj,bottle of Windex,18,[ 80. 105. 270.],022_windex_bottle/google_16k/textured.obj,large
-Srub Cleanser bottle,"is white,bottle,has letters on it",65.0,False,021_bleach_cleanser/google_16k/textured.obj,bottle of bleach,19,[250.  98.  65.],021_bleach_cleanser/google_16k/textured.obj,large
-Scotch Brite Dobie sponge,"is beige,is flat",72.0,False,026_sponge/google_16k/textured.obj,scotch brite sponge,20,[ 72. 114.  14.],026_sponge/google_16k/textured.obj,small
-Pitcher Base,"is blue,is cylindrical",108.0,False,019_pitcher_base/google_16k/textured.obj,pitcher,21,[108. 235.],019_pitcher_base/google_16k/textured.obj,small
-Pitcher Lid,is blue,123.0,True,059_chain/google_16k/textured.obj,,22,[123.  48.],059_chain/google_16k/textured.obj,small
-Plate,"is red,is round",200.0,False,029_plate/google_16k/textured.obj,,23,[258.  24.],029_plate/google_16k/textured.obj,small
-Bowl,"is red,is round,has a rim",159.0,False,024_bowl/google_16k/textured.obj,,24,[159.  53.],024_bowl/google_16k/textured.obj,small
-Fork,"is red,is metal,is elongated",30.0,False,030_fork/google_16k/textured.obj,,25,[ 14.  20. 198.],030_fork/google_16k/textured.obj,small
-Spoon,"is red,is metal,is elongated",30.0,False,031_spoon/google_16k/textured.obj,,26,[ 14.  20. 195.],031_spoon/google_16k/textured.obj,small
-Knife,"is red,is metal,is elongated",30.0,False,032_knife/google_16k/textured.obj,,27,[ 14.  20. 215.],032_knife/google_16k/textured.obj,small
-Spatula,"is black,is elongated",83.0,False,033_spatula/google_16k/textured.obj,,28,[ 83.  35. 350.],033_spatula/google_16k/textured.obj,medium
-Wine glass,"is glass,has a rim",270.0,True,029_plate/google_16k/textured.obj,,29,[ 89. 137.],029_plate/google_16k/textured.obj,small
-Mug,"is red,has a rim,is cylindrical",82.0,False,025_mug/google_16k/textured.obj,,30,[80. 82.],025_mug/google_16k/textured.obj,small
-Skillet,"is white,has a rim",121.0,True,014_lemon/google_16k/textured.obj,,31,[270.  25.  30.],014_lemon/google_16k/textured.obj,small
-Skillet Lid,"is glass,is round",270.0,False,028_skillet_lid/google_16k/textured.obj,,32,[270.  10.  22.],028_skillet_lid/google_16k/textured.obj,small
-Table Cloth,is white,3.0,True,014_lemon/google_16k/textured.obj,,33,[228. 335.],014_lemon/google_16k/textured.obj,small
-Scissors,"grey,is metal",200.0,False,037_scissors/google_16k/textured.obj,,34,[ 87. 200.  14.],037_scissors/google_16k/textured.obj,small
-Large marker,"is black,is white,is elongated",121.0,False,040_large_marker/google_16k/textured.obj,black marker,35,[ 18. 121.],040_large_marker/google_16k/textured.obj,small
-Small marker,"is black,is white,is elongated",205.0,True,063-b_marbles/google_16k/textured.obj,black marker,36,[  8. 135.],063-b_marbles/google_16k/textured.obj,small
-Padlock & Keys,is metal,200.0,True,063-b_marbles/google_16k/textured.obj,,37,[24.  47.  65.  23.  43.   2.2],063-b_marbles/google_16k/textured.obj,large
-Hammer,"is part wood,is metal,is elongated",150.0,False,048_hammer/google_16k/textured.obj,,38,[ 34.  32. 135.],048_hammer/google_16k/textured.obj,small
-Nails,"is metal,is elongated",3.0,True,062_dice/google_16k/textured.obj,,39,[ 4. 25.  3. 53.  4. 63.],062_dice/google_16k/textured.obj,large
-Bolt & nut,is metal,140.0,True,026_sponge/google_16k/textured.obj,,40,[43. 16.  8. 16.],026_sponge/google_16k/textured.obj,small
-Phillips Screwdriver,"grey,is blue,is black,is metal,is elongated",50.0,False,043_phillips_screwdriver/google_16k/textured.obj,philips-head screwdriver,41,[ 31. 215.],043_phillips_screwdriver/google_16k/textured.obj,small
-Flat Screwdriver,"is red,grey,is black,is metal,is elongated",50.0,False,044_flat_screwdriver/google_16k/textured.obj,flathead screwdriver,42,[ 31. 215.],044_flat_screwdriver/google_16k/textured.obj,small
-Adjustable Wrench,"is metal,is elongated",205.0,False,042_adjustable_wrench/google_16k/textured.obj,,43,[  5.  55. 205.],042_adjustable_wrench/google_16k/textured.obj,small
-Wood block,"is wood,is rectangular,is box-shaped",85.0,False,036_wood_block/google_16k/textured.obj,,44,[ 85.  85. 200.],036_wood_block/google_16k/textured.obj,large
-Clamps,is black,42.7,True,025_mug/google_16k/textured.obj,,45,[],025_mug/google_16k/textured.obj,small
-Power Drill,"is part black,is part orange",150.0,False,035_power_drill/google_16k/textured.obj,,46,[ 35.  46. 184.],035_power_drill/google_16k/textured.obj,small
-Credit Card blank,"is white,flat,rectangle",1.0,True,063-b_marbles/google_16k/textured.obj,credit card,47,[54. 85.  1.],063-b_marbles/google_16k/textured.obj,small
-Mini soccer ball,"is round,is white,green",140.0,False,053_mini_soccer_ball/google_16k/textured.obj,soccer ball,48,[140.],053_mini_soccer_ball/google_16k/textured.obj,small
-Soft Ball,"is round,green",96.0,False,054_softball/google_16k/textured.obj,softball,49,[96.],054_softball/google_16k/textured.obj,small
-Baseball,"is round,is white",80.0,False,055_baseball/google_16k/textured.obj,,50,[80.],055_baseball/google_16k/textured.obj,small
-Tennis Ball,"is round,green",64.7,False,056_tennis_ball/google_16k/textured.obj,,51,[64.7],056_tennis_ball/google_16k/textured.obj,small
-Racquetball,"is round,is blue",55.3,False,057_racquetball/google_16k/textured.obj,,52,[55.3],057_racquetball/google_16k/textured.obj,small
-Golf Ball,"is round,is white",42.7,False,058_golf_ball/google_16k/textured.obj,,53,[42.7],058_golf_ball/google_16k/textured.obj,small
-Marbles,,,True,014_lemon/google_16k/textured.obj,,54,[],014_lemon/google_16k/textured.obj,small
-Cups,,82.0,False,065-a_cups/google_16k/textured.obj,,55,[],065-a_cups/google_16k/textured.obj,small
-Foam Brick,,75.0,False,061_foam_brick/google_16k/textured.obj,,56,[50. 75. 50.],061_foam_brick/google_16k/textured.obj,small
-Dice,"is white,is box-shaped",16.2,False,062_dice/google_16k/textured.obj,,57,[16.2],062_dice/google_16k/textured.obj,small
-Washers( 7 sizes),"is metal,is round,flat",,True,037_scissors/google_16k/textured.obj,,58,[],037_scissors/google_16k/textured.obj,small
-Rope,,,True,016_pear/google_16k/textured.obj,,59,[3000.     4.7],016_pear/google_16k/textured.obj,small
-Chain,,130.0,False,059_chain/google_16k/textured.obj,,60,[  2.   4. 130.],059_chain/google_16k/textured.obj,small
-Rubicks Cube,"is box-shaped,part red,part yellow,part green",57.0,False,077_rubiks_cube/google_16k/textured.obj,rubik's cube,61,[57. 57. 57.],077_rubiks_cube/google_16k/textured.obj,small
-Clear Box( x2),,149.0,True,026_sponge/google_16k/textured.obj,Clear box,62,[292. 429. 149.],026_sponge/google_16k/textured.obj,large
-Box Lid,,,True,062_dice/google_16k/textured.obj,,63,[292. 429.  20.],062_dice/google_16k/textured.obj,large
-Colored Wood Blocks,,26.0,False,070-b_colored_wood_blocks/google_16k/textured.obj,,64,[26.],070-b_colored_wood_blocks/google_16k/textured.obj,small
-9-Peg-Hole Test,,,True,058_golf_ball/google_16k/textured.obj,,65,[1150. 1200. 1200.],058_golf_ball/google_16k/textured.obj,large
-Toy Airplane,,,True,029_plate/google_16k/textured.obj,,66,[171. 266. 280.],029_plate/google_16k/textured.obj,large
-LEGO Duplo,,,True,013_apple/google_16k/textured.obj,,67,[16.   9.5  5.5],013_apple/google_16k/textured.obj,small
-Magazine,,,True,062_dice/google_16k/textured.obj,,68,[256.  200.    1.6],062_dice/google_16k/textured.obj,small
-Black t-shirt,is black,,True,037_scissors/google_16k/textured.obj,,69,[736. 736.],037_scissors/google_16k/textured.obj,medium
-Timer,,,True,016_pear/google_16k/textured.obj,,70,[8.  8.5 4.5],016_pear/google_16k/textured.obj,small
-Footlocker,"is grey,is box-shaped",,True,062_dice/google_16k/textured.obj,,71,[31.13 17.5  13.88],062_dice/google_16k/textured.obj,small
+name,description,height,excluded,path,gpt name,Unnamed: 0,dimensions,path.1,size,shape,color
+Cheez-it Cracker box,"is red,has letters on it,is rectangular,is box-shaped",158.0,False,003_cracker_box/google_16k/textured.obj,Cheez-it box,0,[ 60. 158. 210.],003_cracker_box/google_16k/textured.obj,large,rectangular,red
+Domino Sugar box,"is rectangular,is box-shaped,is part yellow,is part white",89.0,False,004_sugar_box/google_16k/textured.obj,,1,[ 38.  89. 175.],004_sugar_box/google_16k/textured.obj,medium,rectangular,yellow
+Jell-O Chocolate Pudding box,"is mostly brown,has letters on it,is rectangular,is box-shaped",110.0,False,008_pudding_box/google_16k/textured.obj,Chocolate Jell-O box,2,[ 35. 110.  89.],008_pudding_box/google_16k/textured.obj,small,rectangular,brown
+Jell-O Strawberry Gelatin box,"is red,has letters on it,is rectangular,is box-shaped",110.0,False,009_gelatin_box/google_16k/textured.obj,Strawberry Jell-O box,3,[28. 85. 73.],009_gelatin_box/google_16k/textured.obj,small,rectangular,red
+Spam Potted Meat can,"has letters on it,is rectangular,is part blue,is part gold",97.0,False,010_potted_meat_can/google_16k/textured.obj,can of spam,4,[50. 97. 82.],010_potted_meat_can/google_16k/textured.obj,medium,rectangular,blue
+Master Chef Coffee can,"is blue,has letters on it,is cylindrical",102.0,False,002_master_chef_can/google_16k/textured.obj,,5,[102. 139.],002_master_chef_can/google_16k/textured.obj,small,cylindrical,blue
+Starkist Tuna Fish can,"is blue,has letters on it,is cylindrical",85.0,False,007_tuna_fish_can/google_16k/textured.obj,,6,[85. 33.],007_tuna_fish_can/google_16k/textured.obj,small,cylindrical,blue
+Pringles Chips can,"is red,has letters on it,is cylindrical",85.0,True,007_tuna_fish_can/google_16k/textured.obj,,7,[ 75. 250.],007_tuna_fish_can/google_16k/textured.obj,small,cylindrical,red
+French's Mustard bottle,"is yellow,has letters on it,is a bottle",85.0,False,006_mustard_bottle/google_16k/textured.obj,,8,[ 50.  85. 175.],006_mustard_bottle/google_16k/textured.obj,medium,bottle,yellow
+Tomato Soup can,"is red,has letters on it,is cylindrical",66.0,False,005_tomato_soup_can/google_16k/textured.obj,,9,[ 66. 101.],005_tomato_soup_can/google_16k/textured.obj,small,cylindrical,red
+Plastic banana,"is yellow,is curved",190.0,False,011_banana/google_16k/textured.obj,banana,10,[ 36. 190.],011_banana/google_16k/textured.obj,small,curved,yellow
+Plastic strawberry,"is red,is round",55.0,False,012_strawberry/google_16k/textured.obj,strawberry,11,[43.8 55. ],012_strawberry/google_16k/textured.obj,small,round,red
+Plastic apple,"is red,is round",75.0,False,013_apple/google_16k/textured.obj,apple,12,[75.],013_apple/google_16k/textured.obj,small,round,red
+Plastic lemon,"is yellow,is round",68.0,False,014_lemon/google_16k/textured.obj,lemon,13,[54. 68.],014_lemon/google_16k/textured.obj,small,round,yellow
+Plastic peach,"is orange,is red,is round",59.0,False,015_peach/google_16k/textured.obj,peach,14,[59.],015_peach/google_16k/textured.obj,small,round,orange
+Plastic pear,is green,100.0,False,016_pear/google_16k/textured.obj,pear,15,[ 66.2 100. ],016_pear/google_16k/textured.obj,small,round,green
+Plastic orange,"is orange,is round",73.0,False,017_orange/google_16k/textured.obj,orange,16,[73.],017_orange/google_16k/textured.obj,small,round,orange
+Plastic plum,"is purple,is round",52.0,False,018_plum/google_16k/textured.obj,plum,17,[52.],018_plum/google_16k/textured.obj,small,round,purple
+Windex Spray bottle,"is blue,is a bottle,has letters on it",105.0,False,022_windex_bottle/google_16k/textured.obj,bottle of Windex,18,[ 80. 105. 270.],022_windex_bottle/google_16k/textured.obj,large,bottle,blue
+Srub Cleanser bottle,"is white,bottle,has letters on it",65.0,False,021_bleach_cleanser/google_16k/textured.obj,bottle of bleach,19,[250.  98.  65.],021_bleach_cleanser/google_16k/textured.obj,large,bottle,white
+Scotch Brite Dobie sponge,"is beige,is flat",72.0,False,026_sponge/google_16k/textured.obj,scotch brite sponge,20,[ 72. 114.  14.],026_sponge/google_16k/textured.obj,small,flat,beige
+Pitcher Base,"is blue,is cylindrical",108.0,False,019_pitcher_base/google_16k/textured.obj,pitcher,21,[108. 235.],019_pitcher_base/google_16k/textured.obj,small,cylindrical,blue
+Pitcher Lid,is blue,123.0,True,059_chain/google_16k/textured.obj,,22,[123.  48.],059_chain/google_16k/textured.obj,small,flat,blue
+Plate,"is red,is round",200.0,False,029_plate/google_16k/textured.obj,,23,[258.  24.],029_plate/google_16k/textured.obj,small,round,red
+Bowl,"is red,is round,has a rim",159.0,False,024_bowl/google_16k/textured.obj,,24,[159.  53.],024_bowl/google_16k/textured.obj,small,round,red
+Fork,"is red,is metal,is elongated",30.0,False,030_fork/google_16k/textured.obj,,25,[ 14.  20. 198.],030_fork/google_16k/textured.obj,small,elongated,red
+Spoon,"is red,is metal,is elongated",30.0,False,031_spoon/google_16k/textured.obj,,26,[ 14.  20. 195.],031_spoon/google_16k/textured.obj,small,elongated,red
+Knife,"is red,is metal,is elongated",30.0,False,032_knife/google_16k/textured.obj,,27,[ 14.  20. 215.],032_knife/google_16k/textured.obj,small,elongated,red
+Spatula,"is black,is elongated",83.0,False,033_spatula/google_16k/textured.obj,,28,[ 83.  35. 350.],033_spatula/google_16k/textured.obj,medium,elongated,black
+Wine glass,"is glass,has a rim",270.0,True,029_plate/google_16k/textured.obj,,29,[ 89. 137.],029_plate/google_16k/textured.obj,small,rimmed,glass
+Mug,"is red,has a rim,is cylindrical",82.0,False,025_mug/google_16k/textured.obj,,30,[80. 82.],025_mug/google_16k/textured.obj,small,cylindrical,red
+Skillet,"is white,has a rim",121.0,True,014_lemon/google_16k/textured.obj,,31,[270.  25.  30.],014_lemon/google_16k/textured.obj,small,rimmed,white
+Skillet Lid,"is glass,is round",270.0,False,028_skillet_lid/google_16k/textured.obj,,32,[270.  10.  22.],028_skillet_lid/google_16k/textured.obj,small,round,glass
+Table Cloth,is white,3.0,True,014_lemon/google_16k/textured.obj,,33,[228. 335.],014_lemon/google_16k/textured.obj,small,flat,white
+Scissors,"grey,is metal",200.0,False,037_scissors/google_16k/textured.obj,,34,[ 87. 200.  14.],037_scissors/google_16k/textured.obj,small,elongated,grey
+Large marker,"is black,is white,is elongated",121.0,False,040_large_marker/google_16k/textured.obj,black marker,35,[ 18. 121.],040_large_marker/google_16k/textured.obj,small,elongated,black
+Small marker,"is black,is white,is elongated",205.0,True,063-b_marbles/google_16k/textured.obj,black marker,36,[  8. 135.],063-b_marbles/google_16k/textured.obj,small,elongated,black
+Padlock & Keys,is metal,200.0,True,063-b_marbles/google_16k/textured.obj,,37,[24.  47.  65.  23.  43.   2.2],063-b_marbles/google_16k/textured.obj,large,elongated,metal
+Hammer,"is part wood,is metal,is elongated",150.0,False,048_hammer/google_16k/textured.obj,,38,[ 34.  32. 135.],048_hammer/google_16k/textured.obj,small,elongated,wood
+Nails,"is metal,is elongated",3.0,True,062_dice/google_16k/textured.obj,,39,[ 4. 25.  3. 53.  4. 63.],062_dice/google_16k/textured.obj,large,elongated,metal
+Bolt & nut,is metal,140.0,True,026_sponge/google_16k/textured.obj,,40,[43. 16.  8. 16.],026_sponge/google_16k/textured.obj,small,elongated,metal
+Phillips Screwdriver,"grey,is blue,is black,is metal,is elongated",50.0,False,043_phillips_screwdriver/google_16k/textured.obj,philips-head screwdriver,41,[ 31. 215.],043_phillips_screwdriver/google_16k/textured.obj,small,elongated,grey
+Flat Screwdriver,"is red,grey,is black,is metal,is elongated",50.0,False,044_flat_screwdriver/google_16k/textured.obj,flathead screwdriver,42,[ 31. 215.],044_flat_screwdriver/google_16k/textured.obj,small,elongated,black
+Adjustable Wrench,"is metal,is elongated",205.0,False,042_adjustable_wrench/google_16k/textured.obj,,43,[  5.  55. 205.],042_adjustable_wrench/google_16k/textured.obj,small,elongated,metal
+Wood block,"is wood,is rectangular,is box-shaped",85.0,False,036_wood_block/google_16k/textured.obj,,44,[ 85.  85. 200.],036_wood_block/google_16k/textured.obj,large,rectangular,wood
+Clamps,is black,42.7,True,025_mug/google_16k/textured.obj,,45,[],025_mug/google_16k/textured.obj,small,elongated,black
+Power Drill,"is part black,is part orange",150.0,False,035_power_drill/google_16k/textured.obj,,46,[ 35.  46. 184.],035_power_drill/google_16k/textured.obj,small,elongated,orange
+Credit Card blank,"is white,flat,rectangle",1.0,True,063-b_marbles/google_16k/textured.obj,credit card,47,[54. 85.  1.],063-b_marbles/google_16k/textured.obj,small,flat,white
+Mini soccer ball,"is round,is white,green",140.0,False,053_mini_soccer_ball/google_16k/textured.obj,soccer ball,48,[140.],053_mini_soccer_ball/google_16k/textured.obj,small,round,white
+Soft Ball,"is round,green",96.0,False,054_softball/google_16k/textured.obj,softball,49,[96.],054_softball/google_16k/textured.obj,small,round,green
+Baseball,"is round,is white",80.0,False,055_baseball/google_16k/textured.obj,,50,[80.],055_baseball/google_16k/textured.obj,small,round,white
+Tennis Ball,"is round,green",64.7,False,056_tennis_ball/google_16k/textured.obj,,51,[64.7],056_tennis_ball/google_16k/textured.obj,small,round,green
+Racquetball,"is round,is blue",55.3,False,057_racquetball/google_16k/textured.obj,,52,[55.3],057_racquetball/google_16k/textured.obj,small,round,blue
+Golf Ball,"is round,is white",42.7,False,058_golf_ball/google_16k/textured.obj,,53,[42.7],058_golf_ball/google_16k/textured.obj,small,round,white
+Marbles,,,True,014_lemon/google_16k/textured.obj,,54,[],014_lemon/google_16k/textured.obj,small,,
+Cups,,82.0,False,065-a_cups/google_16k/textured.obj,,55,[],065-a_cups/google_16k/textured.obj,small,,
+Foam Brick,,75.0,False,061_foam_brick/google_16k/textured.obj,,56,[50. 75. 50.],061_foam_brick/google_16k/textured.obj,small,,
+Dice,"is white,is box-shaped",16.2,False,062_dice/google_16k/textured.obj,,57,[16.2],062_dice/google_16k/textured.obj,small,rectangular,white
+Washers( 7 sizes),"is metal,is round,flat",,True,037_scissors/google_16k/textured.obj,,58,[],037_scissors/google_16k/textured.obj,small,round,metal
+Rope,,,True,016_pear/google_16k/textured.obj,,59,[3000.     4.7],016_pear/google_16k/textured.obj,small,,
+Chain,,130.0,False,059_chain/google_16k/textured.obj,,60,[  2.   4. 130.],059_chain/google_16k/textured.obj,small,,
+Rubicks Cube,"is box-shaped,part red,part yellow,part green",57.0,False,077_rubiks_cube/google_16k/textured.obj,rubik's cube,61,[57. 57. 57.],077_rubiks_cube/google_16k/textured.obj,small,rectangular,yellow
+Clear Box( x2),,149.0,True,026_sponge/google_16k/textured.obj,Clear box,62,[292. 429. 149.],026_sponge/google_16k/textured.obj,large,,
+Box Lid,,,True,062_dice/google_16k/textured.obj,,63,[292. 429.  20.],062_dice/google_16k/textured.obj,large,,
+Colored Wood Blocks,,26.0,False,070-b_colored_wood_blocks/google_16k/textured.obj,,64,[26.],070-b_colored_wood_blocks/google_16k/textured.obj,small,,
+9-Peg-Hole Test,,,True,058_golf_ball/google_16k/textured.obj,,65,[1150. 1200. 1200.],058_golf_ball/google_16k/textured.obj,large,,
+Toy Airplane,,,True,029_plate/google_16k/textured.obj,,66,[171. 266. 280.],029_plate/google_16k/textured.obj,large,,
+LEGO Duplo,,,True,013_apple/google_16k/textured.obj,,67,[16.   9.5  5.5],013_apple/google_16k/textured.obj,small,,
+Magazine,,,True,062_dice/google_16k/textured.obj,,68,[256.  200.    1.6],062_dice/google_16k/textured.obj,small,,
+Black t-shirt,is black,,True,037_scissors/google_16k/textured.obj,,69,[736. 736.],037_scissors/google_16k/textured.obj,medium,flat,black
+Timer,,,True,016_pear/google_16k/textured.obj,,70,[8.  8.5 4.5],016_pear/google_16k/textured.obj,small,,
+Footlocker,"is grey,is box-shaped",,True,062_dice/google_16k/textured.obj,,71,[31.13 17.5  13.88],062_dice/google_16k/textured.obj,small,rectangular,grey
