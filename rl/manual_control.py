@@ -7,6 +7,7 @@ from pathlib import Path
 import pyglet
 from my.env import Args, Env, Obs
 from my.mesh_paths import get_meshes
+from PIL import Image
 from pyglet.window import key
 
 
@@ -55,6 +56,7 @@ if __name__ == "__main__":
         print(Obs(**obs).mission)
 
         env.render("pyglet", view=view_mode)
+        return obs
 
     @env.unwrapped.window.event
     def on_key_press(symbol, modifiers):
@@ -62,6 +64,7 @@ if __name__ == "__main__":
         This handler processes keyboard commands that
         control the simulation
         """
+        global obs
 
         if symbol == key.BACKSPACE or symbol == key.SLASH:
             print("RESET")
@@ -74,22 +77,25 @@ if __name__ == "__main__":
             sys.exit(0)
 
         if symbol == key.UP:
-            step(env.actions.move_forward)
+            obs = step(env.actions.move_forward)
         elif symbol == key.DOWN:
-            step(env.actions.move_back)
+            obs = step(env.actions.move_back)
 
         elif symbol == key.LEFT:
-            step(env.actions.turn_left)
+            obs = step(env.actions.turn_left)
         elif symbol == key.RIGHT:
-            step(env.actions.turn_right)
+            obs = step(env.actions.turn_right)
 
         elif symbol == key.PAGEUP or symbol == key.P:
-            step(env.actions.pickup)
+            obs = step(env.actions.pickup)
         elif symbol == key.PAGEDOWN or symbol == key.D:
-            step(env.actions.drop)
+            obs = step(env.actions.drop)
 
         elif symbol == key.ENTER:
-            step(env.actions.done)
+            obs = step(env.actions.done)
+
+        elif symbol == key.SPACE:
+            Image.fromarray(Obs(**obs).image).show()
 
     @env.unwrapped.window.event
     def on_key_release(symbol, modifiers):
