@@ -31,6 +31,24 @@ class Agent(agent.Agent):
         return Base(**kwargs)
 
 
+class ResidualBlock(nn.Module):
+    def __init__(self, channels: int):
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.ReLU(),
+            nn.Conv2d(
+                channels, channels, kernel_size=(3, 3), stride=(1, 1), padding="same"
+            ),
+            nn.ReLU(),
+            nn.Conv2d(
+                channels, channels, kernel_size=(3, 3), stride=(1, 1), padding="same"
+            ),
+        )
+
+    def forward(self, x):
+        return x + self.net(x)
+
+
 class Base(NNBase):
     def __init__(
         self,
@@ -52,25 +70,32 @@ class Base(NNBase):
 
         self.embeddings = self.build_embeddings()
 
-        init_ = lambda m: init(
-            m,
-            nn.init.orthogonal_,
-            lambda x: nn.init.constant_(x, 0),
-            nn.init.calculate_gain("relu"),
-        )
         image_shape = self.observation_spaces.image.shape
         h, w, d = image_shape
-        dummy_input = torch.zeros(1, d, h, w)
 
-        self.image_conv = nn.Sequential(
-            init_(nn.Conv2d(d, 16, 8, stride=4)),
-            nn.ReLU(),
-            init_(nn.Conv2d(16, 32, 4, stride=2)),
-            nn.ReLU(),
-            nn.Flatten(),
-        )
-        output = self.image_conv(dummy_input)
-        self.image_linear = nn.Linear(output.size(-1), 256)
+        def get_image_net():
+            prev = d
+            for i, (num_ch, num_blocks) in enumerate(
+                [(16, 2), (32, 2), (32, 2)]
+            ):  # Downscale.
+                yield nn.Conv2d(prev, num_ch, kernel_size=(3, 3), stride=(1, 1))
+                yield nn.MaxPool2d(
+                    kernel_size=(3, 3),
+                    stride=[2, 2],
+                )
+
+                # Residual block(s).
+                for j in range(num_blocks):
+                    yield ResidualBlock(num_ch)
+                prev = num_ch
+
+            yield nn.ReLU()
+            yield nn.Flatten()
+
+        self.image_net = nn.Sequential(*get_image_net())
+        dummy_input = torch.zeros(1, d, h, w)
+        output = self.image_net(dummy_input)
+        self.image_linear = nn.Sequential(nn.Linear(output.size(-1), 256), nn.ReLU())
 
         self._hidden_size = hidden_size
         self._recurrent = recurrent
@@ -109,7 +134,7 @@ class Base(NNBase):
         image = inputs.image.reshape(-1, *self.observation_spaces.image.shape)
         if len(image.shape) == 4:
             image = image.permute(0, 3, 1, 2)
-        image = self.image_conv(image)
+        image = self.image_net(image)
         image = self.image_linear(image)
 
         mission = inputs.mission.reshape(-1, *self.observation_spaces.mission.shape)
