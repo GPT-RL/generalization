@@ -9,7 +9,7 @@ from typing import Dict, Generic, List, TypeVar
 import gym
 import numpy as np
 from gym.spaces import Box, Discrete, MultiDiscrete
-from my.env import PAIR, Obs, StringTuple
+from my.env import PAIR, Obs, StringList
 from torch import Tensor
 from torch.nn.utils.rnn import pad_sequence
 from transformers import GPT2Tokenizer
@@ -80,7 +80,7 @@ class FeatureWrapper(MissionWrapper):
         self.features = features
         observation_space = Obs(**self.observation_space.spaces)
         self.observation_space = replace(
-            observation_space, mission=StringTuple()
+            observation_space, mission=StringList()
         ).to_space()
 
     def change_mission(self, mission: str) -> List[str]:
@@ -231,7 +231,7 @@ class TokenizerWrapper(gym.ObservationWrapper):
         tokenizer: GPT2Tokenizer,
     ):
         def get_tokens():
-            for w in mission.split(","):
+            for w in mission:
                 encoded = tokenizer.encode(w, return_tensors="pt")
                 encoded = typing.cast(Tensor, encoded)
                 yield encoded.T

@@ -42,6 +42,7 @@ class Args(Tap):
 class Mesh:
     obj: Union[Path, str]
     png: Optional[Path]
+    mission: List[str]
     name: str
     height: float = 1
 
@@ -76,12 +77,12 @@ class String(gym.Space):
         return isinstance(x, str)
 
 
-class StringTuple(gym.Space):
+class StringList(gym.Space):
     def sample(self):
         return []
 
     def contains(self, x):
-        return isinstance(x, tuple) and all([isinstance(y, str) for y in x])
+        return isinstance(x, list) and all([isinstance(y, str) for y in x])
 
 
 class Env(MiniWorldEnv):
@@ -108,16 +109,17 @@ class Env(MiniWorldEnv):
         assert room_size >= 2
         self.size = room_size
 
-        self.meshes = defaultdict(list)
-        for m in sorted(meshes, key=lambda m: m.name):
-            self.meshes[m.name].append(m)
+        self.meshes_by_mission = defaultdict(list)
+        for m in sorted(meshes, key=lambda m: m.mission):
+            self.meshes_by_mission[tuple(m.mission)].append(m)
+        self.meshes_by_name = {m.name: m for m in meshes}
+        self.names_to_missions = {m.name: m.mission for m in meshes}
 
         params = deepcopy(DEFAULT_PARAMS)
         params.set("cam_pitch", pitch, pitch, pitch)
         self._iterator = None
         self._render = None
         self._mission = None
-        self._dist_name = None
         super().__init__(
             max_episode_steps=max_episode_steps,
             params=params,
@@ -128,7 +130,7 @@ class Env(MiniWorldEnv):
         # Allow only movement actions (left/right/forward) and pickup
         self.action_space = spaces.Discrete(self.actions.pickup + 1)
         self.observation_space = Obs(
-            image=self.observation_space, mission=String()
+            image=self.observation_space, mission=StringList()
         ).to_space()
 
     def _gen_world(self):
@@ -141,12 +143,17 @@ class Env(MiniWorldEnv):
         )
         while True:
             if self._mesh_names is None:
-                self._mission, self._dist_name = mesh_names = self.rand.subset(
-                    sorted(list(self.meshes)), num_elems=2
+                self._mission, _ = mission_strings = self.rand.subset(
+                    sorted(list(self.meshes_by_mission)), num_elems=2
                 )
+                chosen_meshes = [
+                    self.rand.choice(self.meshes_by_mission[n]) for n in mission_strings
+                ]
             else:
-                mesh_names = self._mission, self._dist_name = self._mesh_names
-            meshes = [self.rand.choice(self.meshes[n]) for n in mesh_names]
+                goal_name, dist_name = self._mesh_names
+                self._mission = goal_name[self.names_to_missions]
+                chosen_meshes = [self.meshes_by_name[n] for n in self._mesh_names]
+            self.chosen_meshes = chosen_meshes
             positions = np.array(
                 [
                     [0.7 * self.size, 0, 0.25 * self.size],
@@ -164,16 +171,16 @@ class Env(MiniWorldEnv):
                             static=False,
                             tex_name=str(mesh.png) if mesh.png else None,
                         ),
-                        name=mesh.name,
+                        name=mesh.mission,
                         pos=pos,
                     )
-                    for mesh, pos in zip(meshes, positions)
+                    for mesh, pos in zip(chosen_meshes, positions)
                 ]
                 for ent in self.entities:
                     ent.radius = self.radius
                 break
             except PlacementError:
-                print("Failed to place:", self._mission, self._dist_name)
+                print("Failed to place:", [m.name for m in chosen_meshes])
                 self._mesh_names = None
                 continue
 
@@ -204,7 +211,7 @@ class Env(MiniWorldEnv):
         def render(pause=True):
             print(self.ascii_of_image(self.render_obs()))
             print()
-            subtitle = self._mission
+            subtitle = str(self._mission)
             if action is not None:
                 subtitle += f", {action.name.replace('_', ' ')}"
             if reward is not None:
@@ -222,7 +229,7 @@ class Env(MiniWorldEnv):
         while True:
             obs = self.make_obs(image)
             if done:
-                info.update({PAIR: (self._mission, self._dist_name)})
+                info.update({PAIR: tuple([m.name for m in self.chosen_meshes])})
             action = yield obs, reward, done, info
             action = cast(MiniWorldEnv.Actions, action)
             assert not done

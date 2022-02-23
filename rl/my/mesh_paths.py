@@ -1,35 +1,9 @@
-import re
 from pathlib import Path
 from typing import NamedTuple, Optional, Set
 
 import gym_miniworld
 import pandas as pd
 from my.env import EXCLUDED, PATH, Mesh
-
-
-def get_original_ycb_meshes(
-    data_path: Path,
-    obj_pattern: str,
-    png_pattern: str,
-):
-    if data_path:
-        if not data_path.exists():
-            raise RuntimeError(
-                f"""\
-        {data_path} does not exist.
-        Download dataset using https://github.com/sea-bass/ycb-tools
-        """
-            )
-
-        def get_names(path: Path):
-            name = path.parent.parent.name
-            name = re.sub(r"\d+(-[a-z])?_", "", name)
-            return name.replace("_", " ")
-
-        objs = {get_names(path): path for path in data_path.glob(obj_pattern)}
-        pngs = {get_names(path): path for path in data_path.glob(png_pattern)}
-        for n in objs:
-            yield Mesh(objs.get(n), pngs.get(n), n)
 
 
 class ObjPng(NamedTuple):
@@ -48,9 +22,8 @@ def get_meshes(data_path: Path, names: Optional[str]):
 
     def get_default_meshes():
         for name in {m.stem for m in default_meshes_dir.iterdir()}:
-            yield Mesh(
-                height=1, name=name.replace("_", " ").lower(), obj=name, png=None
-            )
+            name = name.replace("_", " ").lower()
+            yield Mesh(height=1, mission=[name], name=name, obj=name, png=None)
 
     default_meshes = list(get_default_meshes())
 
@@ -66,14 +39,14 @@ def get_meshes(data_path: Path, names: Optional[str]):
                 name = row["name"].lower()
                 height = row.get("height")
                 height = 1 if pd.isna(height) else height / 100
-                yield Mesh(obj=obj, png=png, name=name, height=height)
+                yield Mesh(obj=obj, png=png, mission=[name], name=name, height=height)
 
     if names is None:
         meshes = default_meshes if data_path is None else list(get_data_path_meshes())
     else:
         names: Set[str] = {n.lower() for n in names.split(",")}
-        data_path_meshes = {m.name: m for m in (list(get_data_path_meshes()))}
-        default_meshes = {m.name: m for m in default_meshes}
+        data_path_meshes = {m.mission: m for m in (list(get_data_path_meshes()))}
+        default_meshes = {m.mission: m for m in default_meshes}
 
         def _get_meshes():
             for name in names:

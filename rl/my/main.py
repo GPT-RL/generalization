@@ -105,7 +105,7 @@ def get_data_path_meshes(
         objs = {get_names(path): path for path in data_path.glob(obj_pattern)}
         pngs = {get_names(path): path for path in data_path.glob(png_pattern)}
         for n in objs:
-            yield Mesh(objs.get(n), pngs.get(n), n)
+            yield Mesh(obj=objs.get(n), png=pngs.get(n), mission=[n], name=n)
 
 
 class Trainer(base_main.Trainer):
@@ -288,18 +288,20 @@ class Trainer(base_main.Trainer):
         features = features[features.apply(lambda x: bool(x))]
 
         features = features.to_dict()
-        features = {k.lower(): ",".join(v) for k, v in features.items() if v}
-        meshes: List[Mesh] = [m for m in meshes if m.name in features]
+        features = {k.lower(): v for k, v in features.items() if v}
+        meshes = [m for m in meshes if m.name in features]
         all_missions = list(features.values())
 
         rng = np.random.default_rng(seed=seed)
+
         names: TrainTest[Set[str]] = cls.train_test_split(
             tuple([m.name for m in meshes]), num_test_names, rng
         )
+
         names: Set[str] = names.test if test else names.train
         assert len(names) > 1
         meshes = [m for m in meshes if m.name in names]
-        meshes = [replace(m, name=features[m.name]) for m in meshes]
+        meshes = [replace(m, mission=features[m.name]) for m in meshes]
 
         return super().make_vec_envs(
             all_missions=all_missions,
@@ -347,7 +349,7 @@ class Trainer(base_main.Trainer):
     @staticmethod
     @functools.lru_cache(maxsize=1)
     def train_test_split(
-        names: Tuple[str], num_test: int, rng: np.random.Generator
+        names: tuple, num_test: int, rng: np.random.Generator
     ) -> TrainTest[Set[str]]:
         test_set = (
             set(rng.choice(list(names), size=num_test, replace=False))

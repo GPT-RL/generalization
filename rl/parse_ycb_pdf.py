@@ -45,7 +45,7 @@ def get_data_path_meshes(data_path: Path, obj_pattern: str, png_pattern: str):
         objs = {get_names(path): path for path in data_path.glob(obj_pattern)}
         pngs = {get_names(path): path for path in data_path.glob(png_pattern)}
         for n in objs:
-            yield Mesh(objs.get(n), pngs.get(n), n)
+            yield Mesh(obj=objs.get(n), png=pngs.get(n), name=n, mission=[n])
 
 
 def main(args: Args):
