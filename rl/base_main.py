@@ -104,6 +104,7 @@ class Args(Tap):
     num_mini_batch: int = 4  # number of mini-batches per update
     num_processes: int = 8  # number of parallel environments
     num_steps: int = 128  # number of forward steps in A2C
+    num_test_episodes: int = 1000  # number of forward steps in A2C
     ppo_epoch: int = 3  # number of PPO updates
     recurrent: bool = False  # use recurrence in the policy
     render: bool = False
@@ -171,7 +172,15 @@ class Trainer:
 
     @classmethod
     def evaluate(
-        cls, agent, args, envs, num_processes, device, start, total_num_steps, logger
+        cls,
+        agent: Agent,
+        args: Args,
+        envs: VecPyTorch,
+        num_processes: int,
+        device: torch.device,
+        start: float,
+        total_num_steps: int,
+        logger: HasuraLogger,
     ):
 
         counters = cls.build_counters()
@@ -182,7 +191,7 @@ class Trainer:
         )
         masks = torch.zeros(num_processes, 1, device=device)
 
-        while len(counters.episode_rewards) < 100:
+        while len(counters.episode_rewards) < args.num_test_episodes:
             with torch.no_grad():
                 _, action, _, recurrent_hidden_states = agent.forward(
                     obs, recurrent_hidden_states, masks
