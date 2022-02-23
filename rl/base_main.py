@@ -209,7 +209,11 @@ class Trainer:
         }
 
         cls.log(
-            args=args, log=log, logger=logger, step=total_num_steps, counters=counters
+            args=args,
+            log=log,
+            logger=logger,
+            step=total_num_steps,
+            counters=counters,
         )
 
         logging.info(
