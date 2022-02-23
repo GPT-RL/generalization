@@ -154,13 +154,13 @@ class Trainer(base_main.Trainer):
         if args.num_test_names is not None:
             n_objects -= args.num_test_names
         timesteps_per_log = args.num_processes * args.num_steps * args.log_interval
-        for key, success_per_pair in {
-            PAIR_SUCCESS: counters.success_per_pair,
-            PAIR_TEST_SUCCESS: counters.test_success_per_pair,
-        }.items():
+        threshold = timesteps_per_log * args.pair_log_interval_coef
+        for key, success_per_pair, threshold in [
+            (PAIR_SUCCESS, counters.success_per_pair, threshold),
+            (PAIR_TEST_SUCCESS, counters.test_success_per_pair, 0),
+        ]:
             success_per_pair = deepcopy(success_per_pair)
             for (mission, distractor), v in success_per_pair.items():
-                threshold = timesteps_per_log * args.pair_log_interval_coef
                 print(len(v), threshold)
                 if len(v) >= threshold:
                     super().log(
