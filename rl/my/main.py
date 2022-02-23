@@ -41,6 +41,7 @@ TEST_EPISODE_SUCCESS = "test episode success"
 
 
 class Args(base_main.Args, env.Args):
+    attributes: str = "name"
     num_test_envs: int = 8
     num_test_names: int = 2
     pair_log_interval_coef: float = 0.01
@@ -55,9 +56,9 @@ class Args(base_main.Args, env.Args):
         "EleutherAI/gpt-neo-2.7B",
     ] = "gpt2-large"  # what size of pretrained GPT to use
     prefix_length: int = 0
+    small_architecture: bool = False
     temp: float = None
     tgt_success_prob: float = None
-    attributes: str = "name"
 
     def configure(self) -> None:
         self.add_subparsers(dest="logger_args")
@@ -192,6 +193,7 @@ class Trainer(base_main.Trainer):
             hidden_size=args.hidden_size,
             observation_space=observation_space,
             recurrent=cls.recurrent(args),
+            small_architecture=args.small_architecture,
         )
 
     @classmethod
