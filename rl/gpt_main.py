@@ -14,8 +14,6 @@ class Args(main.Args):
     freeze_keys: bool = False
     randomize_parameters: bool = False
     attn_temp: float = 5
-    train_ln: bool = False
-    train_wpe: bool = False
     gpt: bool = False
 
 

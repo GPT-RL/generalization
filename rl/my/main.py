@@ -19,14 +19,14 @@ from my.env import EXCLUDED, PAIR, Env, Mesh
 from my.mesh_paths import get_meshes
 from run_logger import HasuraLogger
 from stable_baselines3.common.monitor import Monitor
-from transformers import GPT2Tokenizer
+from transformers import CLIPProcessor, GPT2Tokenizer
 from wrappers import (
     EPISODE_SUCCESS,
     FAIL_SEED_SUCCESS,
     FAIL_SEED_USAGE,
     NUM_FAIL_SEEDS,
+    CLIPProcessorWrapper,
     FailureReplayWrapper,
-    ImageNormalizerWrapper,
     PairsSelectorWrapper,
     RenderWrapper,
     RolloutsWrapper,
@@ -43,6 +43,7 @@ TEST_EPISODE_SUCCESS = "test episode success"
 
 
 class Args(base_main.Args, env.Args):
+    attributes: str = "name"
     num_test_envs: int = 8
     num_test_names: int = 2
     pretrained_model: Literal[
@@ -58,7 +59,8 @@ class Args(base_main.Args, env.Args):
     prefix_length: int = 0
     temp: float = None
     tgt_success_prob: float = None
-    attributes: str = "name"
+    train_ln: bool = False
+    train_wpe: bool = False
 
     def configure(self) -> None:
         self.add_subparsers(dest="logger_args")
@@ -109,6 +111,11 @@ class Trainer(base_main.Trainer):
     @classmethod
     def build_counters(cls):
         return Counters()
+
+    @staticmethod
+    @functools.lru_cache(maxsize=1)
+    def clip_processor():
+        return CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
 
     @classmethod
     def charts(cls, args: Args):
@@ -200,12 +207,15 @@ class Trainer(base_main.Trainer):
             hidden_size=args.hidden_size,
             observation_space=observation_space,
             recurrent=cls.recurrent(args),
+            train_ln=args.train_ln,
+            train_wpe=args.train_wpe,
         )
 
     @classmethod
     def make_env(cls, env, allow_early_resets, render: bool = False, *args, **kwargs):
         def _thunk(
             all_missions: list,
+            clip_processor: CLIPProcessor,
             meshes: List[Mesh],
             seed: int,
             test: bool,
@@ -240,7 +250,8 @@ class Trainer(base_main.Trainer):
                 raise RuntimeError("Either temp or tgt_success_prob must be None.")
             if render:
                 _env = RenderWrapper(_env, mode="ascii")
-            _env = ImageNormalizerWrapper(_env)
+
+            _env = CLIPProcessorWrapper(_env, clip_processor)
             _env = TokenizerWrapper(
                 _env,
                 tokenizer=tokenizer,
@@ -309,6 +320,7 @@ class Trainer(base_main.Trainer):
 
         return super().make_vec_envs(
             all_missions=all_missions,
+            clip_processor=cls.clip_processor(),
             features=features,
             meshes=meshes,
             num_processes=num_processes,

@@ -12,7 +12,7 @@ from gym.spaces import Box, Discrete, MultiDiscrete
 from my.env import PAIR, Obs, StringTuple
 from torch import Tensor
 from torch.nn.utils.rnn import pad_sequence
-from transformers import GPT2Tokenizer
+from transformers import CLIPProcessor, GPT2Tokenizer
 from utils import softmax
 
 T = TypeVar("T")  # Declare type variable
@@ -46,6 +46,20 @@ class ImageNormalizerWrapper(gym.ObservationWrapper):
         return replace(observation, image=observation.image / 255).to_obs(
             self.observation_space
         )
+
+
+class CLIPProcessorWrapper(gym.ObservationWrapper):
+    def __init__(self, env: gym.Env, processor: CLIPProcessor):
+        self.processor = processor
+        super().__init__(env)
+        self.observation_space.spaces.update(
+            image=Box(low=0, high=255, shape=[3, 224, 224])
+        )
+
+    def observation(self, observation):
+        obs = Obs(**observation)
+        image = self.processor(images=obs.image, return_tensors="np", padding=True)
+        return replace(obs, image=image["pixel_values"]).to_obs(self.observation_space)
 
 
 class MissionWrapper(gym.Wrapper, abc.ABC):

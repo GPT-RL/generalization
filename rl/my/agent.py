@@ -8,7 +8,7 @@ from agent import NNBase
 from gym import Space
 from gym.spaces import Box, Dict, Discrete, MultiDiscrete
 from my.env import Obs
-from transformers import GPT2Tokenizer
+from transformers import CLIPModel, GPT2Tokenizer
 from utils import init
 
 
@@ -56,6 +56,8 @@ class Base(NNBase):
         hidden_size: int,
         observation_space: Dict,
         recurrent: bool,
+        train_ln: bool,
+        train_wpe: bool,
         mission_size: int = 64,
     ):
 
@@ -64,6 +66,8 @@ class Base(NNBase):
             recurrent_input_size=256 + mission_size,
             hidden_size=hidden_size,
         )
+        self.train_wpe = train_wpe
+        self.train_ln = train_ln
         self.observation_spaces = Obs(**observation_space.spaces)
 
         self.pad_token_id = GPT2Tokenizer.from_pretrained(pretrained_model).eos_token_id
@@ -71,28 +75,16 @@ class Base(NNBase):
         self.embeddings = self.build_embeddings()
 
         image_shape = self.observation_spaces.image.shape
-        h, w, d = image_shape
+        d, h, w = image_shape
 
-        def get_image_net():
-            prev = d
-            for i, (num_ch, num_blocks) in enumerate(
-                [(16, 2), (32, 2), (32, 2)]
-            ):  # Downscale.
-                yield nn.Conv2d(prev, num_ch, kernel_size=(3, 3), stride=(1, 1))
-                yield nn.MaxPool2d(
-                    kernel_size=(3, 3),
-                    stride=[2, 2],
-                )
+        self.clip: CLIPModel = CLIPModel.from_pretrained("openai/clip-vit-base-patch32")
 
-                # Residual block(s).
-                for j in range(num_blocks):
-                    yield ResidualBlock(num_ch)
-                prev = num_ch
+        for name, p in self.clip.vision_model.named_parameters():
+            requires_grad = (self.train_wpe and "position_embedding" in name) or (
+                self.train_ln and "layer_norm" in name
+            )
+            p.requires_grad_(requires_grad)
 
-            yield nn.ReLU()
-            yield nn.Flatten()
-
-        self.image_net = nn.Sequential(*get_image_net())
         dummy_input = torch.zeros(1, d, h, w)
         output = self.image_net(dummy_input)
         self.image_linear = nn.Sequential(nn.Linear(output.size(-1), 256), nn.ReLU())
@@ -106,6 +98,10 @@ class Base(NNBase):
         )
 
         self.critic_linear = init_(nn.Linear(hidden_size, 1))
+
+    def image_net(self, image: torch.Tensor):
+        state = self.clip.vision_model(pixel_values=image).last_hidden_state
+        return state.mean(1)
 
     def build_embeddings(self):
         num_embeddings = 1 + self.pad_token_id
@@ -132,8 +128,6 @@ class Base(NNBase):
         )
 
         image = inputs.image.reshape(-1, *self.observation_spaces.image.shape)
-        if len(image.shape) == 4:
-            image = image.permute(0, 3, 1, 2)
         image = self.image_net(image)
         image = self.image_linear(image)
 
