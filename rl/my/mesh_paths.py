@@ -45,8 +45,8 @@ def get_meshes(data_path: Path, names: Optional[str]):
         meshes = default_meshes if data_path is None else list(get_data_path_meshes())
     else:
         names: Set[str] = {n.lower() for n in names.split(",")}
-        data_path_meshes = {m.mission: m for m in (list(get_data_path_meshes()))}
-        default_meshes = {m.mission: m for m in default_meshes}
+        data_path_meshes = {m.name: m for m in (list(get_data_path_meshes()))}
+        default_meshes = {m.name: m for m in default_meshes}
 
         def _get_meshes():
             for name in names:
