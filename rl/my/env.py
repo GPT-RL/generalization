@@ -151,7 +151,7 @@ class Env(MiniWorldEnv):
                 ]
             else:
                 goal_name, dist_name = self._mesh_names
-                self._mission = goal_name[self.names_to_missions]
+                self._mission = self.names_to_missions[goal_name]
                 chosen_meshes = [self.meshes_by_name[n] for n in self._mesh_names]
             self.chosen_meshes = chosen_meshes
             positions = np.array(
