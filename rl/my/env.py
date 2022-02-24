@@ -111,7 +111,7 @@ class Env(MiniWorldEnv):
 
         self.meshes_by_mission = defaultdict(list)
         for m in sorted(meshes, key=lambda m: m.mission):
-            self.meshes_by_mission[tuple(m.mission)].append(m)
+            self.meshes_by_mission[tuple(sorted(m.mission))].append(m)
         self.meshes_by_name = {m.name: m for m in meshes}
         self.names_to_missions = {m.name: m.mission for m in meshes}
 
