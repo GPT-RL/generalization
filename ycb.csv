@@ -4,11 +4,11 @@ Domino Sugar box,"is rectangular,is box-shaped,is part yellow,is part white",89.
 Jell-O Chocolate Pudding box,"is mostly brown,has letters on it,is rectangular,is box-shaped",110.0,False,008_pudding_box/google_16k/textured.obj,Chocolate Jell-O box,2,[ 35. 110.  89.],008_pudding_box/google_16k/textured.obj,small,rectangular,"white,red"
 Jell-O Strawberry Gelatin box,"is red,has letters on it,is rectangular,is box-shaped",110.0,False,009_gelatin_box/google_16k/textured.obj,Strawberry Jell-O box,3,[28. 85. 73.],009_gelatin_box/google_16k/textured.obj,small,rectangular,"red,white"
 Spam Potted Meat can,"has letters on it,is rectangular,is part blue,is part gold",97.0,False,010_potted_meat_can/google_16k/textured.obj,can of spam,4,[50. 97. 82.],010_potted_meat_can/google_16k/textured.obj,medium,rectangular,"blue,yellow"
-Master Chef Coffee can,"is blue,has letters on it,is cylindrical",102.0,False,002_master_chef_can/google_16k/textured.obj,,5,[102. 139.],002_master_chef_can/google_16k/textured.obj,small,cylindrical,"blue,white"
-Starkist Tuna Fish can,"is blue,has letters on it,is cylindrical",85.0,False,007_tuna_fish_can/google_16k/textured.obj,,6,[85. 33.],007_tuna_fish_can/google_16k/textured.obj,small,cylindrical,"blue,grey"
-Pringles Chips can,"is red,has letters on it,is cylindrical",85.0,True,007_tuna_fish_can/google_16k/textured.obj,,7,[ 75. 250.],007_tuna_fish_can/google_16k/textured.obj,small,cylindrical,red
+Master Chef Coffee can,"is blue,has letters on it,is cylindrical",102.0,False,002_master_chef_can/google_16k/textured.obj,,5,[102. 139.],002_master_chef_can/google_16k/textured.obj,small,round,"blue,white"
+Starkist Tuna Fish can,"is blue,has letters on it,is cylindrical",85.0,False,007_tuna_fish_can/google_16k/textured.obj,,6,[85. 33.],007_tuna_fish_can/google_16k/textured.obj,small,round,"blue,grey"
+Pringles Chips can,"is red,has letters on it,is cylindrical",85.0,True,007_tuna_fish_can/google_16k/textured.obj,,7,[ 75. 250.],007_tuna_fish_can/google_16k/textured.obj,small,round,red
 French's Mustard bottle,"is yellow,has letters on it,is a bottle",85.0,False,006_mustard_bottle/google_16k/textured.obj,,8,[ 50.  85. 175.],006_mustard_bottle/google_16k/textured.obj,medium,"",yellow
-Tomato Soup can,"is red,has letters on it,is cylindrical",66.0,False,005_tomato_soup_can/google_16k/textured.obj,,9,[ 66. 101.],005_tomato_soup_can/google_16k/textured.obj,small,cylindrical,"red,white,grey"
+Tomato Soup can,"is red,has letters on it,is cylindrical",66.0,False,005_tomato_soup_can/google_16k/textured.obj,,9,[ 66. 101.],005_tomato_soup_can/google_16k/textured.obj,small,round,"red,white,grey"
 Plastic banana,"is yellow,is curved",190.0,False,011_banana/google_16k/textured.obj,banana,10,[ 36. 190.],011_banana/google_16k/textured.obj,small,"",yellow
 Plastic strawberry,"is red,is round",55.0,False,012_strawberry/google_16k/textured.obj,strawberry,11,[43.8 55. ],012_strawberry/google_16k/textured.obj,small,round,"red,green"
 Plastic apple,"is red,is round",75.0,False,013_apple/google_16k/textured.obj,apple,12,[75.],013_apple/google_16k/textured.obj,small,round,red
@@ -20,7 +20,7 @@ Plastic plum,"is purple,is round",52.0,True,018_plum/google_16k/textured.obj,plu
 Windex Spray bottle,"is blue,is a bottle,has letters on it",105.0,False,022_windex_bottle/google_16k/textured.obj,bottle of Windex,18,[ 80. 105. 270.],022_windex_bottle/google_16k/textured.obj,large,"","blue,red"
 Srub Cleanser bottle,"is white,bottle,has letters on it",65.0,False,021_bleach_cleanser/google_16k/textured.obj,bottle of bleach,19,[250.  98.  65.],021_bleach_cleanser/google_16k/textured.obj,large,"",white
 Scotch Brite Dobie sponge,"is beige,is flat",72.0,False,026_sponge/google_16k/textured.obj,scotch brite sponge,20,[ 72. 114.  14.],026_sponge/google_16k/textured.obj,small,rectangular,yellow
-Pitcher Base,"is blue,is cylindrical",108.0,False,019_pitcher_base/google_16k/textured.obj,pitcher,21,[108. 235.],019_pitcher_base/google_16k/textured.obj,small,cylindrical,blue
+Pitcher Base,"is blue,is cylindrical",108.0,False,019_pitcher_base/google_16k/textured.obj,pitcher,21,[108. 235.],019_pitcher_base/google_16k/textured.obj,small,round,blue
 Pitcher Lid,is blue,123.0,True,059_chain/google_16k/textured.obj,,22,[123.  48.],059_chain/google_16k/textured.obj,small,"",blue
 Plate,"is red,is round",200.0,False,029_plate/google_16k/textured.obj,,23,[258.  24.],029_plate/google_16k/textured.obj,small,round,red
 Bowl,"is red,is round,has a rim",159.0,False,024_bowl/google_16k/textured.obj,,24,[159.  53.],024_bowl/google_16k/textured.obj,small,round,red
@@ -29,7 +29,7 @@ Spoon,"is red,is metal,is elongated",30.0,False,031_spoon/google_16k/textured.ob
 Knife,"is red,is metal,is elongated",30.0,False,032_knife/google_16k/textured.obj,,27,[ 14.  20. 215.],032_knife/google_16k/textured.obj,small,elongated,"red,grey"
 Spatula,"is black,is elongated",83.0,False,033_spatula/google_16k/textured.obj,,28,[ 83.  35. 350.],033_spatula/google_16k/textured.obj,medium,elongated,black
 Wine glass,"is glass,has a rim",270.0,True,029_plate/google_16k/textured.obj,,29,[ 89. 137.],029_plate/google_16k/textured.obj,small,rimmed,""
-Mug,"is red,has a rim,is cylindrical",82.0,False,025_mug/google_16k/textured.obj,,30,[80. 82.],025_mug/google_16k/textured.obj,small,cylindrical,red
+Mug,"is red,has a rim,is cylindrical",82.0,False,025_mug/google_16k/textured.obj,,30,[80. 82.],025_mug/google_16k/textured.obj,small,round,red
 Skillet,"is white,has a rim",121.0,True,014_lemon/google_16k/textured.obj,,31,[270.  25.  30.],014_lemon/google_16k/textured.obj,small,rimmed,"white,grey"
 Skillet Lid,"is glass,is round",270.0,False,028_skillet_lid/google_16k/textured.obj,,32,[270.  10.  22.],028_skillet_lid/google_16k/textured.obj,small,round,"grey,black"
 Table Cloth,is white,3.0,True,014_lemon/google_16k/textured.obj,,33,[228. 335.],014_lemon/google_16k/textured.obj,small,"",white
