@@ -7,6 +7,7 @@ from pathlib import Path
 import pyglet
 from my.env import Args, Env, Obs
 from my.mesh_paths import get_meshes
+from PIL import Image
 from pyglet.window import key
 
 
@@ -40,6 +41,7 @@ if __name__ == "__main__":
     env.render("pyglet", view=view_mode)
 
     def step(action):
+        global obs
         print(f"step {env.step_count + 1}/{env.max_episode_steps}")
 
         obs, reward, done, info = env.step(action)
@@ -90,6 +92,8 @@ if __name__ == "__main__":
 
         elif symbol == key.ENTER:
             step(env.actions.done)
+        elif symbol == key.SPACE:
+            Image.fromarray(Obs(**obs).image).show()
 
     @env.unwrapped.window.event
     def on_key_release(symbol, modifiers):
