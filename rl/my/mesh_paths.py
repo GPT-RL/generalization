@@ -1,35 +1,9 @@
-import re
 from pathlib import Path
 from typing import NamedTuple, Optional, Set
 
 import gym_miniworld
 import pandas as pd
 from my.env import EXCLUDED, PATH, Mesh
-
-
-def get_original_ycb_meshes(
-    data_path: Path,
-    obj_pattern: str,
-    png_pattern: str,
-):
-    if data_path:
-        if not data_path.exists():
-            raise RuntimeError(
-                f"""\
-        {data_path} does not exist.
-        Download dataset using https://github.com/sea-bass/ycb-tools
-        """
-            )
-
-        def get_names(path: Path):
-            name = path.parent.parent.name
-            name = re.sub(r"\d+(-[a-z])?_", "", name)
-            return name.replace("_", " ")
-
-        objs = {get_names(path): path for path in data_path.glob(obj_pattern)}
-        pngs = {get_names(path): path for path in data_path.glob(png_pattern)}
-        for n in objs:
-            yield Mesh(objs.get(n), pngs.get(n), n)
 
 
 class ObjPng(NamedTuple):
