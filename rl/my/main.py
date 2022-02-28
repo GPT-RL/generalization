@@ -1,6 +1,6 @@
 import functools
 import re
-from collections import Counter, defaultdict
+from collections import defaultdict
 from copy import deepcopy
 from dataclasses import dataclass, field, replace
 from inspect import signature
@@ -22,9 +22,6 @@ from stable_baselines3.common.monitor import Monitor
 from transformers import GPT2Tokenizer
 from wrappers import (
     EPISODE_SUCCESS,
-    FAIL_SEED_SUCCESS,
-    FAIL_SEED_USAGE,
-    NUM_FAIL_SEEDS,
     FailureReplayWrapper,
     ImageNormalizerWrapper,
     PairsSelectorWrapper,
@@ -38,13 +35,16 @@ from wrappers import (
 DISTRACTOR = "distractor"
 MISSION = "mission"
 PAIR_SUCCESS = "object pair success"
+PAIR_TEST_SUCCESS = "object pair test success"
 PAIR_COUNT = "object pair count"
 TEST_EPISODE_SUCCESS = "test episode success"
 
 
 class Args(base_main.Args, env.Args):
+    attributes: str = "name"
     num_test_envs: int = 8
     num_test_names: int = 2
+    pair_log_interval_coef: float = 0.01
     pretrained_model: Literal[
         "gpt2",
         "gpt2-medium",
@@ -58,7 +58,6 @@ class Args(base_main.Args, env.Args):
     prefix_length: int = 0
     temp: float = None
     tgt_success_prob: float = None
-    attributes: str = "name"
 
     def configure(self) -> None:
         self.add_subparsers(dest="logger_args")
@@ -74,6 +73,9 @@ class Counters(base_main.Counters):
     episode_success: List[bool] = field(default_factory=list)
     pairs: List[Tuple[str, str]] = field(default_factory=list)
     success_per_pair: DefaultDict[Tuple[str, str], List[float]] = field(
+        default_factory=lambda: defaultdict(list)
+    )
+    test_success_per_pair: DefaultDict[Tuple[str, str], List[float]] = field(
         default_factory=lambda: defaultdict(list)
     )
     test_episode_success: List[bool] = field(default_factory=list)
@@ -119,9 +121,6 @@ class Trainer(base_main.Trainer):
                 for y in [
                     EPISODE_SUCCESS,
                     TEST_EPISODE_SUCCESS,
-                    NUM_FAIL_SEEDS,
-                    FAIL_SEED_USAGE,
-                    FAIL_SEED_SUCCESS,
                 ]
             ]
             + [
@@ -130,7 +129,7 @@ class Trainer(base_main.Trainer):
                     y=MISSION,
                     color=color,
                 )
-                for color in [PAIR_SUCCESS, PAIR_COUNT]
+                for color in [PAIR_SUCCESS, PAIR_TEST_SUCCESS]
             ]
             + super().charts(args=args)
         )
@@ -147,37 +146,27 @@ class Trainer(base_main.Trainer):
         n_objects = 60 if args.names is None else len(args.names)
         if args.num_test_names is not None:
             n_objects -= args.num_test_names
-        n_pairs = n_objects ** 2
         timesteps_per_log = args.num_processes * args.num_steps * args.log_interval
-        if len(counters.pairs) >= n_pairs * timesteps_per_log / 10_000:
-            counter_per_pair = Counter(counters.pairs)
-            for (mission, distractor), count in counter_per_pair.items():
-                super().log(
-                    args=args,
-                    log={
-                        PAIR_COUNT: count / len(counters.pairs),
-                        MISSION: mission,
-                        DISTRACTOR: distractor,
-                    },
-                    logger=logger,
-                    step=step,
-                )
-            counters.pairs = []
-
-        success_per_pair = deepcopy(counters.success_per_pair)
-        for (mission, distractor), v in success_per_pair.items():
-            if len(v) >= timesteps_per_log / 100:
-                super().log(
-                    args=args,
-                    log={
-                        PAIR_SUCCESS: np.mean(v),
-                        MISSION: mission,
-                        DISTRACTOR: distractor,
-                    },
-                    logger=logger,
-                    step=step,
-                )
-                counters.success_per_pair[mission, distractor] = []
+        threshold = timesteps_per_log * args.pair_log_interval_coef
+        for key, success_per_pair, threshold in [
+            (PAIR_SUCCESS, counters.success_per_pair, threshold),
+            (PAIR_TEST_SUCCESS, counters.test_success_per_pair, 0),
+        ]:
+            success_per_pair = deepcopy(success_per_pair)
+            for (mission, distractor), v in success_per_pair.items():
+                print(len(v), threshold)
+                if len(v) >= threshold:
+                    super().log(
+                        args=args,
+                        log={
+                            key: np.mean(v),
+                            MISSION: mission,
+                            DISTRACTOR: distractor,
+                        },
+                        logger=logger,
+                        step=step,
+                    )
+                    success_per_pair[mission, distractor] = []
 
         if counters.episode_success:
             log.update({EPISODE_SUCCESS: np.mean(counters.episode_success)})
@@ -334,6 +323,7 @@ class Trainer(base_main.Trainer):
         if EPISODE_SUCCESS in info:
             if test:
                 counters.test_episode_success.append(info[EPISODE_SUCCESS])
+                counters.test_success_per_pair[info[PAIR]].append(info[EPISODE_SUCCESS])
             else:
                 counters.episode_success.append(info[EPISODE_SUCCESS])
                 counters.success_per_pair[info[PAIR]].append(info[EPISODE_SUCCESS])
