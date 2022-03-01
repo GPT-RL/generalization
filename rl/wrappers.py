@@ -231,7 +231,7 @@ class TokenizerWrapper(gym.ObservationWrapper):
         tokenizer: GPT2Tokenizer,
     ):
         def get_tokens():
-            for w in mission.split(","):
+            for w in mission:
                 encoded = tokenizer.encode(w, return_tensors="pt")
                 encoded = typing.cast(Tensor, encoded)
                 yield encoded.T
@@ -254,6 +254,8 @@ class TokenizerWrapper(gym.ObservationWrapper):
         n1, d1 = encoded.shape
         n2, d2 = mission_shape
 
+        if not (n2 >= n1 and d2 >= d1):
+            breakpoint()
         assert n2 >= n1 and d2 >= d1
         padded = np.pad(
             encoded,
@@ -265,6 +267,8 @@ class TokenizerWrapper(gym.ObservationWrapper):
     def observation(self, observation):
         observation = Obs(**observation)
         mission = observation.mission
+        if isinstance(mission, str):
+            mission = mission.split(",")
         if isinstance(mission, list):
             mission = tuple(mission)
         mission = self.new_mission(

@@ -265,6 +265,16 @@ class Trainer(base_main.Trainer):
 
         meshes = get_meshes(data_path=Path(data_path).expanduser(), names=names)
 
+        df = pd.read_csv("ycb-gpt.csv")
+        df = df.set_index("name", drop=False)
+
+        def process_row(r: pd.Series):
+            def gen():
+                yield from r["completion"].lstrip().split(" and ")
+
+            return list(gen())
+
+        test_features = df.apply(process_row, axis=1)
         df = pd.read_csv("ycb.csv")
         df = df.set_index("name", drop=False)
         columns = attributes.split(",")
@@ -280,12 +290,14 @@ class Trainer(base_main.Trainer):
             return list(gen())
 
         features = df.apply(process_row, axis=1)
-        features = features[features.apply(lambda x: bool(x))]
+        train_features = features[features.apply(lambda x: bool(x))]
+        features = test_features if test else train_features
 
         features = features.to_dict()
         features = {k.lower(): ",".join(v) for k, v in features.items() if v}
         meshes: List[Mesh] = [m for m in meshes if m.name in features]
-        all_missions = list(features.values())
+
+        all_missions = [*train_features.tolist(), *test_features.tolist()]
 
         rng = np.random.default_rng(seed=seed)
         names: TrainTest[Set[str]] = cls.train_test_split(

@@ -1,59 +1,46 @@
 name,completion
-cheez-it box," it is yellow, and is box-shaped"
-domino sugar box," it is white, and is box-shaped"
-chocolate jell-o box," it is brown, has letters on it, is rectangular, and is box-shaped"
-strawberry jell-o box," it is mostly red, has letters on it, is rectangular, and is box-shaped"
-can of spam," it is cylindrical, and is white"
-master chef coffee can," it is black, is cylindrical, and has a lid"
-starkist tuna fish can," it is white, has letters on it, and is a cylinder"
-pringles chips can," it is red, has a logo on it, is cylindrical, and is made of metal"
-french's mustard bottle," it is yellow, and is bottle-shaped"
-tomato soup can," it is tomato, is cylindrical, and has letters on it"
-banana," it is yellow, and is elongated"
-strawberry," it is red, is cylindrical, and has a stem"
-apple," it is red, and is round"
-lemon," it is yellow, and is round"
-peach," it is peach, and is round"
-pear," it is green, and is round"
-orange, it is orange
-plum," it is purple, and round"
-bottle of windex," it is clear, and is liquid"
-bottle of bleach," it is white, and is a bottle"
-scotch brite sponge," it is green, is floppy, and is a sponge"
-pitcher," it is red, and is cylindrical"
-pitcher lid," it is glass, and is round"
-plate," it is white, is round, and has a rim"
-bowl," it is white, and is bowl-shaped"
-fork," it is metal, is white, and has tines"
-spoon," it is metal, and is elongated"
-knife," it is metal, and is elongated"
-spatula," it is white, and is elongated"
-wine glass," it is red, and is glass"
-mug," it is white, is cylindrical, and has a handle"
-skillet," it is a metal, and is elongated"
-skillet lid, it is white
-table cloth," it is white, and is rectangular"
-scissors," it is metal, and is elongated"
-black marker, it is black
-padlock & keys," it is metal, and is box-shaped"
-hammer," it is black, is metal, and is elongated"
-nails," they are metal, and are elongated"
-bolt & nut," the bolt is metal, is elongated, and screws into the nut"
-philips-head screwdriver," it is red, is black, and is metal"
-flathead screwdriver," it is blue, is black, is metal, and is elongated"
-adjustable wrench," it is black, and is metal"
-wood block," it is brown, and is cube-shaped"
-clamps," it is metal, is round, and has a hole in it"
-power drill," it is black, and is cylindrical"
-credit card," it is white, is rectangle, and has letters on it"
-soccer ball," it is round, and is white"
-softball," it is round, and white"
-baseball," it is round, is brown, and has stitches"
-tennis ball," it is round, and is white"
-racquetball," it is spherical, is blue, and is made of rubber"
-golf ball," it is white, is round, and has dimples"
-dice," it is cube-shaped, is white, and is six-sided"
-washers( 7 sizes)," they are all metal, and are round"
-rubik's cube," it is red, square, and cube-shaped"
-black t-shirt," it is black, and is a shirt"
-footlocker," it is brown, is rectangular, and is box-shaped"
+cheez-it box, red and rectangular
+domino sugar box, white and rectangular
+chocolate jell-o box, brown and rectangular
+strawberry jell-o box, red and rectangular
+can of spam, green and cylindrical
+master chef coffee can, black and cylindrical
+starkist tuna fish can, silver and cylindrical
+french's mustard bottle, yellow and cylindrical
+tomato soup can, red and cylindrical
+banana, yellow and elongated
+strawberry, red and round
+apple, red and round
+lemon, yellow and round
+peach, yellow and round
+pear, green and round
+orange, orange and round
+plum, purple and round
+bottle of windex, blue and cylindrical
+bottle of bleach, white and cylindrical
+scotch brite sponge, green and rectangular
+pitcher, red and elongated
+plate, green and round
+bowl, red and round
+fork, silver and elongated
+spoon, metal and elongated
+knife, black and elongated
+spatula, beige and elongated
+mug, white and cylindrical
+skillet lid, black and round
+scissors, metal and elongated
+black marker, black and elongated
+hammer, black and elongated
+philips-head screwdriver, black and elongated
+flathead screwdriver, grey and elongated
+adjustable wrench, black and elongated
+wood block, brown and rectangular
+power drill, metal and cylindrical
+soccer ball, white and round
+softball, white and round
+baseball, brown and round
+tennis ball, green and round
+racquetball, blue and round
+golf ball, white and round
+dice, white and cubic
+rubik's cube, multicolored and square
