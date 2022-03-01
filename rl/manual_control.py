@@ -41,6 +41,7 @@ if __name__ == "__main__":
     env.render("pyglet", view=view_mode)
 
     def step(action):
+        global obs
         print(f"step {env.step_count + 1}/{env.max_episode_steps}")
 
         obs, reward, done, info = env.step(action)
@@ -56,7 +57,6 @@ if __name__ == "__main__":
         print(Obs(**obs).mission)
 
         env.render("pyglet", view=view_mode)
-        return obs
 
     @env.unwrapped.window.event
     def on_key_press(symbol, modifiers):
@@ -64,7 +64,6 @@ if __name__ == "__main__":
         This handler processes keyboard commands that
         control the simulation
         """
-        global obs
 
         if symbol == key.BACKSPACE or symbol == key.SLASH:
             print("RESET")
@@ -77,23 +76,22 @@ if __name__ == "__main__":
             sys.exit(0)
 
         if symbol == key.UP:
-            obs = step(env.actions.move_forward)
+            step(env.actions.move_forward)
         elif symbol == key.DOWN:
-            obs = step(env.actions.move_back)
+            step(env.actions.move_back)
 
         elif symbol == key.LEFT:
-            obs = step(env.actions.turn_left)
+            step(env.actions.turn_left)
         elif symbol == key.RIGHT:
-            obs = step(env.actions.turn_right)
+            step(env.actions.turn_right)
 
         elif symbol == key.PAGEUP or symbol == key.P:
-            obs = step(env.actions.pickup)
+            step(env.actions.pickup)
         elif symbol == key.PAGEDOWN or symbol == key.D:
-            obs = step(env.actions.drop)
+            step(env.actions.drop)
 
         elif symbol == key.ENTER:
-            obs = step(env.actions.done)
-
+            step(env.actions.done)
         elif symbol == key.SPACE:
             Image.fromarray(Obs(**obs).image).show()
 
