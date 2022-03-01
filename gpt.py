@@ -34,17 +34,24 @@ def main():
     df = df.rename(columns={"gpt name": "name"})
     df["name"] = df["name"].apply(lambda n: n.lower())
     df = df.set_index("name")
-    df = df[~pd.isna(df["description"])]
-    series: pd.Series = df["description"]
+    columns = ["color", "shape"]
+    df = df[[*columns, "excluded"]]
+    df = df[~df["excluded"]].drop("excluded", axis=1)
 
-    def format_description(d: str):
-        *ds, d = d.split(",")
-        if ds:
-            return f'{", ".join(ds)}, and {d}'
-        else:
-            return d
+    def process_row(r: pd.Series):
+        def gen():
+            for column in r:
+                if not pd.isna(column):
+                    yield from column.split(",")
 
-    series = series.apply(format_description)
+        return list(gen())
+
+    features = df.apply(process_row, axis=1)
+    features = features[features.apply(lambda x: bool(x))]
+
+    features = features.to_dict()
+    features = {k.lower(): " and ".join(v) for k, v in features.items() if v}
+
     rng = np.random.default_rng(seed=0)
 
     completions = {}
@@ -53,12 +60,12 @@ def main():
         vowel = "aeiou"
         return "an" if n[0] in vowel else "a"
 
-    for name, description in tqdm(series.iteritems(), total=len(series)):
-        series2: pd.Series = series[series.index != name]
+    for name, description in tqdm(features.items(), total=len(features)):
+        series2: pd.Series = pd.Series({k: v for k, v in features.items() if k != name})
         df = df.sample(frac=1, random_state=rng)
 
         prompt = " ".join(
-            [f"Describe {article(n)} {n}: it {d}." for n, d in series2.iteritems()]
+            [f"Describe {article(n)} {n}: {d}." for n, d in series2.iteritems()]
             + [f"Describe {article(name)} {name}:"]
         )
         response = openai.Completion.create(
