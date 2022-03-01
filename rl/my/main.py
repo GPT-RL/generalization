@@ -276,22 +276,34 @@ class Trainer(base_main.Trainer):
 
         meshes = get_meshes(data_path=Path(data_path).expanduser(), names=names)
 
-        df = pd.read_csv("ycb.csv")
-        df = df.set_index("name", drop=False)
-        columns = attributes.split(",")
-        df = df[[*columns, EXCLUDED]]
-        df = df[~df[EXCLUDED]].drop(EXCLUDED, axis=1)
+        if test:
+            df = pd.read_csv("ycb-gpt.csv")
+            df = df.set_index("name", drop=False)
 
-        def process_row(r: pd.Series):
-            def gen():
-                for column in r:
-                    if not pd.isna(column):
-                        yield from column.split(",")
+            def process_row(r: pd.Series):
+                def gen():
+                    yield from r["completion"].lstrip().split(" and ")
 
-            return list(gen())
+                return list(gen())
 
-        features = df.apply(process_row, axis=1)
-        features = features[features.apply(lambda x: bool(x))]
+            features = df.apply(process_row, axis=1)
+        else:
+            df = pd.read_csv("ycb.csv")
+            df = df.set_index("name", drop=False)
+            columns = attributes.split(",")
+            df = df[[*columns, EXCLUDED]]
+            df = df[~df[EXCLUDED]].drop(EXCLUDED, axis=1)
+
+            def process_row(r: pd.Series):
+                def gen():
+                    for column in r:
+                        if not pd.isna(column):
+                            yield from column.split(",")
+
+                return list(gen())
+
+            features = df.apply(process_row, axis=1)
+            features = features[features.apply(lambda x: bool(x))]
 
         features = features.to_dict()
         features = {k.lower(): ",".join(v) for k, v in features.items() if v}
