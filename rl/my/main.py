@@ -42,6 +42,7 @@ TEST_EPISODE_SUCCESS = "test episode success"
 
 class Args(base_main.Args, env.Args):
     attributes: str = "name"
+    clip: bool = False
     num_test_envs: int = 8
     num_test_names: int = 2
     pair_log_interval_coef: float = 0.01
@@ -192,6 +193,7 @@ class Trainer(base_main.Trainer):
         observation_space, *_ = envs.get_attr("original_observation_space")
         return Agent(
             action_space=action_space,
+            clip=args.clip,
             pretrained_model=args.pretrained_model,
             hidden_size=args.hidden_size,
             observation_space=observation_space,
