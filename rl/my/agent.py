@@ -57,6 +57,7 @@ class Base(NNBase):
         hidden_size: int,
         observation_space: Dict,
         recurrent: bool,
+        small_architecture: bool,
         train_ln: bool,
         train_wpe: bool,
         mission_size: int = 64,
@@ -93,19 +94,32 @@ class Base(NNBase):
 
             def get_image_net():
                 prev = d
-                for i, (num_ch, num_blocks) in enumerate(
-                    [(16, 2), (32, 2), (32, 2)]
-                ):  # Downscale.
-                    yield nn.Conv2d(prev, num_ch, kernel_size=(3, 3), stride=(1, 1))
-                    yield nn.MaxPool2d(
-                        kernel_size=(3, 3),
-                        stride=[2, 2],
-                    )
+                if small_architecture:
+                    for (num_ch, kernel_size, stride) in [
+                        (16, 8, 4),
+                        (32, 4, 2),
+                    ]:  # Downscale.
+                        yield nn.Conv2d(
+                            prev, num_ch, kernel_size=kernel_size, stride=stride
+                        )
+                        yield nn.ReLU()
+                        prev = num_ch
+                else:
+                    for (num_ch, num_blocks) in [
+                        (16, 2),
+                        (32, 2),
+                        (32, 2),
+                    ]:  # Downscale.
+                        yield nn.Conv2d(prev, num_ch, kernel_size=(3, 3), stride=(1, 1))
+                        yield nn.MaxPool2d(
+                            kernel_size=(3, 3),
+                            stride=[2, 2],
+                        )
 
-                    # Residual block(s).
-                    for j in range(num_blocks):
-                        yield ResidualBlock(num_ch)
-                    prev = num_ch
+                        # Residual block(s).
+                        for _ in range(num_blocks):
+                            yield ResidualBlock(num_ch)
+                        prev = num_ch
 
                 yield nn.ReLU()
                 yield nn.Flatten()

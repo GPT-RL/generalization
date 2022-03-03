@@ -57,6 +57,7 @@ class Args(base_main.Args, env.Args):
         "EleutherAI/gpt-neo-2.7B",
     ] = "gpt2-large"  # what size of pretrained GPT to use
     prefix_length: int = 0
+    small_architecture: bool = False
     temp: float = None
     tgt_success_prob: float = None
     train_ln: bool = False
@@ -198,6 +199,7 @@ class Trainer(base_main.Trainer):
             hidden_size=args.hidden_size,
             observation_space=observation_space,
             recurrent=cls.recurrent(args),
+            small_architecture=args.small_architecture,
             train_ln=args.train_ln,
             train_wpe=args.train_wpe,
         )
