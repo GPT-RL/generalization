@@ -43,6 +43,7 @@ TEST_EPISODE_SUCCESS = "test episode success"
 class Args(base_main.Args, env.Args):
     attributes: str = "name"
     clip: bool = False
+    gpt3: bool = False
     num_test_envs: int = 8
     num_test_names: int = 2
     pair_log_interval_coef: float = 0.01
@@ -262,6 +263,7 @@ class Trainer(base_main.Trainer):
         cls,
         attributes: str,
         data_path: str,
+        gpt3: bool,
         pretrained_model: str,
         names: Optional[str],
         num_processes: int,
@@ -280,7 +282,7 @@ class Trainer(base_main.Trainer):
 
         meshes = get_meshes(data_path=Path(data_path).expanduser(), names=names)
 
-        if test:
+        if test and gpt3:
             df = pd.read_csv("ycb-gpt.csv")
             df = df.set_index("name", drop=False)
 
