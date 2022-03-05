@@ -221,6 +221,7 @@ class Trainer(base_main.Trainer):
             _env = Env(
                 meshes=meshes,
                 seed=seed,
+                test=test,
                 **{
                     k: v
                     for k, v in _kwargs.items()
@@ -323,7 +324,7 @@ class Trainer(base_main.Trainer):
         names: Set[str] = names.test if test else names.train
         assert len(names) > 1
         meshes = [m for m in meshes if m.name in names]
-        meshes = [replace(m, name=features[m.name]) for m in meshes]
+        meshes = [replace(m, features=features[m.name]) for m in meshes]
 
         return super().make_vec_envs(
             all_missions=all_missions,

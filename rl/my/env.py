@@ -44,6 +44,7 @@ class Mesh:
     png: Optional[Path]
     name: str
     height: float = 1
+    features: str = None
 
 
 T = TypeVar("T")  # Declare type variable
@@ -97,11 +98,13 @@ class Env(MiniWorldEnv):
         meshes: List[Mesh],
         radius: float,
         room_size: float,
+        test: bool,
         max_episode_steps: int = 180,
         pitch: float = -30,
         rank: int = 0,
         **kwargs,
     ):
+        self.test = test
         self.floor_tex = floor_tex
         self.radius = radius
         self.rank = rank
@@ -110,7 +113,7 @@ class Env(MiniWorldEnv):
 
         self.meshes = defaultdict(list)
         for m in sorted(meshes, key=lambda m: m.name):
-            self.meshes[m.name].append(m)
+            self.meshes[m.name if test else m.features].append(m)
 
         params = deepcopy(DEFAULT_PARAMS)
         params.set("cam_pitch", pitch, pitch, pitch)
@@ -141,12 +144,11 @@ class Env(MiniWorldEnv):
         )
         while True:
             if self._mesh_names is None:
-                self._mission, self._dist_name = mesh_names = self.rand.subset(
-                    sorted(list(self.meshes)), num_elems=2
-                )
+                mesh_names = self.rand.subset(sorted(list(self.meshes)), num_elems=2)
             else:
-                mesh_names = self._mission, self._dist_name = self._mesh_names
+                mesh_names = self._mesh_names
             meshes = [self.rand.choice(self.meshes[n]) for n in mesh_names]
+            self._mission, self._dist_name = [m.features for m in meshes]
             positions = np.array(
                 [
                     [0.7 * self.size, 0, 0.25 * self.size],
