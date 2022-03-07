@@ -63,6 +63,7 @@ class Base(NNBase):
         mission_size: int = 64,
     ):
 
+        self.mission_size = mission_size
         super().__init__(
             recurrent=recurrent,
             recurrent_input_size=256 + mission_size,
@@ -148,7 +149,7 @@ class Base(NNBase):
 
     def build_embeddings(self):
         num_embeddings = 1 + self.pad_token_id
-        return GRUEmbed(num_embeddings)
+        return nn.EmbeddingBag(num_embeddings, self.mission_size)
 
     def embed(self, inputs):
         *shape_, _ = inputs.shape
