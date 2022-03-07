@@ -131,7 +131,7 @@ class Env(MiniWorldEnv):
         # Allow only movement actions (left/right/forward) and pickup
         self.action_space = spaces.Discrete(self.actions.pickup + 1)
         self.observation_space = Obs(
-            image=self.observation_space, mission=String()
+            image=self.observation_space, mission=StringTuple()
         ).to_space()
 
     def _gen_world(self):

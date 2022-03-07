@@ -283,7 +283,24 @@ class Trainer(base_main.Trainer):
 
         meshes = get_meshes(data_path=Path(data_path).expanduser(), names=names)
 
-        if test and gpt3:
+        df = pd.read_csv("ycb.csv")
+        df = df.set_index("name", drop=False)
+        columns = attributes.split(",")
+        df = df[[*columns, EXCLUDED]]
+        df = df[~df[EXCLUDED]].drop(EXCLUDED, axis=1)
+
+        def process_row(r: pd.Series):
+            def gen():
+                for column in r:
+                    if not pd.isna(column):
+                        yield from column.split(",")
+
+            return list(gen())
+
+        features = df.apply(process_row, axis=1)
+        train_features = features[features.apply(lambda x: bool(x))]
+
+        if gpt3:
             df = pd.read_csv("ycb-gpt.csv")
             df = df.set_index("name", drop=False)
 
@@ -293,29 +310,15 @@ class Trainer(base_main.Trainer):
 
                 return list(gen())
 
-            features = df.apply(process_row, axis=1)
+            test_features = df.apply(process_row, axis=1)
         else:
-            df = pd.read_csv("ycb.csv")
-            df = df.set_index("name", drop=False)
-            columns = attributes.split(",")
-            df = df[[*columns, EXCLUDED]]
-            df = df[~df[EXCLUDED]].drop(EXCLUDED, axis=1)
+            test_features = train_features
 
-            def process_row(r: pd.Series):
-                def gen():
-                    for column in r:
-                        if not pd.isna(column):
-                            yield from column.split(",")
-
-                return list(gen())
-
-            features = df.apply(process_row, axis=1)
-            features = features[features.apply(lambda x: bool(x))]
-
+        features = test_features if test else train_features
         features = features.to_dict()
-        features = {k.lower(): ",".join(v) for k, v in features.items() if v}
+        features = {k.lower(): tuple(v) for k, v in features.items() if v}
         meshes: List[Mesh] = [m for m in meshes if m.name in features]
-        all_missions = list(features.values())
+        all_missions = list(map(tuple, [*train_features, *test_features]))
 
         rng = np.random.default_rng(seed=seed)
         names: TrainTest[Set[str]] = cls.train_test_split(

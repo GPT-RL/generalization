@@ -245,7 +245,7 @@ class TokenizerWrapper(gym.ObservationWrapper):
         tokenizer: GPT2Tokenizer,
     ):
         def get_tokens():
-            for w in mission.split(","):
+            for w in mission:
                 encoded = tokenizer.encode(w, return_tensors="pt")
                 encoded = typing.cast(Tensor, encoded)
                 yield encoded.T
