@@ -4,10 +4,8 @@ from functools import lru_cache
 from typing import cast
 
 import torch
-from multihead_attention import MultiheadAttention
 from my import agent
-from torch import Tensor, nn
-from torch.nn import Parameter
+from torch import Tensor
 from transformers import BertConfig, GPT2Config, GPTNeoConfig
 from utils import build_gpt
 
@@ -35,22 +33,14 @@ class Base(agent.Base):
     def __init__(
         self,
         *args,
-        attn_temp: float,
-        device: torch.DeviceObjType,
-        freeze_keys: bool,
-        multihead_attention: bool,
-        missions: torch.Tensor,
         pretrained_model: str,
         randomize_parameters: bool,
-        train_ln: bool,
-        train_wpe: bool,
         **kwargs,
     ):
-        self.multihead_attention = multihead_attention
         self._embedding_size = pretrained_model
         self.randomize_parameters = randomize_parameters
-        self.train_wpe = train_wpe
-        self.train_ln = train_ln
+        self.train_wpe = False  # todo
+        self.train_ln = False  # todo
 
         if "neo" in pretrained_model:
             config = GPTNeoConfig.from_pretrained(
@@ -86,14 +76,6 @@ class Base(agent.Base):
             pretrained_model=pretrained_model,
             **kwargs,
         )
-        if multihead_attention:
-            self.embeddings.to(device)
-            missions = missions.to(device)
-            outputs = self.gpt_forward_pass(missions)
-            outputs = outputs.reshape(-1, outputs.size(-1))
-            self.keys = Parameter(attn_temp * outputs, requires_grad=not freeze_keys)
-            self.values = nn.Embedding(*outputs.shape)
-            self.multihead_attn = MultiheadAttention(self.embedding_size, num_heads=1)
 
     def build_embeddings(self):
         gpt = build_gpt(self._embedding_size, self.randomize_parameters)
@@ -110,25 +92,10 @@ class Base(agent.Base):
             return self.uncached_gpt_forward_pass(inputs.tensor)
 
     def embed(self, inputs):
-        shape = *shape_, _ = inputs.shape
-        breakpoint()
-        if len(shape) == 3:
-            inputs = inputs.reshape(-1, inputs.size(-1))
         states = self.gpt_forward_pass(inputs)
-        states = states.reshape(*shape_, -1)
-        if self.multihead_attention:
-            query = states.transpose(0, 1)
-            n = query.size(1)
-            key = self.keys.unsqueeze(1).repeat(1, n, 1)
-            value = self.values.weight.unsqueeze(1).repeat(1, n, 1)
-            attn_output, _ = self.multihead_attn.forward(
-                query=query, key=key, value=value
-            )
-            # print((100 * _.max(dim=-1).values).round())
-            # breakpoint()
-            return attn_output.mean(0)
-        else:
-            return states.mean(1)
+        return states.mean(
+            1
+        )  # mean across input length  (if there are 3 tokens, gpt will output an (n, 3, d) size embedding).
 
     def gpt_forward_pass(self, inputs):
         if self.train_ln or self.train_wpe:

@@ -111,6 +111,7 @@ class Env(MiniWorldEnv):
         assert room_size >= 2
         self.size = room_size
 
+        self.features = [m.features for m in meshes]
         self.meshes = defaultdict(list)
         for m in sorted(meshes, key=lambda m: m.name):
             self.meshes[m.name if test else m.features].append(m)

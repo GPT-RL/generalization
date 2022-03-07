@@ -2,18 +2,12 @@ import logging
 from typing import cast
 
 import torch
-from envs import VecPyTorch
 from gpt_agent import Agent
 from my import main
-from my.env import Obs
-from wrappers import TokenizerWrapper
 
 
 class Args(main.Args):
-    multihead_attention: bool = False
-    freeze_keys: bool = False
     randomize_parameters: bool = False
-    attn_temp: float = 5
     gpt: bool = False
 
 
@@ -39,36 +33,13 @@ class Trainer(main.Trainer):
                     pass
 
     @classmethod
-    def make_agent(cls, envs: VecPyTorch, args: ArgsType) -> Agent:
-        action_space = envs.action_space
-        observation_space, *_ = envs.get_attr("original_observation_space")
-        missions = None
-        cuda = cls.cuda(args)
-        device = cls.device(cuda)
-        if args.multihead_attention:
-            tokenizer = cls.tokenizer(args.pretrained_model)
-            missions, *_ = envs.get_attr("missions")
-            mission_shape = tuple(Obs(*observation_space.spaces).mission.nvec.shape)
-            tokens = [
-                TokenizerWrapper.new_mission(tokenizer, mission, mission_shape)
-                for mission in missions
-            ]
-            missions = torch.Tensor(tokens).long()
-
-        return Agent(
-            action_space=action_space,
-            attn_temp=args.attn_temp,
-            device=device,
-            freeze_keys=args.freeze_keys,
-            hidden_size=args.hidden_size,
-            multihead_attention=args.multihead_attention,
-            observation_space=observation_space,
-            missions=missions,
-            pretrained_model=args.pretrained_model,
+    def _make_agent(cls, *_args, args: Args, agent_class=Agent, **kwargs):
+        return super()._make_agent(
+            *_args,
+            agent_class=Agent,
+            args=args,
             randomize_parameters=args.randomize_parameters,
-            recurrent=cls.recurrent(args),
-            train_wpe=args.train_wpe,
-            train_ln=args.train_ln,
+            **kwargs,
         )
 
     @staticmethod
