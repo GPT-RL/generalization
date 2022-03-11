@@ -27,7 +27,7 @@ PATH = "path"
 
 
 class Args(Tap):
-    data_path: str = Path(Path.home(), ".cache/data/ycb")
+    data_path: str = Path(Path.home(), ".cache/data/ycb.3")
     floor_tex: str = "floor_tiles_white"
     image_size: int = 128
     names: Optional[str] = None

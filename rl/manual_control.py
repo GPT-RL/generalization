@@ -31,16 +31,17 @@ if __name__ == "__main__":
         for k, v in args.as_dict().items()
         if k in signature(Env.__init__).parameters
     }
-    env = Env(meshes=meshes, **kwargs)
+    env = Env(meshes=meshes, test=True, **kwargs)
     # env = CLIPProcessorWrapper(env, processor, [m.name for m in meshes])
-    replace = {
-        "master chef coffee can": "blue, white, beige, cylinder",
-        "starkist tuna fish can": "blue, silver, red, white, cylinder",
-    }
-    all_missions = [replace[m.name] for m in meshes]
-    tokens = processor.tokenizer(all_missions, return_tensors="pt", padding=True)
-    tokens = tokens["input_ids"]
-    tokens = {m: t for m, t in zip(all_missions, tokens)}
+    # replace = {
+    #     "master chef coffee can": "blue, white, beige, cylinder",
+    #     "starkist tuna fish can": "blue, silver, red, white, cylinder",
+    # }
+    # breakpoint()
+    # all_missions = [replace[m.name] for m in meshes]
+    # tokens = processor.tokenizer(all_missions, return_tensors="pt", padding=True)
+    # tokens = tokens["input_ids"]
+    # tokens = {m: t for m, t in zip(all_missions, tokens)}
     if args.no_time_limit:
         env.max_episode_steps = math.inf
     if args.domain_rand:
@@ -58,26 +59,26 @@ if __name__ == "__main__":
         print(f"step {env.step_count + 1}/{env.max_episode_steps}")
 
         obs, reward, done, info = env.step(action)
-        o = Obs(**obs)
+        Obs(**obs)
 
-        text = [m.name for m in env.chosen_meshes]
-        text = [replace[t] for t in text]
-        inputs = processor(
-            text=text,
-            images=o.image,
-            return_tensors="pt",
-            padding=True,
-        )
-
-        outputs = model(**inputs)
-        logits_per_image = (
-            outputs.logits_per_image
-        )  # this is the image-text similarity score
-        probs = logits_per_image.softmax(dim=1).reshape(
-            -1
-        )  # we can take the softmax to get the label probabilities
-        for choice, prob in zip(text, probs):
-            print(f"{choice}: {(100 * prob).round()}%")
+        # text = [m.name for m in env.chosen_meshes]
+        # text = [replace[t] for t in text]
+        # inputs = processor(
+        #     text=text,
+        #     images=o.image,
+        #     return_tensors="pt",
+        #     padding=True,
+        # )
+        #
+        # outputs = model(**inputs)
+        # logits_per_image = (
+        #     outputs.logits_per_image
+        # )  # this is the image-text similarity score
+        # probs = logits_per_image.softmax(dim=1).reshape(
+        #     -1
+        # )  # we can take the softmax to get the label probabilities
+        # for choice, prob in zip(text, probs):
+        #     print(f"{choice}: {(100 * prob).round()}%")
 
         # pixel_values = processor(images=o.image, return_tensors="pt", padding=True)
         #

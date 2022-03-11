@@ -19,7 +19,7 @@ Plastic orange,"is orange,is round",73.0,False,017_orange/google_16k/textured.ob
 Plastic plum,"is purple,is round",52.0,False,018_plum/google_16k/textured.obj,plum,17,[52.],018_plum/google_16k/textured.obj,small,round,purple
 Windex Spray bottle,"is blue,is a bottle,has letters on it",105.0,False,022_windex_bottle/google_16k/textured.obj,bottle of Windex,18,[ 80. 105. 270.],022_windex_bottle/google_16k/textured.obj,large,bottle,blue
 Srub Cleanser bottle,"is white,bottle,has letters on it",65.0,False,021_bleach_cleanser/google_16k/textured.obj,bottle of bleach,19,[250.  98.  65.],021_bleach_cleanser/google_16k/textured.obj,large,bottle,white
-Scotch Brite Dobie sponge,"is beige,is flat",72.0,False,026_sponge/google_16k/textured.obj,scotch brite sponge,20,[ 72. 114.  14.],026_sponge/google_16k/textured.obj,small,flat,beige
+Scotch Brite Dobie sponge,"is beige,is flat",72.0,False,026_sponge/google_16k/textured.obj,scotch brite sponge,20,[ 72. 114.  14.],026_sponge/google_16k/textured.obj,small,flat,yellow
 Pitcher Base,"is blue,is cylindrical",108.0,False,019_pitcher_base/google_16k/textured.obj,pitcher,21,[108. 235.],019_pitcher_base/google_16k/textured.obj,small,cylindrical,blue
 Pitcher Lid,is blue,123.0,True,059_chain/google_16k/textured.obj,,22,[123.  48.],059_chain/google_16k/textured.obj,small,flat,blue
 Plate,"is red,is round",200.0,False,029_plate/google_16k/textured.obj,,23,[258.  24.],029_plate/google_16k/textured.obj,small,round,red
@@ -31,19 +31,19 @@ Spatula,"is black,is elongated",83.0,False,033_spatula/google_16k/textured.obj,,
 Wine glass,"is glass,has a rim",270.0,True,029_plate/google_16k/textured.obj,,29,[ 89. 137.],029_plate/google_16k/textured.obj,small,rimmed,glass
 Mug,"is red,has a rim,is cylindrical",82.0,False,025_mug/google_16k/textured.obj,,30,[80. 82.],025_mug/google_16k/textured.obj,small,cylindrical,red
 Skillet,"is white,has a rim",121.0,True,014_lemon/google_16k/textured.obj,,31,[270.  25.  30.],014_lemon/google_16k/textured.obj,small,rimmed,white
-Skillet Lid,"is glass,is round",270.0,False,028_skillet_lid/google_16k/textured.obj,,32,[270.  10.  22.],028_skillet_lid/google_16k/textured.obj,small,round,glass
+Skillet Lid,"is glass,is round",270.0,False,028_skillet_lid/google_16k/textured.obj,,32,[270.  10.  22.],028_skillet_lid/google_16k/textured.obj,small,round,metal
 Table Cloth,is white,3.0,True,014_lemon/google_16k/textured.obj,,33,[228. 335.],014_lemon/google_16k/textured.obj,small,flat,white
-Scissors,"grey,is metal",200.0,False,037_scissors/google_16k/textured.obj,,34,[ 87. 200.  14.],037_scissors/google_16k/textured.obj,small,elongated,grey
+Scissors,"grey,is metal",200.0,False,037_scissors/google_16k/textured.obj,,34,[ 87. 200.  14.],037_scissors/google_16k/textured.obj,small,elongated,metal
 Large marker,"is black,is white,is elongated",121.0,False,040_large_marker/google_16k/textured.obj,black marker,35,[ 18. 121.],040_large_marker/google_16k/textured.obj,small,elongated,black
 Small marker,"is black,is white,is elongated",205.0,True,063-b_marbles/google_16k/textured.obj,black marker,36,[  8. 135.],063-b_marbles/google_16k/textured.obj,small,elongated,black
 Padlock & Keys,is metal,200.0,True,063-b_marbles/google_16k/textured.obj,,37,[24.  47.  65.  23.  43.   2.2],063-b_marbles/google_16k/textured.obj,large,elongated,metal
-Hammer,"is part wood,is metal,is elongated",150.0,False,048_hammer/google_16k/textured.obj,,38,[ 34.  32. 135.],048_hammer/google_16k/textured.obj,small,elongated,wood
+Hammer,"is part wood,is metal,is elongated",150.0,False,048_hammer/google_16k/textured.obj,,38,[ 34.  32. 135.],048_hammer/google_16k/textured.obj,small,elongated,brown
 Nails,"is metal,is elongated",3.0,True,062_dice/google_16k/textured.obj,,39,[ 4. 25.  3. 53.  4. 63.],062_dice/google_16k/textured.obj,large,elongated,metal
 Bolt & nut,is metal,140.0,True,026_sponge/google_16k/textured.obj,,40,[43. 16.  8. 16.],026_sponge/google_16k/textured.obj,small,elongated,metal
-Phillips Screwdriver,"grey,is blue,is black,is metal,is elongated",50.0,False,043_phillips_screwdriver/google_16k/textured.obj,philips-head screwdriver,41,[ 31. 215.],043_phillips_screwdriver/google_16k/textured.obj,small,elongated,grey
+Phillips Screwdriver,"grey,is blue,is black,is metal,is elongated",50.0,False,043_phillips_screwdriver/google_16k/textured.obj,philips-head screwdriver,41,[ 31. 215.],043_phillips_screwdriver/google_16k/textured.obj,small,elongated,metal
 Flat Screwdriver,"is red,grey,is black,is metal,is elongated",50.0,False,044_flat_screwdriver/google_16k/textured.obj,flathead screwdriver,42,[ 31. 215.],044_flat_screwdriver/google_16k/textured.obj,small,elongated,black
 Adjustable Wrench,"is metal,is elongated",205.0,False,042_adjustable_wrench/google_16k/textured.obj,,43,[  5.  55. 205.],042_adjustable_wrench/google_16k/textured.obj,small,elongated,metal
-Wood block,"is wood,is rectangular,is box-shaped",85.0,False,036_wood_block/google_16k/textured.obj,,44,[ 85.  85. 200.],036_wood_block/google_16k/textured.obj,large,rectangular,wood
+Wood block,"is wood,is rectangular,is box-shaped",85.0,False,036_wood_block/google_16k/textured.obj,,44,[ 85.  85. 200.],036_wood_block/google_16k/textured.obj,large,rectangular,brown
 Clamps,is black,42.7,True,025_mug/google_16k/textured.obj,,45,[],025_mug/google_16k/textured.obj,small,elongated,black
 Power Drill,"is part black,is part orange",150.0,False,035_power_drill/google_16k/textured.obj,,46,[ 35.  46. 184.],035_power_drill/google_16k/textured.obj,small,elongated,orange
 Credit Card blank,"is white,flat,rectangle",1.0,True,063-b_marbles/google_16k/textured.obj,credit card,47,[54. 85.  1.],063-b_marbles/google_16k/textured.obj,small,flat,white
