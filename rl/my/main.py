@@ -46,7 +46,7 @@ class Args(base_main.Args, env.Args):
     attributes: str = "name"
     clip: bool = False
     freeze_keys: bool = False
-    gpt3: bool = False
+    gpt_completions: bool = False
     num_test_envs: int = 8
     num_test_names: int = 2
     pair_log_interval_coef: float = 0.01
@@ -304,7 +304,7 @@ class Trainer(base_main.Trainer):
         cls,
         attributes: str,
         data_path: str,
-        gpt3: bool,
+        gpt_completions: bool,
         pretrained_model: str,
         names: Optional[str],
         num_processes: int,
@@ -340,7 +340,7 @@ class Trainer(base_main.Trainer):
         features = df.apply(process_row, axis=1)
         train_features = features[features.apply(lambda x: bool(x))]
 
-        if gpt3:
+        if gpt_completions:
             df = pd.read_csv("ycb-gpt.csv")
             df = df.set_index("name", drop=False)
 

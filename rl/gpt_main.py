@@ -8,7 +8,7 @@ from my import main
 
 class Args(main.Args):
     randomize_parameters: bool = False
-    gpt: bool = False
+    gpt_embeddings: bool = False
 
 
 class ArgsType(Args, main.ArgsType):
@@ -61,7 +61,7 @@ class Trainer(main.Trainer):
     def train(cls, args: Args, **kwargs):
         return (
             super().train(args, **kwargs)
-            if args.gpt
+            if args.gpt_embeddings
             else main.Trainer().train(args, **kwargs)
         )
 
