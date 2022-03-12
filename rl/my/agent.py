@@ -80,7 +80,12 @@ class Base(NNBase):
         self.train_ln = train_ln
         self.observation_spaces = Obs(**observation_space.spaces)
 
-        self.pad_token_id = GPT2Tokenizer.from_pretrained(pretrained_model).eos_token_id
+        if pretrained_model == "text-similarity-babbage-001":
+            self.pad_token_id = None
+        else:
+            self.pad_token_id = GPT2Tokenizer.from_pretrained(
+                pretrained_model
+            ).eos_token_id
 
         self.embeddings = self.build_embeddings()
 
@@ -148,7 +153,8 @@ class Base(NNBase):
         self.critic_linear = init_(nn.Linear(hidden_size, 1))
 
         if qkv:
-            self.embeddings.to(device)
+            if self.embeddings is not None:
+                self.embeddings.to(device)
             features = features.to(device)
             outputs = self.embed(features)
             outputs = outputs.reshape(-1, outputs.size(-1))
@@ -167,7 +173,7 @@ class Base(NNBase):
         return nn.EmbeddingBag(num_embeddings, self.mission_size)
 
     def embed(self, inputs):
-        return self.embeddings.forward(inputs)
+        return self.embeddings.forward(inputs.long())
 
     def forward(self, inputs, rnn_hxs, masks):
         inputs = Obs(
@@ -186,7 +192,7 @@ class Base(NNBase):
 
         n, l, e = mission.shape
         flattened = mission.reshape(n * l, e)
-        states = self.embed(flattened.long())
+        states = self.embed(flattened)
         states = states.reshape(n, l, -1)
         if self.qkv:
             query = states.transpose(0, 1)

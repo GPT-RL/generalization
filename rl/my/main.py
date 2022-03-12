@@ -26,6 +26,7 @@ from wrappers import (
     EPISODE_SUCCESS,
     CLIPProcessorWrapper,
     FailureReplayWrapper,
+    GPT3Tokenizer,
     PairsSelectorWrapper,
     RenderWrapper,
     RolloutsWrapper,
@@ -59,6 +60,7 @@ class Args(base_main.Args, env.Args):
         "bert-large-uncased",
         "EleutherAI/gpt-neo-1.3B",
         "EleutherAI/gpt-neo-2.7B",
+        "text-similarity-babbage-001",
     ] = "gpt2-large"  # what size of pretrained GPT to use
     prefix_length: int = 0
     qkv: bool = False
@@ -210,7 +212,7 @@ class Trainer(base_main.Trainer):
                 )
                 for features in features
             ]
-            features = torch.tensor(np.concatenate(tokens, axis=0)).long()
+            features = torch.tensor(np.concatenate(tokens, axis=0))
         return cls._make_agent(
             action_space=action_space,
             args=args,
@@ -411,6 +413,8 @@ class Trainer(base_main.Trainer):
     @staticmethod
     @functools.lru_cache(maxsize=1)
     def tokenizer(pretrained_model):
+        if pretrained_model == "text-similarity-babbage-001":
+            return GPT3Tokenizer()
         return GPT2Tokenizer.from_pretrained(pretrained_model)
 
     @staticmethod

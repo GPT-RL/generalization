@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import abc
 import sys
 import typing
@@ -8,6 +10,7 @@ from typing import Dict, Generic, List, TypeVar
 
 import gym
 import numpy as np
+import torch
 from gym.spaces import Box, Discrete, MultiDiscrete
 from my.env import PAIR, Obs, StringTuple
 from torch import Tensor
@@ -217,12 +220,57 @@ class FailureReplayWrapper(SuccessWrapper):
         return s, r, t, i
 
 
+# class GPT3Tokenizer(nn.Module):
+#     def __init__(self):
+#         super().__init__()
+#         self._embeddings = embeddings = torch.load("embeddings.pt")
+#         self.embeddings = nn.ParameterList(
+#             [nn.Parameter(v) for v in embeddings.values()]
+#         )
+#         self.idxs = {k: i for i, k in enumerate(embeddings.keys())}
+#         tensor = torch.stack(list(embeddings.values()), dim=0)
+#         _, self.n_embed = tensor.shape
+#         self.eos_token_id = tensor.max().item()
+#
+#     def encode(self, text: str, return_tensors: typing.Literal["pt", "np"] = "pt"):
+#         idx = self.idxs[text]
+#         embedding = self.embeddings[idx].unsqueeze(0)
+#         assert torch.allclose(embedding, self._embeddings[text])
+#         if return_tensors == "np":
+#             return embedding.numpy()
+#         elif return_tensors == "pt":
+#             return embedding
+#         raise ValueError(f"return_tensors must be 'pt' or 'np'")
+#
+#     def __hash__(self):
+#         return 0
+
+
+class GPT3Tokenizer:
+    def __init__(self):
+        self.embeddings = torch.load("embeddings.pt")
+        self._hash = hash(
+            tuple([(k, tuple(v.tolist())) for k, v in self.embeddings.items()])
+        )
+        tensor = torch.stack(list(self.embeddings.values()), dim=0)
+        _, self.n_embed = tensor.shape
+        self.eos_token_id = tensor.max().item()
+
+    def encode(self, text: str, return_tensors: typing.Literal["pt", "np"] = "pt"):
+        embedding = self.embeddings[text].unsqueeze(0)
+        if return_tensors == "np":
+            return embedding.numpy()
+        elif return_tensors == "pt":
+            return embedding
+        raise ValueError("return_tensors must be 'pt' or 'np'")
+
+    def __hash__(self):
+        return self._hash
+
+
 class TokenizerWrapper(gym.ObservationWrapper):
     def __init__(
-        self,
-        env: gym.Env,
-        all_missions: list,
-        tokenizer: GPT2Tokenizer,
+        self, env: gym.Env, all_missions: list, tokenizer: GPT2Tokenizer | GPT3Tokenizer
     ):
         self.tokenizer: GPT2Tokenizer = tokenizer
         ns, ds = zip(*[self.encode(m, tokenizer).shape for m in all_missions])
@@ -242,7 +290,7 @@ class TokenizerWrapper(gym.ObservationWrapper):
     def encode(
         cls,
         mission: typing.Union[typing.Tuple[str], str],
-        tokenizer: GPT2Tokenizer,
+        tokenizer: GPT2Tokenizer | GPT3Tokenizer,
     ):
         def get_tokens():
             for w in mission:

@@ -8,6 +8,7 @@ from my import agent
 from torch import Tensor
 from transformers import BertConfig, GPT2Config, GPTNeoConfig
 from utils import build_gpt
+from wrappers import GPT3Tokenizer
 
 
 class Agent(agent.Agent):
@@ -37,7 +38,7 @@ class Base(agent.Base):
         randomize_parameters: bool,
         **kwargs,
     ):
-        self._embedding_size = pretrained_model
+        self.pretrained_model = pretrained_model
         self.randomize_parameters = randomize_parameters
         self.train_wpe = False  # todo
         self.train_ln = False  # todo
@@ -49,7 +50,7 @@ class Base(agent.Base):
                 output_attentions=False,
                 output_hidden_states=False,
             )
-            self.embedding_size = config.hidden_size
+            n_embed = config.n_embd
         elif "gpt2" in pretrained_model:
             config = GPT2Config.from_pretrained(
                 pretrained_model,
@@ -57,7 +58,7 @@ class Base(agent.Base):
                 output_attentions=False,
                 output_hidden_states=False,
             )
-            self.embedding_size = config.n_embd
+            n_embed = config.n_embd
         elif "bert" in pretrained_model:
             config = BertConfig.from_pretrained(
                 pretrained_model,
@@ -65,26 +66,30 @@ class Base(agent.Base):
                 output_attentions=False,
                 output_hidden_states=False,
             )
-            self.embedding_size = config.hidden_size
+            n_embed = config.n_embd
+
+        elif pretrained_model == "text-similarity-babbage-001":
+            n_embed = GPT3Tokenizer().n_embed
 
         else:
             raise RuntimeError(f"Invalid model name: {pretrained_model}")
 
         super().__init__(
             *args,
-            mission_size=config.n_embd,
+            mission_size=n_embed,
             pretrained_model=pretrained_model,
             **kwargs,
         )
 
     def build_embeddings(self):
-        gpt = build_gpt(self._embedding_size, self.randomize_parameters)
-        for name, p in gpt.named_parameters():
-            requires_grad = (self.train_wpe and "wpe" in name) or (
-                self.train_ln and "ln" in name
-            )
-            p.requires_grad_(requires_grad)
-        return gpt
+        if self.pretrained_model != "text-similarity-babbage-001":
+            gpt = build_gpt(self.pretrained_model, self.randomize_parameters)
+            for name, p in gpt.named_parameters():
+                requires_grad = (self.train_wpe and "wpe" in name) or (
+                    self.train_ln and "ln" in name
+                )
+                p.requires_grad_(requires_grad)
+            return gpt
 
     @lru_cache()
     def cached_gpt_forward_pass(self, inputs: "HashTensorWrapper"):
@@ -92,7 +97,9 @@ class Base(agent.Base):
             return self.uncached_gpt_forward_pass(inputs.tensor)
 
     def embed(self, inputs):
-        states = self.gpt_forward_pass(inputs)
+        if self.embeddings is None:
+            return inputs
+        states = self.gpt_forward_pass(inputs.long())
         return states.mean(
             1
         )  # mean across input length  (if there are 3 tokens, gpt will output an (n, 3, d) size embedding).
