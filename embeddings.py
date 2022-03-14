@@ -11,7 +11,9 @@ def main():
     generated["color"] = new[0]
     generated["shape"] = new[1]
     df = pd.concat([ground_truth, generated], axis=0)
-    words = pd.concat([df["color"], df["shape"]], axis=0).dropna()
+    words = pd.concat(
+        [df["name"], df["gpt name"], df["color"], df["shape"]], axis=0
+    ).dropna()
     words = words.str.strip().unique()
 
     def get_embedding(text, engine="text-similarity-babbage-001"):
