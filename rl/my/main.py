@@ -170,7 +170,6 @@ class Trainer(base_main.Trainer):
         ]:
             success_per_pair = deepcopy(success_per_pair)
             for (mission, distractor), v in success_per_pair.items():
-                print(len(v), threshold)
                 if len(v) >= threshold:
                     super().log(
                         args=args,
