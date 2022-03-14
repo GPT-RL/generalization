@@ -64,7 +64,7 @@ class Args(base_main.Args, env.Args):
     ] = "gpt2-large"  # what size of pretrained GPT to use
     prefix_length: int = 0
     qkv: bool = False
-    small_architecture: bool = False
+    large_architecture: bool = False
     temp: float = None
     tgt_success_prob: float = None
     train_ln: bool = False
@@ -241,7 +241,7 @@ class Trainer(base_main.Trainer):
             observation_space=observation_space,
             qkv=args.qkv,
             recurrent=cls.recurrent(args),
-            small_architecture=args.small_architecture,
+            large_architecture=args.large_architecture,
             train_ln=args.train_ln,
             train_wpe=args.train_wpe,
             **kwargs,

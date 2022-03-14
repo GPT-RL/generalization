@@ -63,7 +63,7 @@ class Base(NNBase):
         observation_space: Dict,
         qkv: bool,
         recurrent: bool,
-        small_architecture: bool,
+        large_architecture: bool,
         train_ln: bool,
         train_wpe: bool,
         mission_size: int = 64,
@@ -106,7 +106,7 @@ class Base(NNBase):
 
             def get_image_net():
                 prev = d
-                if small_architecture:
+                if not large_architecture:
                     for (num_ch, kernel_size, stride) in [
                         (16, 8, 4),
                         (32, 4, 2),
