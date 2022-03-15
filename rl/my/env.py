@@ -97,6 +97,7 @@ class Env(MiniWorldEnv):
         image_size: int,
         meshes: List[Mesh],
         radius: float,
+        random_agent: bool,
         room_size: float,
         test: bool,
         max_episode_steps: int = 180,
@@ -104,6 +105,7 @@ class Env(MiniWorldEnv):
         rank: int = 0,
         **kwargs,
     ):
+        self.random_agent = random_agent
         self.test = test
         self.floor_tex = floor_tex
         self.radius = radius
@@ -180,7 +182,10 @@ class Env(MiniWorldEnv):
                 self._mesh_names = None
                 continue
 
-        self.place_entity(self.agent, pos=np.array([1, 0, 1]), dir=-np.pi / 4)
+        if self.random_agent:
+            self.place_agent()
+        else:
+            self.place_entity(self.agent, pos=np.array([1, 0, 1]), dir=-np.pi / 4)
 
     @staticmethod
     def ascii_of_image(image: np.ndarray):

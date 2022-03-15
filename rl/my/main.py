@@ -48,6 +48,7 @@ class Args(base_main.Args, env.Args):
     clip: bool = False
     freeze_keys: bool = False
     gpt_completions: bool = False
+    large_architecture: bool = False
     num_test_envs: int = 8
     num_test_names: int = 2
     pair_log_interval_coef: float = 0.01
@@ -64,7 +65,7 @@ class Args(base_main.Args, env.Args):
     ] = "gpt2-large"  # what size of pretrained GPT to use
     prefix_length: int = 0
     qkv: bool = False
-    large_architecture: bool = False
+    random_agent: bool = False
     temp: float = None
     tgt_success_prob: float = None
     train_ln: bool = False
