@@ -5,7 +5,7 @@ from copy import deepcopy
 from dataclasses import dataclass, field, replace
 from inspect import signature
 from pathlib import Path
-from typing import DefaultDict, List, Literal, Optional, Set, Tuple, cast
+from typing import DefaultDict, List, Optional, Set, Tuple, cast
 
 import base_main
 import gym
@@ -48,21 +48,11 @@ class Args(base_main.Args, env.Args):
     clip: bool = False
     freeze_keys: bool = False
     gpt_completions: bool = False
+    gpt_embeddings: bool = False
     large_architecture: bool = False
     num_test_envs: int = 8
     num_test_names: int = 2
     pair_log_interval_coef: float = 0.01
-    pretrained_model: Literal[
-        "gpt2",
-        "gpt2-medium",
-        "gpt2-large",
-        "gpt2-xl",
-        "bert-base-uncased",
-        "bert-large-uncased",
-        "EleutherAI/gpt-neo-1.3B",
-        "EleutherAI/gpt-neo-2.7B",
-        "text-similarity-babbage-001",
-    ] = "gpt2-large"  # what size of pretrained GPT to use
     prefix_length: int = 0
     qkv: bool = False
     temp: float = None
@@ -200,7 +190,7 @@ class Trainer(base_main.Trainer):
         observation_space, *_ = envs.get_attr("original_observation_space")
         features = None
         if args.qkv:
-            tokenizer = cls.tokenizer(args.pretrained_model)
+            tokenizer = cls.tokenizer(args.gpt_embeddings)
             features, *_ = envs.get_attr("features")
             features = {(word,) for words in features for word in words}
             features = list(features)
@@ -235,9 +225,11 @@ class Trainer(base_main.Trainer):
             device=cls.device(cls.cuda(args)),
             freeze_keys=args.freeze_keys,
             features=features,
-            pretrained_model=args.pretrained_model,
+            gpt_embeddings=args.gpt_embeddings,
             hidden_size=args.hidden_size,
+            mission_size=GPT3Tokenizer().n_embed,
             observation_space=observation_space,
+            pad_token_id=cls.tokenizer(args.gpt_embeddings).eos_token_id,
             qkv=args.qkv,
             recurrent=cls.recurrent(args),
             large_architecture=args.large_architecture,
@@ -306,7 +298,7 @@ class Trainer(base_main.Trainer):
         attributes: str,
         data_path: str,
         gpt_completions: bool,
-        pretrained_model: str,
+        gpt_embeddings: bool,
         names: Optional[str],
         num_processes: int,
         num_test_envs: int,
@@ -379,7 +371,7 @@ class Trainer(base_main.Trainer):
             render=render,
             seed=seed,
             sync_envs=sync_envs,
-            tokenizer=cls.tokenizer(pretrained_model),
+            tokenizer=cls.tokenizer(gpt_embeddings),
             test=test,
             **kwargs,
         )
@@ -411,10 +403,10 @@ class Trainer(base_main.Trainer):
 
     @staticmethod
     @functools.lru_cache(maxsize=1)
-    def tokenizer(pretrained_model):
-        if pretrained_model == "text-similarity-babbage-001":
+    def tokenizer(gpt_embeddings: bool):
+        if gpt_embeddings:
             return GPT3Tokenizer()
-        return GPT2Tokenizer.from_pretrained(pretrained_model)
+        return GPT2Tokenizer.from_pretrained("gpt2")
 
     @staticmethod
     @functools.lru_cache(maxsize=1)

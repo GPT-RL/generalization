@@ -10,7 +10,7 @@ from gym.spaces import Box, Dict, Discrete, MultiDiscrete
 from multihead_attention import MultiheadAttention
 from my.env import Obs
 from torch.nn import Parameter
-from transformers import CLIPModel, GPT2Tokenizer
+from transformers import CLIPModel
 from utils import init
 
 
@@ -57,17 +57,19 @@ class Base(NNBase):
         clip: bool,
         device: torch.device,
         freeze_keys: bool,
-        pretrained_model: str,
         hidden_size: int,
         features: torch.Tensor,
+        gpt_embeddings: bool,
         observation_space: Dict,
         qkv: bool,
         recurrent: bool,
         large_architecture: bool,
         train_ln: bool,
         train_wpe: bool,
+        pad_token_id: int,
         mission_size: int = 64,
     ):
+        self.pad_token_id = pad_token_id
         self.qkv = qkv
         self.mission_size = mission_size
         super().__init__(
@@ -79,15 +81,7 @@ class Base(NNBase):
         self.train_wpe = train_wpe
         self.train_ln = train_ln
         self.observation_spaces = Obs(**observation_space.spaces)
-
-        if pretrained_model == "text-similarity-babbage-001":
-            self.pad_token_id = None
-        else:
-            self.pad_token_id = GPT2Tokenizer.from_pretrained(
-                pretrained_model
-            ).eos_token_id
-
-        self.embeddings = self.build_embeddings()
+        self.embeddings = None if gpt_embeddings else self.build_embeddings()
 
         image_shape = self.observation_spaces.image.shape
         d, h, w = image_shape
@@ -173,7 +167,9 @@ class Base(NNBase):
         return nn.EmbeddingBag(num_embeddings, self.mission_size)
 
     def embed(self, inputs):
-        return self.embeddings.forward(inputs.long())
+        if self.embeddings is not None:
+            return self.embeddings.forward(inputs.long())
+        return inputs
 
     def forward(self, inputs, rnn_hxs, masks):
         inputs = Obs(
@@ -210,17 +206,3 @@ class Base(NNBase):
         assert self.is_recurrent
         x, rnn_hxs = self._forward_gru(x, rnn_hxs, masks)
         return self.critic_linear(x), x, rnn_hxs
-
-
-class GRUEmbed(nn.Module):
-    def __init__(self, num_embeddings: int):
-        super().__init__()
-        gru = nn.GRU(20, 64, batch_first=True)
-        self.embed = nn.Sequential(
-            nn.Embedding(num_embeddings, 20),
-            gru,
-        )
-
-    def forward(self, x, **_):
-        output, _ = self.embed.forward(x)
-        return output[:, -1]
