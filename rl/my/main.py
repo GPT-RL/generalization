@@ -65,7 +65,6 @@ class Args(base_main.Args, env.Args):
     ] = "gpt2-large"  # what size of pretrained GPT to use
     prefix_length: int = 0
     qkv: bool = False
-    random_agent: bool = False
     temp: float = None
     tgt_success_prob: float = None
     train_ln: bool = False

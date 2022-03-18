@@ -26,6 +26,7 @@ if __name__ == "__main__":
     model: CLIPModel = CLIPModel.from_pretrained("openai/clip-vit-base-patch32")
 
     meshes = get_meshes(data_path=Path(args.data_path), names=args.names)
+
     kwargs = {
         k: v
         for k, v in args.as_dict().items()

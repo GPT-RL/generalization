@@ -31,6 +31,7 @@ class Args(Tap):
     floor_tex: str = "floor_tiles_white"
     image_size: int = 128
     names: Optional[str] = None
+    random_agent: bool = False
     room_size: float = 8
     obj_pattern: str = "*/*/*.obj"
     png_pattern: str = "*/*/*.png"
@@ -152,6 +153,7 @@ class Env(MiniWorldEnv):
                 mesh_names = self._mesh_names
             meshes = [self.rand.choice(self.meshes[n]) for n in mesh_names]
             self._mission, self._dist_name = [m.features for m in meshes]
+            self.mission, *_ = [m.name for m in meshes]
             positions = np.array(
                 [
                     [0.7 * self.size, 0, 0.25 * self.size],
@@ -212,7 +214,7 @@ class Env(MiniWorldEnv):
         def render(pause=True):
             print(self.ascii_of_image(self.render_obs()))
             print()
-            subtitle = self._mission
+            subtitle = str(self._mission)
             if action is not None:
                 subtitle += f", {action.name.replace('_', ' ')}"
             if reward is not None:
