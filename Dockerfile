@@ -1,5 +1,5 @@
 # inspired by https://sourcery.ai/blog/python-docker/
-FROM nvidia/cudagl:11.4.0-runtime-ubuntu20.04 as base
+FROM nvidia/cudagl:11.4.0-devel-ubuntu20.04 as base
 ENV LC_ALL C.UTF-8
 
 # no .pyc files
@@ -49,6 +49,15 @@ RUN apt-get update -q \
       # required for redis
       gcc \
 
+      # required for habitat-sim
+      cmake \
+      libjpeg-dev \
+      libglm-dev \
+      libgl1-mesa-glx \
+      libegl1-mesa-dev \
+      mesa-utils \
+      xorg-dev freeglut3-dev \
+
  && apt-get clean
 
 WORKDIR "/deps"
@@ -56,20 +65,29 @@ WORKDIR "/deps"
 COPY pyproject.toml poetry.lock /deps/
 RUN pip3 install poetry && poetry install
 
-#RUN pip3 install poetry \
- #&& poetry install
- ##&& wget "http://www.atarimania.com/roms/Roms.rar" \
- ##&& unrar e Roms.rar \
- ##&& unzip ROMS.zip \
- ##&& /root/.cache/pypoetry/virtualenvs/ppo-K3BlsyQa-py3.8/bin/python -m atari_py.import_roms ROMS/
+ENV VIRTUAL_ENV=/root/.cache/pypoetry/virtualenvs/generalization-K3BlsyQa-py3.8/
+
+RUN git clone --branch stable https://github.com/facebookresearch/habitat-sim.git \
+ && cd habitat-sim \
+ && $VIRTUAL_ENV/bin/python setup.py install --headless --with-cuda
 
 FROM base AS runtime
+
+
+RUN apt-get update -q \
+ && DEBIAN_FRONTEND="noninteractive" \
+    apt-get install -yq \
+
+      # for habitat-sim examples.py
+      wget \
+
+ && apt-get clean
 
 WORKDIR "/project"
 ENV VIRTUAL_ENV=/root/.cache/pypoetry/virtualenvs/generalization-K3BlsyQa-py3.8/
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 COPY --from=python-deps $VIRTUAL_ENV $VIRTUAL_ENV
+COPY --from=python-deps /deps/habitat-sim /deps/habitat-sim
 COPY . .
-
 
 ENTRYPOINT ["python"]
