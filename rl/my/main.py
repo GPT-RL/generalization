@@ -2,35 +2,31 @@ import functools
 import re
 from collections import defaultdict
 from copy import deepcopy
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field
 from inspect import signature
 from pathlib import Path
 from typing import DefaultDict, List, Optional, Set, Tuple, cast
 
 import base_main
 import gym
+import habitat
 import heatmap
 import line_chart
 import numpy as np
-import pandas as pd
 import torch
 from envs import VecPyTorch
 from my import env
 from my.agent import Agent
-from my.env import EXCLUDED, PAIR, Env, Mesh, Obs
-from my.mesh_paths import get_meshes
+from my.env import PAIR, Env, Mesh, Obs
 from run_logger import HasuraLogger
 from stable_baselines3.common.monitor import Monitor
 from transformers import CLIPProcessor, GPT2Tokenizer
 from wrappers import (
     EPISODE_SUCCESS,
     CLIPProcessorWrapper,
-    FailureReplayWrapper,
     GPT3Tokenizer,
-    PairsSelectorWrapper,
     RenderWrapper,
     RolloutsWrapper,
-    SuccessWrapper,
     TokenizerWrapper,
     TrainTest,
 )
@@ -55,8 +51,6 @@ class Args(base_main.Args, env.Args):
     pair_log_interval_coef: float = 0.01
     prefix_length: int = 0
     qkv: bool = False
-    temp: float = None
-    tgt_success_prob: float = None
     train_ln: bool = False
     train_wpe: bool = False
 
@@ -243,39 +237,19 @@ class Trainer(base_main.Trainer):
         def _thunk(
             all_missions: list,
             clip_processor: CLIPProcessor,
-            meshes: List[Mesh],
             seed: int,
             test: bool,
-            temp: float,
-            tgt_success_prob: float,
             tokenizer: GPT2Tokenizer,
             **_kwargs,
         ):
             _env = Env(
-                meshes=meshes,
-                seed=seed,
-                test=test,
                 **{
                     k: v
                     for k, v in _kwargs.items()
                     if k in signature(Env.__init__).parameters
                 },
             )
-            if test or tgt_success_prob is None and temp is None:
-                _env = SuccessWrapper(_env)
-            elif tgt_success_prob is not None and temp is None:
-                _env = FailureReplayWrapper(
-                    _env, seed=seed, tgt_success_prob=tgt_success_prob
-                )
-            elif tgt_success_prob is None and temp is not None:
-                _env = PairsSelectorWrapper(
-                    _env,
-                    objects=[m.name for m in meshes],
-                    seed=seed,
-                    temp=temp,
-                )
-            else:
-                raise RuntimeError("Either temp or tgt_success_prob must be None.")
+            _env.seed(seed)
             if render:
                 _env = RenderWrapper(_env, mode="ascii")
 
@@ -314,59 +288,13 @@ class Trainer(base_main.Trainer):
         if test:
             num_processes = cls._num_eval_processes(num_processes, num_test_envs)
 
-        meshes = get_meshes(data_path=Path(data_path).expanduser(), names=names)
-
-        df = pd.read_csv("ycb.csv")
-        df = df.set_index("name", drop=False)
-        columns = attributes.split(",")
-        df = df[[*columns, EXCLUDED]]
-        df = df[~df[EXCLUDED]].drop(EXCLUDED, axis=1)
-
-        def process_row(r: pd.Series):
-            def gen():
-                for column in r:
-                    if not pd.isna(column):
-                        yield from column.split(",")
-
-            return list(gen())
-
-        features = df.apply(process_row, axis=1)
-        train_features = features[features.apply(lambda x: bool(x))]
-
-        if gpt_completions:
-            df = pd.read_csv("ycb-gpt.csv")
-            df = df.set_index("name", drop=False)
-
-            def process_row(r: pd.Series):
-                def gen():
-                    yield from r["completion"].lstrip().split(" and ")
-
-                return list(gen())
-
-            test_features = df.apply(process_row, axis=1)
-        else:
-            test_features = train_features
-
-        features = test_features if test else train_features
-        features = features.to_dict()
-        features = {k.lower(): tuple(v) for k, v in features.items() if v}
-        meshes: List[Mesh] = [m for m in meshes if m.name in features]
-        all_missions = list(map(tuple, [*train_features, *test_features]))
-
-        rng = np.random.default_rng(seed=seed)
-        names: TrainTest[Set[str]] = cls.train_test_split(
-            tuple([m.name for m in meshes]), num_test_names, rng
-        )
-        names: Set[str] = names.test if test else names.train
-        assert len(names) > 1
-        meshes = [m for m in meshes if m.name in names]
-        meshes = [replace(m, features=features[m.name]) for m in meshes]
+        # df = pd.read_csv("habitat.csv")
+        kwargs.update(config=habitat.get_config("objectnav_mp3d.yaml"))
 
         return super().make_vec_envs(
-            all_missions=all_missions,
+            all_missions=[],  # all_missions,
             clip_processor=cls.clip_processor(),
-            features=features,
-            meshes=meshes,
+            features={},  # features,
             num_processes=num_processes,
             render=render,
             seed=seed,
