@@ -319,6 +319,8 @@ class Trainer(base_main.Trainer):
         df = pd.read_csv("ycb.csv")
         df = df.set_index("name", drop=False)
         columns = attributes.split(",")
+        df["gpt name"].fillna(df["name"], inplace=True)
+
         df = df[[*columns, EXCLUDED]]
         df = df[~df[EXCLUDED]].drop(EXCLUDED, axis=1)
 
@@ -350,6 +352,7 @@ class Trainer(base_main.Trainer):
         features = test_features if test else train_features
         features = features.to_dict()
         features = {k.lower(): tuple(v) for k, v in features.items() if v}
+
         meshes: List[Mesh] = [m for m in meshes if m.name in features]
         all_missions = list(map(tuple, [*train_features, *test_features]))
 
