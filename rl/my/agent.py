@@ -53,27 +53,29 @@ class Base(NNBase):
     def __init__(
         self,
         clip: bool,
-        hidden_size: int,
         gpt_embeddings: bool,
+        hidden_size: int,
+        image_size: int,
         observation_space: Dict,
         recurrent: bool,
         large_architecture: bool,
         train_ln: bool,
         train_wpe: bool,
-        pad_token_id: int,
-        mission_size: int = 64,
     ):
-        self.pad_token_id = pad_token_id
-        self.mission_size = mission_size
+        self.observation_spaces = Obs(**observation_space.spaces)
+
+        if gpt_embeddings:
+            *_, self.mission_size = self.observation_spaces.mission.shape
+        else:
+            self.mission_size = 2048
         super().__init__(
             recurrent=recurrent,
-            recurrent_input_size=256 + mission_size,
+            recurrent_input_size=image_size + self.mission_size,
             hidden_size=hidden_size,
         )
         self.clip = clip
         self.train_wpe = train_wpe
         self.train_ln = train_ln
-        self.observation_spaces = Obs(**observation_space.spaces)
         self.embeddings = None if gpt_embeddings else self.build_embeddings()
 
         image_shape = self.observation_spaces.image.shape
@@ -127,7 +129,9 @@ class Base(NNBase):
 
         dummy_input = torch.zeros(1, d, h, w)
         output = self.image_net(dummy_input)
-        self.image_linear = nn.Sequential(nn.Linear(output.size(-1), 256), nn.ReLU())
+        self.image_linear = nn.Sequential(
+            nn.Linear(output.size(-1), image_size), nn.ReLU()
+        )
 
         self._hidden_size = hidden_size
         self._recurrent = recurrent
@@ -146,8 +150,8 @@ class Base(NNBase):
         return self._image_net(image)
 
     def build_embeddings(self):
-        num_embeddings = 1 + self.pad_token_id
-        return nn.EmbeddingBag(num_embeddings, self.mission_size)
+        num_embeddings = self.observation_spaces.mission.nvec.max()
+        return nn.EmbeddingBag(int(num_embeddings) + 1, self.mission_size)
 
     def embed(self, inputs):
         if self.embeddings is not None:

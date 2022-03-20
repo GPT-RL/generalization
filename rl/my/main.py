@@ -8,7 +8,6 @@ from pathlib import Path
 from typing import DefaultDict, List, Optional, Set, Tuple, cast
 
 import base_main
-import gym
 import heatmap
 import line_chart
 import numpy as np
@@ -48,6 +47,7 @@ class Args(base_main.Args, env.Args):
     freeze_keys: bool = False
     gpt_completions: bool = False
     gpt_embeddings: bool = False
+    image_size: int = 256
     large_architecture: bool = False
     num_test_envs: int = 8
     num_test_names: int = 2
@@ -186,34 +186,17 @@ class Trainer(base_main.Trainer):
     def make_agent(cls, envs: VecPyTorch, args: ArgsType) -> Agent:
         action_space = envs.action_space
         observation_space, *_ = envs.get_attr("original_observation_space")
-        return cls._make_agent(
-            action_space=action_space,
-            args=args,
-            observation_space=observation_space,
-        )
-
-    @classmethod
-    def _make_agent(
-        cls,
-        action_space: gym.Space,
-        args: Args,
-        observation_space: gym.Space,
-        agent_class: type = Agent,
-        **kwargs,
-    ):
-        return agent_class(
+        return Agent(
             action_space=action_space,
             clip=args.clip,
             gpt_embeddings=args.gpt_embeddings,
             hidden_size=args.hidden_size,
-            mission_size=GPT3Tokenizer().n_embed,
+            image_size=args.image_size,
             observation_space=observation_space,
-            pad_token_id=cls.tokenizer(args.gpt_embeddings).eos_token_id,
             recurrent=cls.recurrent(args),
             large_architecture=args.large_architecture,
             train_ln=args.train_ln,
             train_wpe=args.train_wpe,
-            **kwargs,
         )
 
     @classmethod
