@@ -282,4 +282,7 @@ class TokenizerWrapper(MissionPreprocessor):
         encodings = [encode(m) for m in all_missions]
         padded = pad_sequence(encodings, padding_value=tokenizer.eos_token_id)
         permuted = padded.permute(1, 2, 0)
-        super().__init__(env, all_missions, permuted.numpy())
+        array = permuted.numpy()
+        _, array_inverse = np.unique(array, return_inverse=True)
+        array = array_inverse.reshape(array.shape)
+        super().__init__(env, all_missions, array)
