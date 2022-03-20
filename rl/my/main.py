@@ -13,11 +13,10 @@ import heatmap
 import line_chart
 import numpy as np
 import pandas as pd
-import torch
 from envs import VecPyTorch
 from my import env
 from my.agent import Agent
-from my.env import EXCLUDED, PAIR, Env, Mesh, Obs
+from my.env import EXCLUDED, PAIR, Env, Mesh
 from my.mesh_paths import get_meshes
 from run_logger import HasuraLogger
 from stable_baselines3.common.monitor import Monitor
@@ -54,7 +53,6 @@ class Args(base_main.Args, env.Args):
     num_test_names: int = 2
     pair_log_interval_coef: float = 0.01
     prefix_length: int = 0
-    qkv: bool = False
     temp: float = None
     tgt_success_prob: float = None
     train_ln: bool = False
@@ -188,24 +186,9 @@ class Trainer(base_main.Trainer):
     def make_agent(cls, envs: VecPyTorch, args: ArgsType) -> Agent:
         action_space = envs.action_space
         observation_space, *_ = envs.get_attr("original_observation_space")
-        features = None
-        if args.qkv:
-            tokenizer = cls.tokenizer(args.gpt_embeddings)
-            features, *_ = envs.get_attr("features")
-            features = {(word,) for words in features for word in words}
-            features = list(features)
-            _, d = tuple(Obs(**observation_space.spaces).mission.nvec.shape)
-            tokens = [
-                TokenizerWrapper.new_mission(
-                    tokenizer=tokenizer, mission=features, mission_shape=(1, d)
-                )
-                for features in features
-            ]
-            features = torch.tensor(np.concatenate(tokens, axis=0))
         return cls._make_agent(
             action_space=action_space,
             args=args,
-            features=features,
             observation_space=observation_space,
         )
 
@@ -214,7 +197,6 @@ class Trainer(base_main.Trainer):
         cls,
         action_space: gym.Space,
         args: Args,
-        features: torch.Tensor,
         observation_space: gym.Space,
         agent_class: type = Agent,
         **kwargs,
@@ -222,15 +204,11 @@ class Trainer(base_main.Trainer):
         return agent_class(
             action_space=action_space,
             clip=args.clip,
-            device=cls.device(cls.cuda(args)),
-            freeze_keys=args.freeze_keys,
-            features=features,
             gpt_embeddings=args.gpt_embeddings,
             hidden_size=args.hidden_size,
             mission_size=GPT3Tokenizer().n_embed,
             observation_space=observation_space,
             pad_token_id=cls.tokenizer(args.gpt_embeddings).eos_token_id,
-            qkv=args.qkv,
             recurrent=cls.recurrent(args),
             large_architecture=args.large_architecture,
             train_ln=args.train_ln,

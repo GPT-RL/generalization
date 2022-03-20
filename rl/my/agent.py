@@ -7,9 +7,7 @@ import torch.nn as nn
 from agent import NNBase
 from gym import Space
 from gym.spaces import Box, Dict, Discrete, MultiDiscrete
-from multihead_attention import MultiheadAttention
 from my.env import Obs
-from torch.nn import Parameter
 from transformers import CLIPModel
 from utils import init
 
@@ -55,13 +53,9 @@ class Base(NNBase):
     def __init__(
         self,
         clip: bool,
-        device: torch.device,
-        freeze_keys: bool,
         hidden_size: int,
-        features: torch.Tensor,
         gpt_embeddings: bool,
         observation_space: Dict,
-        qkv: bool,
         recurrent: bool,
         large_architecture: bool,
         train_ln: bool,
@@ -70,7 +64,6 @@ class Base(NNBase):
         mission_size: int = 64,
     ):
         self.pad_token_id = pad_token_id
-        self.qkv = qkv
         self.mission_size = mission_size
         super().__init__(
             recurrent=recurrent,
@@ -146,16 +139,6 @@ class Base(NNBase):
 
         self.critic_linear = init_(nn.Linear(hidden_size, 1))
 
-        if qkv:
-            if self.embeddings is not None:
-                self.embeddings.to(device)
-            features = features.to(device)
-            outputs = self.embed(features)
-            outputs = outputs.reshape(-1, outputs.size(-1))
-            self.keys = Parameter(outputs, requires_grad=not freeze_keys)
-            self.values = nn.Embedding(*outputs.shape)
-            self.qkv_attn = MultiheadAttention(self.mission_size, num_heads=1)
-
     def image_net(self, image: torch.Tensor):
         if self.clip:
             state = self.clip.vision_model(pixel_values=image).last_hidden_state
@@ -190,16 +173,7 @@ class Base(NNBase):
         flattened = mission.reshape(n * l, e)
         states = self.embed(flattened)
         states = states.reshape(n, l, -1)
-        if self.qkv:
-            query = states.transpose(0, 1)
-            key = self.keys.unsqueeze(1).repeat(1, n, 1)
-            value = self.values.weight.unsqueeze(1).repeat(1, n, 1)
-            attn_output, _ = self.qkv_attn.forward(query=query, key=key, value=value)
-            # print((100 * _.max(dim=-1).values).round())
-            # breakpoint()
-            mission = attn_output.mean(0)
-        else:
-            mission = states.mean(1)
+        mission = states.mean(1)
 
         x = torch.cat([image, mission], dim=-1)
 
