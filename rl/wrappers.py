@@ -5,7 +5,6 @@ import sys
 import typing
 from collections import deque
 from dataclasses import astuple, dataclass, replace
-from functools import lru_cache
 from typing import Dict, Generic, List, TypeVar
 
 import gym
@@ -220,92 +219,67 @@ class FailureReplayWrapper(SuccessWrapper):
         return s, r, t, i
 
 
-class GPT3Tokenizer:
-    def __init__(self):
-        self.embeddings = torch.load("embeddings.pt")
-        self._hash = hash(
-            tuple([(k, tuple(v.tolist())) for k, v in self.embeddings.items()])
-        )
-        tensor = torch.stack(list(self.embeddings.values()), dim=0)
-        _, self.n_embed = tensor.shape
-        self.eos_token_id = 0
-
-    def encode(self, text: str, return_tensors: typing.Literal["pt", "np"] = "pt"):
-        embedding = self.embeddings[text].unsqueeze(0)
-        if return_tensors == "np":
-            return embedding.numpy()
-        elif return_tensors == "pt":
-            return embedding
-        raise ValueError("return_tensors must be 'pt' or 'np'")
-
-    def __hash__(self):
-        return self._hash
-
-
-class TokenizerWrapper(gym.ObservationWrapper):
-    def __init__(
-        self, env: gym.Env, all_missions: list, tokenizer: GPT2Tokenizer | GPT3Tokenizer
-    ):
-        self.tokenizer: GPT2Tokenizer = tokenizer
-        ns, ds = zip(*[self.encode(m, tokenizer).shape for m in all_missions])
-        n = max(ns)
-        d = max(ds)
-
+class MissionPreprocessor(gym.ObservationWrapper):
+    def __init__(self, env, all_missions: List[tuple], encodings: np.ndarray):
+        self.encodings = {m: e for m, e in zip(all_missions, encodings)}
         super().__init__(env)
         spaces = Obs(**self.observation_space.spaces)
 
+        _, n, d = encodings.shape
         self.obs_spaces = replace(
-            spaces,
-            mission=MultiDiscrete((1 + tokenizer.eos_token_id) * np.ones((n, d))),
+            spaces, mission=MultiDiscrete(encodings.max(initial=0) * np.ones((n, d)))
         )
         self.observation_space = self.obs_spaces.to_space()
-
-    @classmethod
-    def encode(
-        cls,
-        mission: typing.Union[typing.Tuple[str], str],
-        tokenizer: GPT2Tokenizer | GPT3Tokenizer,
-    ):
-        def get_tokens():
-            for w in mission:
-                encoded = tokenizer.encode(w, return_tensors="pt")
-                encoded = typing.cast(Tensor, encoded)
-                yield encoded.T
-
-        tokens = list(get_tokens())
-        padded = (
-            pad_sequence(tokens, padding_value=tokenizer.eos_token_id).squeeze(-1).T
-        )
-        return padded.numpy()
-
-    @classmethod
-    @lru_cache()
-    def new_mission(
-        cls,
-        mission: typing.Union[typing.Tuple[str], str],
-        mission_shape: typing.Tuple[int, int],
-        tokenizer: GPT2Tokenizer,
-    ):
-        encoded = cls.encode(mission, tokenizer)
-        n1, d1 = encoded.shape
-        n2, d2 = mission_shape
-
-        assert n2 >= n1 and d2 >= d1
-        padded = np.pad(
-            encoded,
-            [(0, n2 - n1), (0, d2 - d1)],
-            constant_values=tokenizer.eos_token_id,
-        )
-        return padded.reshape(mission_shape)
 
     def observation(self, observation):
         observation = Obs(**observation)
         mission = observation.mission
         if isinstance(mission, list):
             mission = tuple(mission)
-        mission = self.new_mission(
-            mission=mission,
-            mission_shape=tuple(self.obs_spaces.mission.nvec.shape),
-            tokenizer=self.tokenizer,
-        )
+        mission = self.encodings[mission]
         return replace(observation, mission=mission).to_obs(self.observation_space)
+
+
+class GPT3Wrapper(MissionPreprocessor):
+    def __init__(self, env: gym.Env, all_missions: list):
+        self.embeddings = torch.load("embeddings.pt")
+        all_missions = [m for m in all_missions]
+
+        def embeddings_for_mission(mission: tuple):
+            for w in mission:
+                yield self.embeddings[w]
+
+        def embedding_for_mission(mission: tuple):
+            return torch.stack(list(embeddings_for_mission(mission)))
+
+        encodings = [embedding_for_mission(m) for m in all_missions]
+        tensor = torch.stack(encodings)
+        array = tensor.numpy()
+        super().__init__(env, all_missions, array)
+
+
+class TokenizerWrapper(MissionPreprocessor):
+    def __init__(
+        self,
+        env: gym.Env,
+        all_missions: list,
+        tokenizer: GPT2Tokenizer,
+    ):
+        self.tokenizer: GPT2Tokenizer = tokenizer
+
+        def encode(mission: typing.Union[typing.Tuple[str], str]):
+            def get_tokens():
+                for w in mission:
+                    encoded = tokenizer.encode(w, return_tensors="pt")
+                    encoded = typing.cast(Tensor, encoded)
+                    yield encoded.T
+
+            tokens = list(get_tokens())
+            return pad_sequence(tokens, padding_value=tokenizer.eos_token_id).squeeze(
+                -1
+            )
+
+        encodings = [encode(m) for m in all_missions]
+        padded = pad_sequence(encodings, padding_value=tokenizer.eos_token_id)
+        permuted = padded.permute(1, 2, 0)
+        super().__init__(env, all_missions, permuted.numpy())

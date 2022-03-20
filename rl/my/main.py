@@ -5,9 +5,10 @@ from copy import deepcopy
 from dataclasses import dataclass, field, replace
 from inspect import signature
 from pathlib import Path
-from typing import DefaultDict, List, Optional, Set, Tuple, cast
+from typing import Callable, DefaultDict, List, Optional, Set, Tuple, cast
 
 import base_main
+import gym
 import heatmap
 import line_chart
 import numpy as np
@@ -24,7 +25,8 @@ from wrappers import (
     EPISODE_SUCCESS,
     CLIPProcessorWrapper,
     FailureReplayWrapper,
-    GPT3Tokenizer,
+    GPT3Wrapper,
+    MissionPreprocessor,
     PairsSelectorWrapper,
     RenderWrapper,
     RolloutsWrapper,
@@ -202,14 +204,13 @@ class Trainer(base_main.Trainer):
     @classmethod
     def make_env(cls, env, allow_early_resets, render: bool = False, *args, **kwargs):
         def _thunk(
-            all_missions: list,
             clip_processor: CLIPProcessor,
             meshes: List[Mesh],
             seed: int,
             test: bool,
             temp: float,
             tgt_success_prob: float,
-            tokenizer: GPT2Tokenizer,
+            wrap_mission_preprocessor: Callable[[gym.Env], MissionPreprocessor],
             **_kwargs,
         ):
             _env = Env(
@@ -241,11 +242,7 @@ class Trainer(base_main.Trainer):
                 _env = RenderWrapper(_env, mode="ascii")
 
             _env = CLIPProcessorWrapper(_env, clip_processor)
-            _env = TokenizerWrapper(
-                _env,
-                tokenizer=tokenizer,
-                all_missions=all_missions,
-            )
+            _env = wrap_mission_preprocessor(_env)
             _env = RolloutsWrapper(_env)
             _env = Monitor(_env, allow_early_resets=allow_early_resets)
             return _env
@@ -325,9 +322,17 @@ class Trainer(base_main.Trainer):
         assert len(names) > 1
         meshes = [m for m in meshes if m.name in names]
         meshes = [replace(m, features=features[m.name]) for m in meshes]
+        tokenizer = None if gpt_embeddings else cls.tokenizer()
+
+        def wrap_mission_preprocessor(env: Env):
+            if gpt_embeddings:
+                return GPT3Wrapper(env, all_missions=all_missions)
+            else:
+                return TokenizerWrapper(
+                    env, all_missions=all_missions, tokenizer=tokenizer
+                )
 
         return super().make_vec_envs(
-            all_missions=all_missions,
             clip_processor=cls.clip_processor(),
             features=features,
             meshes=meshes,
@@ -335,8 +340,8 @@ class Trainer(base_main.Trainer):
             render=render,
             seed=seed,
             sync_envs=sync_envs,
-            tokenizer=cls.tokenizer(gpt_embeddings),
             test=test,
+            wrap_mission_preprocessor=wrap_mission_preprocessor,
             **kwargs,
         )
 
@@ -367,9 +372,7 @@ class Trainer(base_main.Trainer):
 
     @staticmethod
     @functools.lru_cache(maxsize=1)
-    def tokenizer(gpt_embeddings: bool):
-        if gpt_embeddings:
-            return GPT3Tokenizer()
+    def tokenizer():
         return GPT2Tokenizer.from_pretrained("gpt2")
 
     @staticmethod
