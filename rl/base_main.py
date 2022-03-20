@@ -208,7 +208,6 @@ class Trainer:
             for info in infos:
                 cls.process_info(counters, info, test=True)
 
-        envs.close()
         now = time.time()
         log = {
             TIME: now * 1000000,
@@ -429,6 +428,14 @@ class Trainer:
         envs = cls.make_vec_envs(
             device=device, run_id=logger.run_id, test=False, **args.as_dict()
         )
+        kwargs = args.as_dict()
+        kwargs.update(allow_early_resets=True)
+        test_envs = cls.make_vec_envs(
+            device=device,
+            run_id=logger.run_id,
+            test=True,
+            **kwargs,
+        )
         try:
 
             agent = cls.make_agent(envs=envs, args=args)
@@ -475,12 +482,7 @@ class Trainer:
                     cls.evaluate(
                         agent=agent,
                         args=args,
-                        envs=cls.make_vec_envs(
-                            device=device,
-                            run_id=logger.run_id,
-                            test=True,
-                            **args.as_dict(),
-                        ),
+                        envs=test_envs,
                         num_processes=cls.num_eval_processes(args),
                         device=device,
                         start=start,
