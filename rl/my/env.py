@@ -118,8 +118,10 @@ class Env(habitat.Env, gym.Env):
         self.objects = sorted(self.object_to_ids.keys())
 
     def _episode_success(self, observations: Observations) -> bool:
+        if self.task.is_episode_active:
+            return False
 
-        objective_ids = self.object_to_ids[self.objective]
+        objective_ids = self.object_to_ids[self.mission]
         objective_ids = np.array(objective_ids).reshape((-1, 1, 1))
         depth = observations["depth"].copy()
         semantic = observations["semantic"].copy()
@@ -131,9 +133,6 @@ class Env(habitat.Env, gym.Env):
             return False
         objective_in_range = objective_in_range.min()
 
-        print(objective_in_range)
-        if self.task.is_episode_active:
-            return False
         return objective_in_range < self._config.TASK.SUCCESS.SUCCESS_DISTANCE
 
     @staticmethod
@@ -151,7 +150,7 @@ class Env(habitat.Env, gym.Env):
         return done
 
     def get_info(self, observations: Observations) -> typing.Dict[str, typing.Any]:
-        i = dict(mission=self.objective)
+        i = dict(mission=self.mission)
         if self.get_done(observations):
             i.update(success=self._episode_success(observations))
         return i
@@ -179,7 +178,7 @@ class Env(habitat.Env, gym.Env):
 
     def reset(self) -> dict:
         idx = self.np_random.choice(len(self.objects))
-        self.objective = self.objects[idx]
+        self.mission = self.objects[idx]
         return self.observation(super().reset())
 
     def step(self, *args, **kwargs) -> typing.Tuple[dict, float, bool, dict]:
