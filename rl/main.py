@@ -1,20 +1,6 @@
-import os
 from typing import cast
 
-import pyglet
-
-pyglet.options["headless"] = True
-
-try:
-    try:
-        visible_devices = os.environ["CUDA_VISIBLE_DEVICES"]
-    except KeyError:
-        visible_devices = 0
-    device = int(visible_devices)
-except ValueError:
-    device = None
-pyglet.options["headless_device"] = device
-from my.main import Args, ArgsType, Trainer  # noqa: E402
+from my.main import Args, ArgsType, Trainer
 
 if __name__ == "__main__":
     Trainer.main(cast(ArgsType, Args().parse_args()))

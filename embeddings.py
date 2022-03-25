@@ -5,7 +5,7 @@ from tqdm import tqdm
 
 
 def main():
-    ground_truth = pd.read_csv("ycb.csv")
+    ground_truth = pd.read_csv("habitat.csv")
     generated = pd.read_csv("ycb-gpt.csv")
     new = generated["completion"].str.split(" and ", expand=True)
     generated["color"] = new[0]
