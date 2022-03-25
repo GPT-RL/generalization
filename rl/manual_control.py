@@ -1,174 +1,73 @@
-import math
-import sys
-import time
-from inspect import signature
-from pathlib import Path
+#! /usr/bin/env python
 
-import pyglet
-from my.env import Args, Env, Obs
-from my.mesh_paths import get_meshes
-from PIL import Image
-from pyglet.window import key
-from transformers import CLIPModel, CLIPProcessor
-
-
-class ManualControlArgs(Args):
-    domain_rand: bool = False
-    no_time_limit: bool = False
-    top_view: bool = False
-
+import habitat
+import numpy as np
+import pygame
+from my.env import Env
 
 if __name__ == "__main__":
+    config = habitat.get_config("objectnav_mp3d.yaml")
+    env = Env(config=(config))
+    env.seed(0)
+    s = env.reset()
+    highlight_objective = True
+    print(env.objective)
 
-    args: ManualControlArgs = ManualControlArgs().parse_args()
+    def get_image(s):
+        depth = s["depth"].copy()
+        rgb = s["rgb"].copy()
+        semantic = s["semantic"].copy()
+        if highlight_objective:
+            objective_ids = env.object_to_ids[env.objective]
+            objective_ids = np.array(objective_ids).reshape(-1, 1, 1)
+            expanded = np.expand_dims(semantic, 0)
+            is_objective = expanded == objective_ids
+            is_objective = is_objective.any(0)
+            in_range = depth.squeeze(-1) == 0  # <= config.TASK.SUCCESS_DISTANCE
+            highlight = is_objective & in_range
+            rgb[:, :, 0][highlight] = 0
+            depth[:, :, 0][is_objective] = 0
+        semantic = np.expand_dims(semantic, 2)
+        depth, rgb, semantic = np.broadcast_arrays(depth, rgb, semantic)
 
-    processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
-    model: CLIPModel = CLIPModel.from_pretrained("openai/clip-vit-base-patch32")
+        image = np.concatenate([depth * 255, rgb, semantic], axis=1)
+        return image.swapaxes(0, 1)
 
-    meshes = get_meshes(data_path=Path(args.data_path), names=args.names)
+    shape = get_image(s).shape[:2]
+    pygame.init()
+    screen = pygame.display.set_mode(shape)
 
-    kwargs = {
-        k: v
-        for k, v in args.as_dict().items()
-        if k in signature(Env.__init__).parameters
-    }
-    env = Env(meshes=meshes, test=True, **kwargs)
-    # env = CLIPProcessorWrapper(env, processor, [m.name for m in meshes])
-    # replace = {
-    #     "master chef coffee can": "blue, white, beige, cylinder",
-    #     "starkist tuna fish can": "blue, silver, red, white, cylinder",
-    # }
-    # breakpoint()
-    # all_missions = [replace[m.name] for m in meshes]
-    # tokens = processor.tokenizer(all_missions, return_tensors="pt", padding=True)
-    # tokens = tokens["input_ids"]
-    # tokens = {m: t for m, t in zip(all_missions, tokens)}
-    if args.no_time_limit:
-        env.max_episode_steps = math.inf
-    if args.domain_rand:
-        env.domain_rand = True
+    while True:
+        action = None
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                exit()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_SPACE:
+                    action = "STOP"
+                if event.key == pygame.K_UP:
+                    action = "MOVE_FORWARD"
+                if event.key == pygame.K_LEFT:
+                    action = "TURN_LEFT"
+                if event.key == pygame.K_RIGHT:
+                    action = "TURN_RIGHT"
+                if event.key == pygame.K_PAGEUP:
+                    action = "LOOK_UP"
+                if event.key == pygame.K_PAGEDOWN:
+                    action = "LOOK_DOWN"
+                if event.key == pygame.K_COMMA:
+                    highlight_objective = not highlight_objective
+                if event.key == pygame.K_PERIOD:
+                    breakpoint()
 
-    view_mode = "top" if args.top_view else "agent"
+        obs_array = get_image(s)
+        surface = pygame.surfarray.make_surface(obs_array)
+        screen.blit(surface, (0, 0))
+        pygame.display.update()
 
-    obs = env.reset()
-
-    # Create the display window
-    env.render("pyglet", view=view_mode)
-
-    def step(action):
-        global obs
-        print(f"step {env.step_count + 1}/{env.max_episode_steps}")
-
-        obs, reward, done, info = env.step(action)
-        Obs(**obs)
-
-        # text = [m.name for m in env.chosen_meshes]
-        # text = [replace[t] for t in text]
-        # inputs = processor(
-        #     text=text,
-        #     images=o.image,
-        #     return_tensors="pt",
-        #     padding=True,
-        # )
-        #
-        # outputs = model(**inputs)
-        # logits_per_image = (
-        #     outputs.logits_per_image
-        # )  # this is the image-text similarity score
-        # probs = logits_per_image.softmax(dim=1).reshape(
-        #     -1
-        # )  # we can take the softmax to get the label probabilities
-        # for choice, prob in zip(text, probs):
-        #     print(f"{choice}: {(100 * prob).round()}%")
-
-        # pixel_values = processor(images=o.image, return_tensors="pt", padding=True)
-        #
-        # def input_ids():
-        #     for m in env.chosen_meshes:
-        #         yield tokens[replace[m.name]]
-        #
-        # input_ids = torch.stack(list(input_ids()), dim=0)
-        # assert torch.equal(pixel_values["pixel_values"], inputs["pixel_values"])
-        # assert torch.equal(input_ids, inputs["input_ids"])
-        # image_embeds = model.vision_model(**pixel_values)[1]
-        # image_embeds = model.visual_projection(image_embeds)
-        # text_embeds = model.text_model(
-        #     input_ids=input_ids, attention_mask=input_ids != 0
-        # )[1]
-        # text_embeds = model.text_projection(text_embeds)
-        #
-        # image_embeds = image_embeds / image_embeds.norm(dim=-1, keepdim=True)
-        # text_embeds = text_embeds / text_embeds.norm(dim=-1, keepdim=True)
-        # logit_scale = model.logit_scale.exp()
-        #
-        # logits_per_text = torch.matmul(text_embeds, image_embeds.t()) * logit_scale
-        # logits_per_text = logits_per_text.flatten()
-        # probs_per_text = logits_per_text.softmax(0)
-        # for m, l, p in zip(env.chosen_meshes, logits_per_text, probs_per_text):
-        #     print(m.name, float(l), float(p))
-
-        if reward > 0:
-            print(f"reward={reward:.2f}")
-
-        if done:
-            print("done!")
-            tick = time.time()
-            obs = env.reset()
-            print(time.time() - tick)
-        print(env.mission)
-
-        env.render("pyglet", view=view_mode)
-
-    @env.unwrapped.window.event
-    def on_key_press(symbol, modifiers):
-        """
-        This handler processes keyboard commands that
-        control the simulation
-        """
-        if symbol == key.BACKSPACE or symbol == key.SLASH:
-            print("RESET")
-            env.reset()
-            env.render("pyglet", view=view_mode)
-            return
-
-        if symbol == key.ESCAPE:
-            env.close()
-            sys.exit(0)
-
-        if symbol == key.UP:
-            step(env.actions.move_forward)
-        elif symbol == key.DOWN:
-            step(env.actions.move_back)
-
-        elif symbol == key.LEFT:
-            step(env.actions.turn_left)
-        elif symbol == key.RIGHT:
-            step(env.actions.turn_right)
-
-        elif symbol == key.PAGEUP or symbol == key.P:
-            step(env.actions.pickup)
-        elif symbol == key.PAGEDOWN or symbol == key.D:
-            step(env.actions.drop)
-
-        elif symbol == key.ENTER:
-            step(env.actions.done)
-
-        elif symbol == key.SPACE:
-            Image.fromarray(Obs(**obs).image).show()
-
-    @env.unwrapped.window.event
-    def on_key_release(symbol, modifiers):
-        pass
-
-    @env.unwrapped.window.event
-    def on_draw():
-        env.render("pyglet", view=view_mode)
-
-    @env.unwrapped.window.event
-    def on_close():
-        pyglet.app.exit()
-
-    # Enter main event loop
-    pyglet.app.run()
-
-    env.close()
+        if action is not None:
+            s, r, t, i = env.step(action)
+            print(i)
+            if env.get_done(s):
+                print("Episode finished")
+                s = env.reset()

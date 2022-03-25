@@ -15,6 +15,7 @@ import sweep_logger
 import torch
 import utils
 from agent import Agent
+from dummy_vec_env import DummyVecEnv
 from envs import TimeLimitMask, TransposeImage, VecPyTorch, VecPyTorchFrameStack
 from gym.wrappers.clip_action import ClipAction
 from line_chart import spec
@@ -29,7 +30,7 @@ from stable_baselines3.common.atari_wrappers import (
     WarpFrame,
 )
 from stable_baselines3.common.monitor import Monitor
-from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
+from stable_baselines3.common.vec_env import SubprocVecEnv
 from sweep_logger import HasuraLogger
 from tap import Tap
 
@@ -45,6 +46,7 @@ class InvalidEnvId(RuntimeError):
 
 
 ACTION_LOSS = "action loss"
+DEFAULT_NUM_PROCESSES = 8
 ENTROPY = "entropy"
 EPISODE_RETURN = "episode return"
 EPISODE_LENGTH = "episode length"
@@ -102,7 +104,7 @@ class Args(Tap):
     max_grad_norm: float = 0.5  # clip gradient norms
     num_env_steps: int = 1e9  # total number of environment steps
     num_mini_batch: int = 4  # number of mini-batches per update
-    num_processes: int = 8  # number of parallel environments
+    num_processes: int = DEFAULT_NUM_PROCESSES  # number of parallel environments
     num_steps: int = 128  # number of forward steps in A2C
     num_test_episodes: int = 1000  # number of forward steps in A2C
     ppo_epoch: int = 3  # number of PPO updates
@@ -398,12 +400,22 @@ class Trainer:
         return Path(cls.save_dir(run_id), "checkpoint.pkl")
 
     @classmethod
-    def update_args(cls, args, parameters, check_hasattr=True):
+    def update_args(
+        cls, args: Args, parameters: dict, check_hasattr: bool = True
+    ) -> None:
+        bad_attrs = []
         for k, v in parameters.items():
-            if k not in cls.excluded():
-                if check_hasattr:
-                    assert hasattr(args, k), k
+            cls.update_arg(args=args, bad_attrs=bad_attrs, k=k, v=v)
+        if check_hasattr and bad_attrs:
+            raise RuntimeError("Invalid arguments:\n" + "\n".join(bad_attrs))
+
+    @classmethod
+    def update_arg(cls, args: Args, bad_attrs: List[str], k: str, v) -> None:
+        if k not in cls.excluded():
+            if hasattr(args, k):
                 setattr(args, k, v)
+            else:
+                bad_attrs.append(k)
 
     @classmethod
     def train(cls, args: Args, logger: HasuraLogger):
@@ -430,12 +442,6 @@ class Trainer:
         )
         kwargs = args.as_dict()
         kwargs.update(allow_early_resets=True)
-        test_envs = cls.make_vec_envs(
-            device=device,
-            run_id=logger.run_id,
-            test=True,
-            **kwargs,
-        )
         try:
 
             agent = cls.make_agent(envs=envs, args=args)
@@ -482,7 +488,12 @@ class Trainer:
                     cls.evaluate(
                         agent=agent,
                         args=args,
-                        envs=test_envs,
+                        envs=cls.make_vec_envs(
+                            device=device,
+                            run_id=logger.run_id,
+                            test=True,
+                            **kwargs,
+                        ),
                         num_processes=cls.num_eval_processes(args),
                         device=device,
                         start=start,

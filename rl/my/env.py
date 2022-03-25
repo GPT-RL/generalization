@@ -1,22 +1,19 @@
-import itertools
-import math
+import os
 import string
 import typing
 from collections import defaultdict
-from copy import deepcopy
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import List, Optional, TypeVar, Union, cast
+from typing import Optional, TypeVar, Union
 
 import gym
+import habitat
 import numpy as np
-from art import text2art
 from colors import color
-from gym import Space, spaces
-from gym_miniworld.entity import Entity
-from gym_miniworld.miniworld import MiniWorldEnv
-from gym_miniworld.params import DEFAULT_PARAMS
-from my.entities import Box, MeshEnt
+from gym import Space
+from gym.utils import seeding
+from habitat import Config, Dataset
+from habitat.core.simulator import Observations
 from tap import Tap
 
 EXCLUDED = "excluded"
@@ -86,108 +83,60 @@ class StringTuple(gym.Space):
         return isinstance(x, tuple) and all([isinstance(y, str) for y in x])
 
 
-class Env(MiniWorldEnv):
-    """
-    Environment in which the goal is to go to a red box
-    placed randomly in one big room.
-    """
+class Env(habitat.Env, gym.Env):
+    def __init__(self, config: Config, dataset: Optional[Dataset] = None):
+        config.defrost()
+        config.DATASET.DATA_PATH = os.path.expanduser(config.DATASET.DATA_PATH)
+        config.DATASET.SCENES_DIR = os.path.expanduser(config.DATASET.SCENES_DIR)
+        config.freeze()
+        self._slack_reward = 0
+        self._max_reward = 1
+        self.reward_range = self.get_reward_range()
+        excluded = [
+            "furniture",
+            "objects",
+            "void",
+            "",
+            "misc",
+            "floor",
+            "ceiling",
+            "wall",
+        ]
+        self.np_random, seed = seeding.np_random(0)
+        super().__init__(config, dataset)
 
-    def __init__(
-        self,
-        floor_tex: str,
-        image_size: int,
-        meshes: List[Mesh],
-        radius: float,
-        random_agent: bool,
-        room_size: float,
-        test: bool,
-        max_episode_steps: int = 180,
-        pitch: float = -30,
-        rank: int = 0,
-        **kwargs,
-    ):
-        self.random_agent = random_agent
-        self.test = test
-        self.floor_tex = floor_tex
-        self.radius = radius
-        self.rank = rank
-        assert room_size >= 2
-        self.size = room_size
+        def get_object_ids():
+            for level in self.sim.semantic_scene.levels:
+                for region in level.regions:
+                    for obj in region.objects:
+                        if obj.category.name() not in excluded:
+                            _, _, obj_id = obj.id.split("_")
+                            yield int(obj_id), obj.category.name()
 
-        self.features = [m.features for m in meshes]
-        self.meshes = defaultdict(list)
-        for m in sorted(meshes, key=lambda m: m.name):
-            self.meshes[m.name if test else m.features].append(m)
+        self.ids_to_object = dict(get_object_ids())
+        self.object_to_ids = defaultdict(list)
+        for k, v in self.ids_to_object.items():
+            self.object_to_ids[v].append(k)
+        self.objects = sorted(self.object_to_ids.keys())
+        self.features = {o: [o] for o in self.objects}
 
-        params = deepcopy(DEFAULT_PARAMS)
-        params.set("cam_pitch", pitch, pitch, pitch)
-        self._iterator = None
-        self._render = None
-        self._mission = None
-        self._dist_name = None
-        super().__init__(
-            max_episode_steps=max_episode_steps,
-            params=params,
-            obs_width=image_size,
-            obs_height=image_size,
-            **kwargs,
-        )
-        # Allow only movement actions (left/right/forward) and pickup
-        self.action_space = spaces.Discrete(self.actions.pickup + 1)
-        self.observation_space = Obs(
-            image=self.observation_space, mission=StringTuple()
-        ).to_space()
+    def _episode_success(self, observations: Observations) -> bool:
 
-    def _gen_world(self):
-        self.add_rect_room(
-            min_x=0,
-            max_x=self.size,
-            min_z=0,
-            max_z=self.size,
-            floor_tex=self.floor_tex,
-        )
-        while True:
-            if self._mesh_names is None:
-                mesh_names = self.rand.subset(sorted(list(self.meshes)), num_elems=2)
-            else:
-                mesh_names = self._mesh_names
-            meshes = [self.rand.choice(self.meshes[n]) for n in mesh_names]
-            self._mission, self._dist_name = [m.features for m in meshes]
-            self.mission, *_ = [m.name for m in meshes]
-            positions = np.array(
-                [
-                    [0.7 * self.size, 0, 0.25 * self.size],
-                    [0.25 * self.size, 0, 0.7 * self.size],
-                ]
-            )
-            self.rand.np_random.shuffle(positions)
+        objective_ids = self.object_to_ids[self.objective]
+        objective_ids = np.array(objective_ids).reshape((-1, 1, 1))
+        depth = observations["depth"].copy()
+        semantic = observations["semantic"].copy()
+        expanded = np.expand_dims(semantic, 0)
+        is_objective = expanded == objective_ids
+        is_objective = is_objective.any(0)
+        objective_in_range = depth.squeeze(-1)[is_objective]
+        if not objective_in_range.size:
+            return False
+        objective_in_range = objective_in_range.min()
 
-            try:
-                self.goal, self.dist = [
-                    self.place_entity(
-                        MeshEnt(
-                            str(mesh.obj),
-                            height=mesh.height,
-                            static=False,
-                            tex_name=str(mesh.png) if mesh.png else None,
-                        ),
-                        name=mesh.name,
-                        pos=pos,
-                    )
-                    for mesh, pos in zip(meshes, positions)
-                ]
-                for ent in self.entities:
-                    ent.radius = self.radius
-                break
-            except PlacementError:
-                print("Failed to place:", self._mission, self._dist_name)
-                self._mesh_names = None
-                continue
-
-        if self.random_agent:
-            self.place_agent()
-        else:
-            self.place_entity(self.agent, pos=np.array([1, 0, 1]), dir=-np.pi / 4)
+        if self.task.is_episode_active:
+            return False
+        return objective_in_range < self._config.TASK.SUCCESS.SUCCESS_DISTANCE
 
     @staticmethod
     def ascii_of_image(image: np.ndarray):
@@ -197,186 +146,50 @@ class Env(MiniWorldEnv):
 
         return "\n".join(rows())
 
-    def can_pick_up(self, ent: Entity):
-        test_pos = self.agent.pos + self.agent.dir_vec * 1.5 * self.agent.radius
-        entities = self.entities
-        self.entities = [ent]
-        intersects = self.intersect(self.agent, test_pos, 1.2 * self.agent.radius)
-        self.entities = entities
-        return intersects is ent
-
-    def generator(self):
-        action = None
-        reward = None
+    def get_done(self, observations: Observations) -> bool:
         done = False
-        highlighted = {}
+        if self.episode_over or self._episode_success(observations):
+            done = True
+        return done
 
-        def render(pause=True):
-            print(self.ascii_of_image(self.render_obs()))
-            print()
-            subtitle = str(self._mission)
-            if action is not None:
-                subtitle += f", {action.name.replace('_', ' ')}"
-            if reward is not None:
-                subtitle += f", r={round(reward, 2)}"
-            if done:
-                subtitle += ", done"
-            print(text2art(subtitle.swapcase(), font="com_sen"))
-            if pause:
-                input("Press enter to continue.")
+    def get_info(self, observations: Observations) -> typing.Dict[str, typing.Any]:
+        i = dict(mission=self.features[self.objective])
+        if self.get_done(observations):
+            i.update(success=self._episode_success(observations))
+        return i
 
-        self._render = render
-
-        image = super().reset()
-        info = {}
-        while True:
-            obs = self.make_obs(image)
-            if done:
-                info.update({PAIR: (self._mission, self._dist_name)})
-            action = yield obs, reward, done, info
-            action = cast(MiniWorldEnv.Actions, action)
-            assert not done
-
-            image, reward, done, info = super().step(action)
-            for ent in [self.goal, self.dist]:
-                if self.can_pick_up(ent):
-                    box = Box(np.array([1, 1, 1]))
-                    if ent not in highlighted:
-                        highlighted[ent] = box
-                        self.place_entity(ent=box, pos=ent.pos, dir=ent.dir)
-                elif ent in highlighted:
-                    self.entities.remove(highlighted[ent])
-                    del highlighted[ent]
-
-            if action == self.actions.done:
-                done = True
-            if self.agent.carrying == self.goal:
-                reward += self._reward()
-                done = True
-            elif self.agent.carrying == self.dist:
-                done = True
-
-    def make_obs(self, image: np.ndarray) -> Obs:
-        return Obs(image=image, mission=self._mission)
-
-    def move_agent(self, fwd_dist, fwd_drift):
-        """
-        Move the agent forward
-        """
-
-        next_pos = (
-            self.agent.pos
-            + self.agent.dir_vec * fwd_dist
-            + self.agent.right_vec * fwd_drift
-        )
-
-        # if self.intersect(self.agent, next_pos, self.agent.radius):
-        #     return False
-
-        carrying = self.agent.carrying
-        if carrying:
-            next_carrying_pos = self._get_carry_pos(next_pos, carrying)
-
-            if self.intersect(carrying, next_carrying_pos, carrying.radius):
-                return False
-
-            carrying.pos = next_carrying_pos
-
-        self.agent.pos = next_pos
-
-        return True
-
-    def render(self, mode="human", pause=True, **kwargs):
-        if mode == "ascii":
-            self._render(pause=pause)
-        else:
-            return super().render(mode=mode, **kwargs)
-
-    def reset(self, mesh_names: typing.Tuple[str, str] = None) -> dict:
-        self._mesh_names = mesh_names
-        self._iterator = self.generator()
-        obs, _, _, _ = next(self._iterator)
-        return self.to_obs(obs)
-
-    def step(self, action: Union[np.ndarray, MiniWorldEnv.Actions]):
-        action: MiniWorldEnv.Actions = (
-            action
-            if isinstance(action, MiniWorldEnv.Actions)
-            else [*MiniWorldEnv.Actions][action.item()]
-        )
-        obs, reward, done, info = self._iterator.send(action)
-        return self.to_obs(obs), reward, done, info
-
-    def to_obs(self, obs: Obs):
-        # check = isinstance(self.observation_space, gym.spaces.Dict)
-        return obs.to_obs(self.observation_space)
-
-    def place_entity(
-        self,
-        ent,
-        room=None,
-        pos=None,
-        dir=None,
-        min_x=None,
-        max_x=None,
-        min_z=None,
-        max_z=None,
-        name=None,
-    ):
-        """
-        Place an entity/object in the world.
-        Find a position that doesn't intersect with any other object.
-        """
-
-        assert len(self.rooms) > 0, "create rooms before calling place_entity"
-        assert ent.radius is not None, "entity must have physical size defined"
-
-        # Generate collision detection data
-        if len(self.wall_segs) == 0:
-            self._gen_static_data()
-
-        # If an exact position if specified
-        if pos is not None:
-            ent.dir = dir if dir is not None else self.rand.float(-math.pi, math.pi)
-            ent.pos = pos
-            self.entities.append(ent)
-            return ent
-
-        # Keep retrying until we find a suitable position
-        for i in itertools.count():
-            # Pick a room, sample rooms proportionally to floor surface area
-            r = room if room else self.rand.choice(self.rooms, probs=self.room_probs)
-
-            # Choose a random point within the square bounding box of the room
-            lx = r.min_x if min_x is None else min_x
-            hx = r.max_x if max_x is None else max_x
-            lz = r.min_z if min_z is None else min_z
-            hz = r.max_z if max_z is None else max_z
-            pos = self.rand.float(
-                low=[lx + ent.radius, 0, lz + ent.radius],
-                high=[hx - ent.radius, 0, hz - ent.radius],
+    def get_reward(self, observations: Observations) -> float:
+        if self._episode_success(observations):
+            return self._max_reward - 0.2 * (
+                self._elapsed_steps / self._max_episode_steps
             )
+        return 0
 
-            # Make sure the position is within the room's outline
-            if not r.point_inside(pos):
-                if i > 1000:
-                    raise PlacementError()
+    def get_reward_range(self):
+        return self._slack_reward, self._max_reward
 
-                continue
+    def render(self, mode="rgb") -> np.ndarray:
+        if mode == "ascii":
+            raise NotImplementedError()
+        else:
+            return super().render(mode=mode)
 
-            # Make sure the position doesn't intersect with any walls
-            if self.intersect(ent, pos, ent.radius):
-                if i > 1000:
-                    raise PlacementError()
-                continue
+    def reset(self) -> dict:
+        idx = self.np_random.choice(len(self.objects))
+        self.objective = self.objects[idx]
+        return super().reset()
 
-            # Pick a direction
-            d = dir if dir is not None else self.rand.float(-math.pi, math.pi)
+    def seed(self, seed: int) -> None:
+        self.np_random, seed = seeding.np_random(seed)
 
-            ent.pos = pos
-            ent.dir = d
-            break
+    def step(self, *args, **kwargs) -> typing.Tuple[dict, float, bool, dict]:
+        r"""Perform an action in the environment.
 
-        self.entities.append(ent)
+        :return: :py:`(observations, reward, done, info)`
+        """
 
-        return ent
+        observations = super().step(*args, **kwargs)
+        reward = self.get_reward(observations)
+        done = self.get_done(observations)
+        info = self.get_info(observations)
+        return observations, reward, done, info

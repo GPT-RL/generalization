@@ -1,20 +1,21 @@
+name,room,where,height,width,category,replacement name,id,vertical position
 robes,closet,against the wall,more than 3 ft tall,,,,,
 wardrobe,closet,against the wall,more than 3 ft tall,,,,,
-plant,entryway,on the stand,less than 3 ft tall,"",,,,
+plant,entryway,on the stand,less than 3 ft tall,,,,,
 telephone,bedroom,on the dresser,less than 3 ft tall,,,,,waist level
-plant,bedroom,by the window,less than 3 ft tall,"",,,,waist level
+plant,bedroom,by the window,less than 3 ft tall,,,,,waist level
 curtain,bedroom,by the window,more than 3 ft tall,,,,,
-mirror,bedroom,on the dresser,less than 3 ft tall,"",,,,eye level
+mirror,bedroom,on the dresser,less than 3 ft tall,,,,,eye level
 desk,bedroom,by the window,less than 3 ft tall,more than 3 ft across,surface,,,waist level
 nightstand,bedroom,next to the bed,less than 3 ft tall,more than 3 ft across,surface,,,waist level
-desk chair,bedroom,by the desk,more than 3 ft tall,"",seat,,,knee level
+desk chair,bedroom,by the desk,more than 3 ft tall,,seat,,,knee level
 picture,bedroom,on the wall,less than 3 ft tall,more than 3 ft across,rectangle,,,eye level
 dresser,bedroom,next to the bed,less than 3 ft tall,more than 3 ft across,surface,,,knee level
 bed,bedroom,against the wall,less than 3 ft tall,more than 3 ft across,rectangle,,,knee level
 towel,bathroom,against the wall,less than 3 ft tall,,rectangle,,,
 bathtub,bathroom,against the wall,less than 3 ft tall,more than 3 ft across,rectangle,,,knee level
 mirror,bathroom,by the sink,more than 3 ft tall,more than 3 ft across,,,,eye level
-toilet,bathroom,against the wall,less than 3 ft tall,"",,,,knee level
+toilet,bathroom,against the wall,less than 3 ft tall,,,,,knee level
 washbasin,bathroom,by the mirror,,,,sink,,waist level
 armchair,deck,,more than 3 ft tall,,seat,,,knee level
 chair,deck,,more than 3 ft tall,more than 3 ft across,seat,lounge chair,,knee level
@@ -24,7 +25,7 @@ table,living room,by the the couch,less than 3 ft tall,more than 3 ft across,sur
 picture,living room,on the wall,more than 3 ft tall,more than 3 ft across,rectangle,,,eye level
 sofa chair,living room,next to the coffee table,more than 3 ft tall,,seat,,,knee level
 couch,living room,next to the coffee table,more than 3 ft tall,more than 3 ft across,seat,,,knee level
-faucet,kitchen,by the sink,less than 3 ft tall,"",,,,waist level
+faucet,kitchen,by the sink,less than 3 ft tall,,,,,waist level
 phone,kitchen,against the wall,less than 3 ft tall,,,,,waist level
 tv,kitchen,,less than 3 ft tall,more than 3 ft across,rectangle,,,waist level
 cabinet,kitchen,by the sink,,,,,,knee level
@@ -32,4 +33,4 @@ counter,kitchen,against the wall,,2 across,surface,,,waist level
 chair,kitchen,,more than 3 ft tall,,,seat,,knee level
 shelf,kitchen,against the wall,more than 3 ft tall,,,,,knee level
 desk,kitchen,against the wall,more than 3 ft tall,2 across,surface,counter,,waist level
-cabinets,kitchen,against the wall,more than 3 ft tall,3 across,,cabinet,,""
+cabinets,kitchen,against the wall,more than 3 ft tall,3 across,,cabinet,,

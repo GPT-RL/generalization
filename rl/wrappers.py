@@ -11,7 +11,7 @@ import gym
 import numpy as np
 import torch
 from gym.spaces import Box, Discrete, MultiDiscrete
-from my.env import PAIR, Obs, StringTuple
+from my.env import PAIR, Obs, String, StringTuple
 from torch import Tensor
 from torch.nn.utils.rnn import pad_sequence
 from transformers import CLIPProcessor, GPT2Tokenizer
@@ -101,6 +101,33 @@ class FeatureWrapper(MissionWrapper):
 
     def change_mission(self, mission: str) -> List[str]:
         return self.features[mission]
+
+
+class ActionWrapper(gym.ActionWrapper):
+    def reverse_action(self, action):
+        raise NotImplementedError()
+
+    def action(self, action):
+        return action.item()
+
+
+class ActionSpaceWrapper(gym.Wrapper):
+    def __init__(self, env: gym.Env):
+        super().__init__(env)
+        self.action_space = Discrete(len(env.action_space))
+
+
+class ObsWrapper(gym.ObservationWrapper):
+    def __init__(self, env: gym.Env):
+        super().__init__(env)
+        spaces = self.observation_space.spaces
+        self.observation_space = Obs(image=spaces["rgb"], mission=String()).to_space()
+
+    def observation(self, observation):
+        mission = self.env.features[self.env.objective]
+        return Obs(image=observation["rgb"], mission=mission).to_obs(
+            self.observation_space
+        )
 
 
 class RenderWrapper(gym.Wrapper):
@@ -224,7 +251,6 @@ class MissionPreprocessor(gym.ObservationWrapper):
         self.encodings = {m: e for m, e in zip(all_missions, encodings)}
         super().__init__(env)
         spaces = Obs(**self.observation_space.spaces)
-
         _, n, d = encodings.shape
         self.obs_spaces = replace(
             spaces, mission=MultiDiscrete(encodings.max(initial=0) * np.ones((n, d)))
