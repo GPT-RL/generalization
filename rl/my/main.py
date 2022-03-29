@@ -1,6 +1,5 @@
 import functools
 from collections import defaultdict
-from copy import deepcopy
 from dataclasses import dataclass, field
 from inspect import signature
 from typing import Callable, DefaultDict, List, Set, Tuple, cast
@@ -13,12 +12,11 @@ import line_chart
 import numpy as np
 from envs import VecPyTorch
 from my.agent import Agent
-from my.env import PAIR, Env
+from my.env import EPISODE_SUCCESS, Env
 from run_logger import HasuraLogger
 from stable_baselines3.common.monitor import Monitor
 from transformers import CLIPProcessor, GPT2Tokenizer
 from wrappers import (
-    EPISODE_SUCCESS,
     ActionSpaceWrapper,
     ActionWrapper,
     CLIPProcessorWrapper,
@@ -119,27 +117,6 @@ class Trainer(base_main.Trainer):
         n_objects = 60
         if args.num_test_names is not None:
             n_objects -= args.num_test_names
-        timesteps_per_log = args.num_processes * args.num_steps * args.log_interval
-        threshold = timesteps_per_log * args.pair_log_interval_coef
-        for key, success_per_pair, threshold in [
-            (PAIR_SUCCESS, counters.success_per_pair, threshold),
-            (PAIR_TEST_SUCCESS, counters.test_success_per_pair, 0),
-        ]:
-            success_per_pair = deepcopy(success_per_pair)
-            for (mission, distractor), v in success_per_pair.items():
-                if len(v) >= threshold:
-                    super().log(
-                        args=args,
-                        log={
-                            key: np.mean(v),
-                            MISSION: mission,
-                            DISTRACTOR: distractor,
-                        },
-                        logger=logger,
-                        step=step,
-                    )
-                    success_per_pair[mission, distractor] = []
-
         if counters.episode_success:
             log.update({EPISODE_SUCCESS: np.mean(counters.episode_success)})
         if counters.test_episode_success:
@@ -259,11 +236,8 @@ class Trainer(base_main.Trainer):
         if EPISODE_SUCCESS in info:
             if test:
                 counters.test_episode_success.append(info[EPISODE_SUCCESS])
-                counters.test_success_per_pair[info[PAIR]].append(info[EPISODE_SUCCESS])
             else:
                 counters.episode_success.append(info[EPISODE_SUCCESS])
-                counters.success_per_pair[info[PAIR]].append(info[EPISODE_SUCCESS])
-                counters.pairs.append(info[PAIR])
 
     @staticmethod
     def recurrent(args: Args):

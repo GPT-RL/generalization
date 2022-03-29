@@ -15,10 +15,10 @@ from gym.utils import seeding
 from habitat import Config, Dataset
 from habitat.core.simulator import Observations
 
+EPISODE_SUCCESS = "episode success"
 EXCLUDED = "excluded"
 DESCRIPTION = "description"
 NAME = "name"
-PAIR = "pair"
 PATH = "path"
 
 
@@ -141,7 +141,7 @@ class Env(habitat.Env, gym.Env):
     def get_info(self, observations: Observations) -> typing.Dict[str, typing.Any]:
         i = dict(mission=self.features[self.objective])
         if self.get_done(observations):
-            i.update(success=self._episode_success(observations))
+            i.update({EPISODE_SUCCESS: self._episode_success(observations)})
         return i
 
     def get_reward(self, observations: Observations) -> float:

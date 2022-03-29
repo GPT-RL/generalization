@@ -3,7 +3,6 @@ from __future__ import annotations
 import abc
 import sys
 import typing
-from collections import deque
 from dataclasses import astuple, dataclass, replace
 from typing import Dict, Generic, List, TypeVar
 
@@ -11,15 +10,13 @@ import gym
 import numpy as np
 import torch
 from gym.spaces import Box, Discrete, MultiDiscrete
-from my.env import PAIR, Obs, String, StringTuple
+from my.env import EPISODE_SUCCESS, Obs, String, StringTuple
 from torch import Tensor
 from torch.nn.utils.rnn import pad_sequence
 from transformers import CLIPProcessor, GPT2Tokenizer
-from utils import softmax
 
 T = TypeVar("T")  # Declare type variable
 
-EPISODE_SUCCESS = "episode success"
 FAIL_SEED_SUCCESS = "fail seed success"
 FAIL_SEED_USAGE = "fail seed usage"
 NUM_FAIL_SEEDS = "number of fail seeds"
@@ -177,33 +174,6 @@ class SuccessWrapper(gym.Wrapper):
         s, r, t, i = super().step(action)
         if t:
             i.update({EPISODE_SUCCESS: r > 0})
-        return s, r, t, i
-
-
-class PairsSelectorWrapper(SuccessWrapper):
-    def __init__(self, env, objects: List[str], seed: int, temp: float):
-        self.temp = temp
-        self.counter = {
-            (o1, o2): deque([0], maxlen=100)
-            for o1 in objects
-            for o2 in objects
-            if o1 != o2
-        }
-        self.rng = np.random.default_rng(seed=seed)
-        super().__init__(env)
-
-    def reset(self, **kwargs):
-        pairs, deques = zip(*self.counter.items())
-        averages = np.array([np.mean(d) for d in deques])
-        averages = np.maximum(averages, 1e-5)
-        p = softmax(self.temp / averages)
-        mesh_names = self.rng.choice(pairs, p=p)
-        return super().reset(**kwargs, mesh_names=mesh_names)
-
-    def step(self, action):
-        s, r, t, i = super().step(action)
-        if t:
-            self.counter[i[PAIR]].append(r)
         return s, r, t, i
 
 
