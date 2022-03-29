@@ -1,5 +1,5 @@
 # inspired by https://sourcery.ai/blog/python-docker/
-FROM nvidia/cudagl:11.4.0-devel-ubuntu20.04 as base
+FROM ubuntu:20.04 as base
 ENV LC_ALL C.UTF-8
 
 # no .pyc files
@@ -69,7 +69,7 @@ ENV VIRTUAL_ENV=/root/.cache/pypoetry/virtualenvs/generalization-K3BlsyQa-py3.8/
 
 RUN git clone --branch v0.2.1 https://github.com/facebookresearch/habitat-sim.git \
  && cd habitat-sim \
- && $VIRTUAL_ENV/bin/python setup.py install --headless --with-cuda
+ && $VIRTUAL_ENV/bin/python setup.py install --headless
 
 FROM base AS runtime
 
