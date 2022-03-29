@@ -1,11 +1,9 @@
 import functools
-import re
 from collections import defaultdict
 from copy import deepcopy
 from dataclasses import dataclass, field
 from inspect import signature
-from pathlib import Path
-from typing import Callable, DefaultDict, List, Optional, Set, Tuple, cast
+from typing import Callable, DefaultDict, List, Set, Tuple, cast
 
 import base_main
 import gym
@@ -14,9 +12,8 @@ import heatmap
 import line_chart
 import numpy as np
 from envs import VecPyTorch
-from my import env
 from my.agent import Agent
-from my.env import PAIR, Env, Mesh
+from my.env import PAIR, Env
 from run_logger import HasuraLogger
 from stable_baselines3.common.monitor import Monitor
 from transformers import CLIPProcessor, GPT2Tokenizer
@@ -32,6 +29,7 @@ from wrappers import (
     RolloutsWrapper,
     TokenizerWrapper,
     TrainTest,
+    TransposeObsWrapper,
 )
 
 DISTRACTOR = "distractor"
@@ -42,20 +40,16 @@ PAIR_COUNT = "object pair count"
 TEST_EPISODE_SUCCESS = "test episode success"
 
 
-class Args(base_main.Args, env.Args):
+class Args(base_main.Args):
     attributes: str = "name"
     clip: bool = False
-    freeze_keys: bool = False
+    image_size: int = 128
     gpt_completions: bool = False
     gpt_embeddings: bool = False
-    image_size: int = 256
     large_architecture: bool = False
     num_test_envs: int = 8
     num_test_names: int = 2
     pair_log_interval_coef: float = 0.01
-    prefix_length: int = 0
-    temp: float = None
-    tgt_success_prob: float = None
     train_ln: bool = False
     train_wpe: bool = False
 
@@ -79,32 +73,6 @@ class Counters(base_main.Counters):
         default_factory=lambda: defaultdict(list)
     )
     test_episode_success: List[bool] = field(default_factory=list)
-
-
-def get_data_path_meshes(
-    data_path: Path,
-    obj_pattern: str,
-    png_pattern: str,
-):
-    if data_path:
-        data_path = data_path.expanduser()
-        if not data_path.exists():
-            raise RuntimeError(
-                f"""\
-        {data_path} does not exist.
-        Download dataset using https://github.com/sea-bass/ycb-tools
-        """
-            )
-
-        def get_names(path: Path):
-            name = path.parent.parent.name
-            name = re.sub(r"\d+(-[a-z])?_", "", name)
-            return name.replace("_", " ")
-
-        objs = {get_names(path): path for path in data_path.glob(obj_pattern)}
-        pngs = {get_names(path): path for path in data_path.glob(png_pattern)}
-        for n in objs:
-            yield Mesh(objs.get(n), pngs.get(n), n)
 
 
 class Trainer(base_main.Trainer):
@@ -148,7 +116,7 @@ class Trainer(base_main.Trainer):
         step: int,
         counters: Counters = None,
     ):
-        n_objects = 60 if args.names is None else len(args.names)
+        n_objects = 60
         if args.num_test_names is not None:
             n_objects -= args.num_test_names
         timesteps_per_log = args.num_processes * args.num_steps * args.log_interval
@@ -220,9 +188,11 @@ class Trainer(base_main.Trainer):
                 _env = RenderWrapper(_env, mode="ascii")
 
             _env = ObsWrapper(_env)
+            _env = TransposeObsWrapper(_env)
             _env = ActionWrapper(_env)
             _env = ActionSpaceWrapper(_env)
-            _env = CLIPProcessorWrapper(_env, clip_processor)
+            if clip_processor is not None:
+                _env = CLIPProcessorWrapper(_env, clip_processor)
             _env = wrap_mission_preprocessor(_env)
             _env = RolloutsWrapper(_env)
             _env = Monitor(_env, allow_early_resets=allow_early_resets)
@@ -236,15 +206,11 @@ class Trainer(base_main.Trainer):
         cls,
         attributes: str,
         clip: bool,
-        data_path: str,
         gpt_completions: bool,
         gpt_embeddings: bool,
-        names: Optional[str],
         num_processes: int,
         num_test_envs: int,
         num_test_names: int,
-        obj_pattern: str,
-        png_pattern: str,
         render: bool,
         seed: int,
         sync_envs: bool,
@@ -324,7 +290,10 @@ class Trainer(base_main.Trainer):
 
     @classmethod
     def update_arg(cls, args: Args, bad_attrs: List[str], k: str, v) -> None:
-        if k == "num_processes" and v != base_main.DEFAULT_NUM_PROCESSES:
+        if (
+            k == "num_processes"
+            and args.num_processes != base_main.DEFAULT_NUM_PROCESSES
+        ):
             return
         super().update_arg(args, bad_attrs, k, v)
 

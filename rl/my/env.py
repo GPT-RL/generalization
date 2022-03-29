@@ -14,26 +14,12 @@ from gym import Space
 from gym.utils import seeding
 from habitat import Config, Dataset
 from habitat.core.simulator import Observations
-from tap import Tap
 
 EXCLUDED = "excluded"
 DESCRIPTION = "description"
 NAME = "name"
 PAIR = "pair"
 PATH = "path"
-
-
-class Args(Tap):
-    data_path: str = Path(Path.home(), ".cache/data/ycb.3")
-    floor_tex: str = "floor_tiles_white"
-    image_size: int = 128
-    names: Optional[str] = None
-    random_agent: bool = False
-    room_size: float = 8
-    obj_pattern: str = "*/*/*.obj"
-    png_pattern: str = "*/*/*.png"
-    radius: float = 1.5724637533369341
-    seed: int = 0
 
 
 @dataclass

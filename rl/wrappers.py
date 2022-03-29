@@ -312,3 +312,20 @@ class TokenizerWrapper(MissionPreprocessor):
         _, array_inverse = np.unique(array, return_inverse=True)
         array = array_inverse.reshape(array.shape)
         super().__init__(env, all_missions, array)
+
+
+class TransposeObsWrapper(gym.ObservationWrapper):
+    def __init__(self, env):
+        super().__init__(env)
+        spaces = Obs(**self.observation_space.spaces)
+        self.observation_space = replace(
+            spaces,
+            image=Box(
+                low=spaces.image.low.transpose(2, 0, 1),
+                high=spaces.image.high.transpose(2, 0, 1),
+            ),
+        ).to_space()
+
+    def observation(self, observation):
+        obs = Obs(**observation)
+        return replace(obs, image=obs.image.transpose(2, 0, 1)).to_obs()
