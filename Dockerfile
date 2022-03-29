@@ -1,5 +1,5 @@
 # inspired by https://sourcery.ai/blog/python-docker/
-FROM ubuntu:20.04 as base
+FROM nvidia/cudagl:11.4.0-devel-ubuntu20.04 as base
 ENV LC_ALL C.UTF-8
 
 # no .pyc files
@@ -30,9 +30,6 @@ RUN apt-get update -q \
 
       # required by transformers package
       python3.8-distutils \
-
-      # redis-python
-      redis \
 
  && apt-get clean
 
@@ -67,9 +64,9 @@ RUN pip3 install poetry && poetry install
 
 ENV VIRTUAL_ENV=/root/.cache/pypoetry/virtualenvs/generalization-K3BlsyQa-py3.8/
 
-RUN git clone --branch v0.2.1 https://github.com/facebookresearch/habitat-sim.git \
+RUN git clone --branch stable https://github.com/facebookresearch/habitat-sim.git \
  && cd habitat-sim \
- && $VIRTUAL_ENV/bin/python setup.py install --headless
+ && $VIRTUAL_ENV/bin/python setup.py install --headless --with-cuda
 
 FROM base AS runtime
 
@@ -81,13 +78,15 @@ RUN apt-get update -q \
       # for habitat-sim examples.py
       wget \
 
- && apt-get clean
+ && apt-get clean \
+
 
 WORKDIR "/project"
 ENV VIRTUAL_ENV=/root/.cache/pypoetry/virtualenvs/generalization-K3BlsyQa-py3.8/
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 COPY --from=python-deps $VIRTUAL_ENV $VIRTUAL_ENV
 COPY --from=python-deps /deps/habitat-sim /deps/habitat-sim
-COPY . .
+COPY main.py .
+COPY objectnav_mp3d.yaml .
 
 ENTRYPOINT ["python"]
