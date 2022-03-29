@@ -1,12 +1,7 @@
 #! /usr/bin/env bash
-mkdir -p logs ~/.cache/GPT ~/.cache/huggingface
-name=$(basename "$PWD")_agent
+name=issue
 docker build -t "$name" .
 docker run --rm -it \
-	-e HOST_MACHINE="$(hostname -s)" \
-	-e TERM=xterm-256color \
-	-v "$(pwd)/logs:/tmp/logs" \
-	-v "$HOME/.cache/GPT/:/root/.cache/GPT" \
+  --gpus all \
 	-v "$HOME/.cache/data/:/root/.cache/data" \
-	-v "$HOME/.cache/huggingface/:/root/.cache/huggingface" \
-	"$name" "${@:2}"
+	"$name" "${@:1}"
