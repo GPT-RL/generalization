@@ -67,7 +67,7 @@ RUN pip3 install poetry && poetry install
 
 ENV VIRTUAL_ENV=/root/.cache/pypoetry/virtualenvs/generalization-K3BlsyQa-py3.8/
 
-RUN git clone --branch stable https://github.com/facebookresearch/habitat-sim.git \
+RUN git clone --branch v0.2.1 https://github.com/facebookresearch/habitat-sim.git \
  && cd habitat-sim \
  && $VIRTUAL_ENV/bin/python setup.py install --headless --with-cuda
 

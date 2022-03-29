@@ -18,6 +18,7 @@ from agent import Agent
 from envs import TimeLimitMask, TransposeImage, VecPyTorch, VecPyTorchFrameStack
 from gym.wrappers.clip_action import ClipAction
 from line_chart import spec
+from my.env import Env
 from ppo import PPO
 from rollouts import Rollouts
 from stable_baselines3.common.atari_wrappers import (
@@ -364,8 +365,13 @@ class Trainer:
         if test:
             render = render_test
 
-        env = cls.make_env(rank=0, render=render, seed=seed + 0, test=test, **kwargs)()
+        # env = cls.make_env(rank=0, render=render, seed=seed + 0, test=test, **kwargs)()
         import itertools
+
+        import habitat
+
+        env = Env(config=habitat.get_config("objectnav_mp3d.yaml"))
+        breakpoint()
 
         for i in itertools.count():
             print(i)
