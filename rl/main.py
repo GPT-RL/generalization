@@ -14,8 +14,7 @@ try:
 except ValueError:
     device = None
 pyglet.options["headless_device"] = device
-from base_main import ArgsType  # noqa: E402
-from gpt_main import Args, Trainer  # noqa: E402
+from my.main import Args, ArgsType, Trainer  # noqa: E402
 
 if __name__ == "__main__":
     Trainer.main(cast(ArgsType, Args().parse_args()))
