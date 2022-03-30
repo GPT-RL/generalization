@@ -1,7 +1,3 @@
-import itertools
-from functools import lru_cache
-
-import torch
 from my import agent
 from transformers import GPT2Config
 from wrappers import GPT3Tokenizer
@@ -10,20 +6,6 @@ from wrappers import GPT3Tokenizer
 class Agent(agent.Agent):
     def build_base(self, obs_shape, **kwargs):
         return Base(**kwargs)
-
-
-def get_primes():
-    for i in itertools.count():
-        if not any(i % j == 0 for j in range(2, i // 2 + 1)):
-            yield i
-
-
-@lru_cache()
-def get_primes_tensor(num_el, device, shape):
-    return torch.tensor(
-        list(itertools.islice(get_primes(), num_el)),
-        device=device,
-    ).reshape(shape)
 
 
 class Base(agent.Base):
