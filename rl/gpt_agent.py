@@ -1,13 +1,9 @@
 import itertools
-from dataclasses import dataclass
 from functools import lru_cache
-from typing import cast
 
 import torch
 from my import agent
-from torch import Tensor
 from transformers import GPT2Config
-from utils import build_gpt
 from wrappers import GPT3Tokenizer
 
 
@@ -62,62 +58,7 @@ class Base(agent.Base):
         )
 
     def build_embeddings(self):
-        if not self.gpt_embeddings:
-            gpt = build_gpt("gpt2", self.randomize_parameters)
-            for name, p in gpt.named_parameters():
-                requires_grad = (self.train_wpe and "wpe" in name) or (
-                    self.train_ln and "ln" in name
-                )
-                p.requires_grad_(requires_grad)
-            return gpt
-
-    @lru_cache()
-    def cached_gpt_forward_pass(self, inputs: "HashTensorWrapper"):
-        with torch.no_grad():
-            return self.uncached_gpt_forward_pass(inputs.tensor)
+        return None
 
     def embed(self, inputs):
-        if self.embeddings is None:
-            return inputs
-        states = self.gpt_forward_pass(inputs.long())
-        return states.mean(
-            1
-        )  # mean across input length  (if there are 3 tokens, gpt will output an (n, 3, d) size embedding).
-
-    def gpt_forward_pass(self, inputs):
-        if self.train_ln or self.train_wpe:
-            return self.uncached_gpt_forward_pass(inputs)
-        else:
-            return torch.cat(
-                [
-                    self.cached_gpt_forward_pass(HashTensorWrapper(x))
-                    for x in inputs.unsqueeze(1)
-                ],
-                dim=0,
-            )
-
-    def uncached_gpt_forward_pass(self, tensor):
-        return self.embeddings.forward(
-            tensor, attention_mask=tensor != self.pad_token_id
-        ).last_hidden_state
-
-
-@dataclass(frozen=True)
-class HashTensorWrapper:
-    """
-    https://discuss.pytorch.org/t/how-to-put-tensors-in-a-set/123836/7
-    """
-
-    tensor: Tensor
-
-    def __hash__(self):
-        primes = get_primes_tensor(
-            self.tensor.numel(), self.tensor.device, self.tensor.shape
-        )
-        return torch.sum(self.tensor * primes).item()
-
-    def __eq__(self, other):
-        assert isinstance(other, HashTensorWrapper)
-        equals = self.tensor == other.tensor
-        equals = cast(Tensor, equals)
-        return torch.all(equals)
+        return inputs
