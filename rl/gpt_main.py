@@ -3,7 +3,7 @@ from my import main
 
 
 class Args(main.Args):
-    randomize_parameters: bool = False
+    pass
 
 
 class Trainer(main.Trainer):
@@ -13,7 +13,6 @@ class Trainer(main.Trainer):
             *_args,
             agent_class=Agent,
             args=args,
-            randomize_parameters=args.randomize_parameters,
             **kwargs,
         )
 

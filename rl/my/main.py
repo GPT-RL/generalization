@@ -21,7 +21,7 @@ from my.env import EXCLUDED, PAIR, Env, Mesh, Obs
 from my.mesh_paths import get_meshes
 from run_logger import HasuraLogger
 from stable_baselines3.common.monitor import Monitor
-from transformers import CLIPProcessor, GPT2Tokenizer
+from transformers import CLIPProcessor, GPT2Config, GPT2Tokenizer
 from wrappers import (
     EPISODE_SUCCESS,
     CLIPProcessorWrapper,
@@ -219,6 +219,16 @@ class Trainer(base_main.Trainer):
         agent_class: type = Agent,
         **kwargs,
     ):
+        if args.gpt_embeddings:
+            mission_size = GPT3Tokenizer().n_embed
+        else:
+            config = GPT2Config.from_pretrained(
+                "gpt2",
+                use_cache=False,
+                output_attentions=False,
+                output_hidden_states=False,
+            )
+            mission_size = config.n_embd
         return agent_class(
             action_space=action_space,
             clip=args.clip,
@@ -227,6 +237,7 @@ class Trainer(base_main.Trainer):
             features=features,
             gpt_embeddings=args.gpt_embeddings,
             hidden_size=args.hidden_size,
+            mission_size=mission_size,
             observation_space=observation_space,
             qkv=args.qkv,
             recurrent=cls.recurrent(args),
