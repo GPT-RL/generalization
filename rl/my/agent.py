@@ -57,7 +57,7 @@ class Base(NNBase):
         clip: bool,
         device: torch.device,
         freeze_keys: bool,
-        pretrained_model: str,
+        gpt_embeddings: bool,
         hidden_size: int,
         features: torch.Tensor,
         observation_space: Dict,
@@ -80,12 +80,10 @@ class Base(NNBase):
         self.train_ln = train_ln
         self.observation_spaces = Obs(**observation_space.spaces)
 
-        if pretrained_model == "text-similarity-babbage-001":
+        if gpt_embeddings:
             self.pad_token_id = None
         else:
-            self.pad_token_id = GPT2Tokenizer.from_pretrained(
-                pretrained_model
-            ).eos_token_id
+            self.pad_token_id = GPT2Tokenizer.from_pretrained("gpt2").eos_token_id
 
         self.embeddings = self.build_embeddings()
 

@@ -6,7 +6,7 @@ from typing import cast
 import torch
 from my import agent
 from torch import Tensor
-from transformers import BertConfig, GPT2Config, GPTNeoConfig
+from transformers import GPT2Config
 from utils import build_gpt
 from wrappers import GPT3Tokenizer
 
@@ -34,56 +34,36 @@ class Base(agent.Base):
     def __init__(
         self,
         *args,
-        pretrained_model: str,
+        gpt_embeddings: bool,
         randomize_parameters: bool,
         **kwargs,
     ):
-        self.pretrained_model = pretrained_model
+        self.gpt_embeddings = gpt_embeddings
         self.randomize_parameters = randomize_parameters
         self.train_wpe = False  # todo
         self.train_ln = False  # todo
 
-        if "neo" in pretrained_model:
-            config = GPTNeoConfig.from_pretrained(
-                pretrained_model,
-                use_cache=False,
-                output_attentions=False,
-                output_hidden_states=False,
-            )
-            n_embed = config.n_embd
-        elif "gpt2" in pretrained_model:
-            config = GPT2Config.from_pretrained(
-                pretrained_model,
-                use_cache=False,
-                output_attentions=False,
-                output_hidden_states=False,
-            )
-            n_embed = config.n_embd
-        elif "bert" in pretrained_model:
-            config = BertConfig.from_pretrained(
-                pretrained_model,
-                use_cache=False,
-                output_attentions=False,
-                output_hidden_states=False,
-            )
-            n_embed = config.n_embd
-
-        elif pretrained_model == "text-similarity-babbage-001":
+        if gpt_embeddings:
             n_embed = GPT3Tokenizer().n_embed
-
         else:
-            raise RuntimeError(f"Invalid model name: {pretrained_model}")
+            config = GPT2Config.from_pretrained(
+                "gpt2",
+                use_cache=False,
+                output_attentions=False,
+                output_hidden_states=False,
+            )
+            n_embed = config.n_embd
 
         super().__init__(
             *args,
             mission_size=n_embed,
-            pretrained_model=pretrained_model,
+            gpt_embeddings=gpt_embeddings,
             **kwargs,
         )
 
     def build_embeddings(self):
-        if self.pretrained_model != "text-similarity-babbage-001":
-            gpt = build_gpt(self.pretrained_model, self.randomize_parameters)
+        if not self.gpt_embeddings:
+            gpt = build_gpt("gpt2", self.randomize_parameters)
             for name, p in gpt.named_parameters():
                 requires_grad = (self.train_wpe and "wpe" in name) or (
                     self.train_ln and "ln" in name
