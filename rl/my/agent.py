@@ -68,6 +68,7 @@ class Base(NNBase):
         train_wpe: bool,
         mission_size: int = 64,
     ):
+        self.gpt_embeddings = gpt_embeddings
         self.qkv = qkv
         self.mission_size = mission_size
         super().__init__(
@@ -167,10 +168,14 @@ class Base(NNBase):
         return self._image_net(image)
 
     def build_embeddings(self):
+        if self.gpt_embeddings:
+            return None
         num_embeddings = 1 + self.pad_token_id
         return nn.EmbeddingBag(num_embeddings, self.mission_size)
 
     def embed(self, inputs):
+        if self.gpt_embeddings:
+            return inputs
         return self.embeddings.forward(inputs.long())
 
     def forward(self, inputs, rnn_hxs, masks):
