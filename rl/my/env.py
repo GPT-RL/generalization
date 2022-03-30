@@ -20,6 +20,7 @@ EXCLUDED = "excluded"
 DESCRIPTION = "description"
 NAME = "name"
 PATH = "path"
+OBJECT = "object"
 
 
 @dataclass
@@ -139,7 +140,7 @@ class Env(habitat.Env, gym.Env):
         return done
 
     def get_info(self, observations: Observations) -> typing.Dict[str, typing.Any]:
-        i = dict(mission=self.features[self.objective])
+        i = dict({OBJECT: self.features[self.objective]})
         if self.get_done(observations):
             i.update({EPISODE_SUCCESS: self._episode_success(observations)})
         return i

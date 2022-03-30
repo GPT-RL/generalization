@@ -1,18 +1,19 @@
 import functools
 from collections import defaultdict
+from copy import deepcopy
 from dataclasses import dataclass, field
 from inspect import signature
 from typing import Callable, DefaultDict, List, Set, Tuple, cast
 
+import bar_chart
 import base_main
 import gym
 import habitat
-import heatmap
 import line_chart
 import numpy as np
 from envs import VecPyTorch
 from my.agent import Agent
-from my.env import EPISODE_SUCCESS, Env
+from my.env import EPISODE_SUCCESS, OBJECT, Env
 from run_logger import HasuraLogger
 from stable_baselines3.common.monitor import Monitor
 from transformers import CLIPProcessor, GPT2Tokenizer
@@ -30,11 +31,8 @@ from wrappers import (
     TransposeObsWrapper,
 )
 
-DISTRACTOR = "distractor"
-MISSION = "mission"
-PAIR_SUCCESS = "object pair success"
-PAIR_TEST_SUCCESS = "object pair test success"
-PAIR_COUNT = "object pair count"
+OBJECT_SUCCESS = "object success"
+OBJECT_TEST_SUCCESS = "object test success"
 TEST_EPISODE_SUCCESS = "test episode success"
 
 
@@ -47,7 +45,7 @@ class Args(base_main.Args):
     large_architecture: bool = False
     num_test_envs: int = 8
     num_test_names: int = 2
-    pair_log_interval_coef: float = 0.01
+    obj_log_interval_coef: float = 0.01
     train_ln: bool = False
     train_wpe: bool = False
 
@@ -63,11 +61,11 @@ class ArgsType(base_main.ArgsType, Args):
 @dataclass
 class Counters(base_main.Counters):
     episode_success: List[bool] = field(default_factory=list)
-    pairs: List[Tuple[str, str]] = field(default_factory=list)
-    success_per_pair: DefaultDict[Tuple[str, str], List[float]] = field(
+    objects: List[str] = field(default_factory=list)
+    success_per_object: DefaultDict[Tuple[str, ...], List[float]] = field(
         default_factory=lambda: defaultdict(list)
     )
-    test_success_per_pair: DefaultDict[Tuple[str, str], List[float]] = field(
+    test_success_per_object: DefaultDict[Tuple[str, ...], List[float]] = field(
         default_factory=lambda: defaultdict(list)
     )
     test_episode_success: List[bool] = field(default_factory=list)
@@ -89,18 +87,11 @@ class Trainer(base_main.Trainer):
         return (
             [
                 line_chart.spec(x=base_main.STEP, y=y, **kwargs)
-                for y in [
-                    EPISODE_SUCCESS,
-                    TEST_EPISODE_SUCCESS,
-                ]
+                for y in [EPISODE_SUCCESS, TEST_EPISODE_SUCCESS]
             ]
             + [
-                heatmap.spec(
-                    x=DISTRACTOR,
-                    y=MISSION,
-                    color=color,
-                )
-                for color in [PAIR_SUCCESS, PAIR_TEST_SUCCESS]
+                bar_chart.spec(x=x, y=OBJECT)
+                for x in [OBJECT_SUCCESS, OBJECT_TEST_SUCCESS]
             ]
             + super().charts(args=args)
         )
@@ -117,6 +108,25 @@ class Trainer(base_main.Trainer):
         n_objects = 60
         if args.num_test_names is not None:
             n_objects -= args.num_test_names
+
+        timesteps_per_log = args.num_processes * args.num_steps * args.log_interval
+        threshold = timesteps_per_log * args.obj_log_interval_coef
+        for key, success_per_obj, threshold in [
+            (OBJECT_SUCCESS, counters.success_per_object, threshold),
+            (OBJECT_TEST_SUCCESS, counters.test_success_per_object, 0),
+        ]:
+            success_per_obj = deepcopy(success_per_obj)
+            for obj, v in success_per_obj.items():
+                print(len(v), threshold)
+                if len(v) >= threshold:
+                    super().log(
+                        args=args,
+                        log={key: np.mean(v), OBJECT: ",".join(obj)},
+                        logger=logger,
+                        step=step,
+                    )
+                    success_per_obj[obj] = []
+
         if counters.episode_success:
             log.update({EPISODE_SUCCESS: np.mean(counters.episode_success)})
         if counters.test_episode_success:
@@ -234,10 +244,13 @@ class Trainer(base_main.Trainer):
     def process_info(cls, counters: Counters, info: dict, test: bool):
         super().process_info(counters, info, test)
         if EPISODE_SUCCESS in info:
+            obj = tuple(info[OBJECT])
             if test:
                 counters.test_episode_success.append(info[EPISODE_SUCCESS])
+                counters.test_success_per_object[obj].append(info[EPISODE_SUCCESS])
             else:
                 counters.episode_success.append(info[EPISODE_SUCCESS])
+                counters.success_per_object[obj].append(info[EPISODE_SUCCESS])
 
     @staticmethod
     def recurrent(args: Args):
