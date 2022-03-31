@@ -3,11 +3,12 @@
 import habitat
 import numpy as np
 import pygame
-from my.env import Env
+from my.env import Args, Env
 
-if __name__ == "__main__":
-    config = habitat.get_config("objectnav_mp3d.yaml")
-    env = Env(config=(config))
+
+def main(*args, **kwargs):
+    kwargs.update(config=habitat.get_config("objectnav_mp3d.yaml"))
+    env = Env(*args, **kwargs)
     env.seed(0)
     s = env.reset()
     highlight_objective = True
@@ -71,3 +72,7 @@ if __name__ == "__main__":
             if env.get_done(s):
                 print("Episode finished")
                 s = env.reset()
+
+
+if __name__ == "__main__":
+    main(**Args().parse_args().as_dict())

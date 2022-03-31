@@ -1,4 +1,3 @@
-import os
 import string
 import typing
 from collections import defaultdict
@@ -14,6 +13,7 @@ from gym import Space
 from gym.utils import seeding
 from habitat import Config, Dataset
 from habitat.core.simulator import Observations
+from tap import Tap
 
 EPISODE_SUCCESS = "episode success"
 EXCLUDED = "excluded"
@@ -21,6 +21,10 @@ DESCRIPTION = "description"
 NAME = "name"
 PATH = "path"
 OBJECT = "object"
+
+
+class Args(Tap):
+    scene: Optional[str] = None
 
 
 @dataclass
@@ -71,10 +75,20 @@ class StringTuple(gym.Space):
 
 
 class Env(habitat.Env, gym.Env):
-    def __init__(self, config: Config, dataset: Optional[Dataset] = None):
+    def __init__(
+        self,
+        config: Config,
+        dataset: Optional[Dataset] = None,
+        scene: Optional[str] = None,
+    ):
         config.defrost()
-        config.DATASET.DATA_PATH = os.path.expanduser(config.DATASET.DATA_PATH)
-        config.DATASET.SCENES_DIR = os.path.expanduser(config.DATASET.SCENES_DIR)
+        data_path = Path(config.DATASET.DATA_PATH).expanduser()
+        scenes_dir = Path(config.DATASET.SCENES_DIR).expanduser()
+        if scene is not None:
+            assert scene.endswith(".json.gz"), scene
+            data_path = data_path.with_name(scene)
+        config.DATASET.DATA_PATH = str(data_path)
+        config.DATASET.SCENES_DIR = str(scenes_dir)
         config.freeze()
         self._slack_reward = 0
         self._max_reward = 1

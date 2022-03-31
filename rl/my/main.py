@@ -12,6 +12,7 @@ import habitat
 import line_chart
 import numpy as np
 from envs import VecPyTorch
+from my import env
 from my.agent import Agent
 from my.env import EPISODE_SUCCESS, OBJECT, Env
 from run_logger import HasuraLogger
@@ -36,7 +37,7 @@ OBJECT_TEST_SUCCESS = "object test success"
 TEST_EPISODE_SUCCESS = "test episode success"
 
 
-class Args(base_main.Args):
+class Args(base_main.Args, env.Args):
     attributes: str = "name"
     clip: bool = False
     image_size: int = 128
