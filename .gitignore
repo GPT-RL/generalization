@@ -108,3 +108,4 @@ config.yaml
 config.yml
 logs
 dumb.py
+ignore.py
