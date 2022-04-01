@@ -102,6 +102,7 @@ class Env(habitat.Env, gym.Env):
             "floor",
             "ceiling",
             "wall",
+            "stool",  # TODO
         ]
         self.np_random, seed = seeding.np_random(0)
         super().__init__(config, dataset)
