@@ -8,6 +8,7 @@ from typing import Optional, TypeVar, Union
 import gym
 import habitat
 import numpy as np
+from art import text2art
 from colors import color
 from gym import Space
 from gym.utils import seeding
@@ -121,6 +122,8 @@ class Env(habitat.Env, gym.Env):
             self.object_to_ids[v].append(k)
         self.objects = sorted(self.object_to_ids.keys())
         self.features = {o: [o] for o in self.objects}
+        self.action = None
+        self.observations = None
 
     def _episode_success(self, observations: Observations) -> bool:
 
@@ -170,27 +173,39 @@ class Env(habitat.Env, gym.Env):
     def get_reward_range(self):
         return self._slack_reward, self._max_reward
 
-    def render(self, mode="rgb") -> np.ndarray:
+    def render(self, mode="rgb", pause=True) -> np.ndarray:
         if mode == "ascii":
-            raise NotImplementedError()
+            print(self.ascii_of_image(self.observations["rgb"]))
+            print()
+            subtitle = str(self.objective)
+            if self.action is not None:
+                subtitle += f", {self.task.get_action_name(self.action)}"
+            subtitle += f", reward={self.get_reward(self.observations)}"
+            if self.get_done(self.observations):
+                subtitle += ", done"
+            print(text2art(subtitle.swapcase(), font="com_sen"))
+            if pause:
+                input("Press enter to continue.")
+
         else:
             return super().render(mode=mode)
 
     def reset(self) -> dict:
         idx = self.np_random.choice(len(self.objects))
         self.objective = self.objects[idx]
-        return super().reset()
+        self.observations = super().reset()
+        return self.observations
 
     def seed(self, seed: int) -> None:
         self.np_random, seed = seeding.np_random(seed)
 
-    def step(self, *args, **kwargs) -> typing.Tuple[dict, float, bool, dict]:
+    def step(self, action, *args, **kwargs) -> typing.Tuple[dict, float, bool, dict]:
         r"""Perform an action in the environment.
 
         :return: :py:`(observations, reward, done, info)`
         """
-
-        observations = super().step(*args, **kwargs)
+        self.action = action
+        self.observations = observations = super().step(*args, action=action, **kwargs)
         reward = self.get_reward(observations)
         done = self.get_done(observations)
         info = self.get_info(observations)

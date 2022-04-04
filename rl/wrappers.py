@@ -79,7 +79,7 @@ class MissionWrapper(gym.Wrapper, abc.ABC):
         return observation.to_obs(self.observation_space), reward, done, info
 
     def render(self, mode="human", pause=True, **kwargs):
-        self.env.render(pause=False)
+        self.env.render(pause=pause)
         print(self._mission)
         self.env.pause(pause)
 
@@ -133,7 +133,7 @@ class RenderWrapper(gym.Wrapper):
         super().__init__(env)
 
     def step(self, action):
-        self.render(mode=self.mode, pause=False)
+        self.render(mode=self.mode, pause=True)
         s, r, t, i = super().step(action)
         if t:
             self.render(mode=self.mode, pause=r == 0)
