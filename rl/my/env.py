@@ -126,22 +126,16 @@ class Env(habitat.Env, gym.Env):
         self.observations = None
 
     def _episode_success(self, observations: Observations) -> bool:
-
+        if self.task.is_episode_active:
+            return False
         objective_ids = self.object_to_ids[self.objective]
         objective_ids = np.array(objective_ids).reshape((-1, 1, 1))
         depth = observations["depth"].copy()
         semantic = observations["semantic"].copy()
-        expanded = np.expand_dims(semantic, 0)
-        is_objective = expanded == objective_ids
-        is_objective = is_objective.any(0)
-        objective_in_range = depth.squeeze(-1)[is_objective]
-        if not objective_in_range.size:
-            return False
-        objective_in_range = objective_in_range.min()
-
-        if self.task.is_episode_active:
-            return False
-        return objective_in_range < self._config.TASK.SUCCESS.SUCCESS_DISTANCE
+        is_objective = semantic == objective_ids
+        in_range = depth.squeeze(-1) < self._config.TASK.SUCCESS.SUCCESS_DISTANCE
+        np_sum = np.sum(is_objective & in_range)
+        return np_sum > 50
 
     @staticmethod
     def ascii_of_image(image: np.ndarray):
