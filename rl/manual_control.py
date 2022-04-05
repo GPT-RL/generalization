@@ -3,7 +3,6 @@
 import habitat
 import my.env
 import numpy as np
-import pygame
 from my.env import Env
 
 
@@ -12,6 +11,8 @@ class Args(my.env.Args):
 
 
 def main(*args, use_pygame: bool, **kwargs):
+    if use_pygame:
+        import pygame
     kwargs.update(config=habitat.get_config("objectnav_mp3d.yaml"))
     env = Env(*args, **kwargs)
     env.seed(0)
