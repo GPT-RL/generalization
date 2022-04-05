@@ -173,16 +173,30 @@ class Env(habitat.Env, gym.Env):
 
     def render(self, mode="rgb", pause=True) -> np.ndarray:
         if mode == "ascii":
-            rgb_strings = list(self.ascii_of_image(self.observations["rgb"]))
-            overlay = self.objective_overlay(self.observations)
-            overlay_strings = list(
-                self.ascii_of_image(255 * np.expand_dims(overlay, -1))
-            )
-            for rgb_string, overlay_string in zip(rgb_strings, overlay_strings):
-                print(f"{rgb_string}{overlay_string}")
+            rgb = self.observations["rgb"]
+            rgb_strings = list(self.ascii_of_image(rgb))
+            semantic = self.observations["semantic"]
+            semantic = np.expand_dims(semantic, -1)
+            rgb, semantic = np.broadcast_arrays(rgb, semantic)
+            # overlay = self.objective_overlay(self.observations)
+            # overlay = np.expand_dims(overlay, -1)
+            # rgb, overlay = np.broadcast_arrays(rgb, overlay)
+            # overlay_strings = list(self.ascii_of_image(255 * overlay))
+            semantic_strings = list(self.ascii_of_image(semantic))
+            for rgb_string, semantic_string in zip(rgb_strings, semantic_strings):
+                print(f"{rgb_string}{semantic_string}")
+            # for rgb_string, overlay_string in zip(rgb_strings, overlay_strings):
+            #     print(f"{rgb_string}{overlay_string}")
+            # if overlay.sum() > 50:
+            #     breakpoint()
             subtitle = str(self.objective)
             if self.action is not None:
-                subtitle += f", {self.task.get_action_name(self.action)}"
+                action_str = (
+                    self.task.get_action_name(self.action)
+                    if isinstance(self.action, int)
+                    else self.action
+                )
+                subtitle += f", {action_str}"
             subtitle += f", reward={self.get_reward(self.observations)}"
             if self.get_done(self.observations):
                 subtitle += ", done"
