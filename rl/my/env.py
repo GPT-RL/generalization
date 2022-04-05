@@ -126,24 +126,28 @@ class Env(habitat.Env, gym.Env):
         self.observations = None
 
     def _episode_success(self, observations: Observations) -> bool:
-        if self.task.is_episode_active:
+        try:
+            if self.task.is_episode_active:
+                return False
+        except AttributeError:
             return False
+        overlay = self.objective_overlay(observations)
+        np_sum = np.sum(overlay)
+        return np_sum > 50
+
+    def objective_overlay(self, observations):
         objective_ids = self.object_to_ids[self.objective]
         objective_ids = np.array(objective_ids).reshape((-1, 1, 1))
         depth = observations["depth"].copy()
         semantic = observations["semantic"].copy()
         is_objective = semantic == objective_ids
         in_range = depth.squeeze(-1) < self._config.TASK.SUCCESS.SUCCESS_DISTANCE
-        np_sum = np.sum(is_objective & in_range)
-        return np_sum > 50
+        return in_range & is_objective.any(0)
 
     @staticmethod
     def ascii_of_image(image: np.ndarray):
-        def rows():
-            for row in image:
-                yield "".join([(color("██", tuple(rgb.astype(int)))) for rgb in row])
-
-        return "\n".join(rows())
+        for row in image:
+            yield "".join([(color("██", tuple(rgb.astype(int)))) for rgb in row])
 
     def get_done(self, observations: Observations) -> bool:
         done = False
@@ -169,8 +173,13 @@ class Env(habitat.Env, gym.Env):
 
     def render(self, mode="rgb", pause=True) -> np.ndarray:
         if mode == "ascii":
-            print(self.ascii_of_image(self.observations["rgb"]))
-            print()
+            rgb_strings = list(self.ascii_of_image(self.observations["rgb"]))
+            overlay = self.objective_overlay(self.observations)
+            overlay_strings = list(
+                self.ascii_of_image(255 * np.expand_dims(overlay, -1))
+            )
+            for rgb_string, overlay_string in zip(rgb_strings, overlay_strings):
+                print(f"{rgb_string}{overlay_string}")
             subtitle = str(self.objective)
             if self.action is not None:
                 subtitle += f", {self.task.get_action_name(self.action)}"
