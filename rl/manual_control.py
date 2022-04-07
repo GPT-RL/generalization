@@ -3,7 +3,7 @@
 import habitat
 import my.env
 import numpy as np
-import pygame
+
 from my.env import Env
 
 
@@ -29,6 +29,8 @@ def main(*args, use_pygame: bool, **kwargs):
         return image.swapaxes(0, 1)
 
     if use_pygame:
+        import pygame
+
         shape = get_image(s).shape[:2]
         pygame.init()
         screen = pygame.display.set_mode(shape)

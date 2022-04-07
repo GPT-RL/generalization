@@ -7,8 +7,8 @@ authors = ["Ethan Brooks <ethanabrooks@gmail.com>"]
 [tool.poetry.dependencies]
 python = ">=3.8,<3.11"
 numpy = "^1.21.5"
-habitat = {git = "https://github.com/facebookresearch/habitat-lab.git", rev = "fbdd9fd42e7716c04bbde1da0d867e6d79dd3490"}
-stable-baselines3 = "^1.4.0"
+habitat = {git = "https://github.com/GPT-RL/habitat-lab.git", rev = "main"}
+stable-baselines3 = {git = "https://github.com/GPT-RL/stable-baselines3.git", rev = "master"}
 transformers = "^4.17.0"
 typed-argument-parser = "^1.7.2"
 ansicolors = "^1.1.8"
