@@ -1,36 +1,89 @@
-name,room,where,height,width,category,replacement name,id,vertical position
-robes,closet,against the wall,more than 3 ft tall,,,,,
-wardrobe,closet,against the wall,more than 3 ft tall,,,,,
-plant,entryway,on the stand,less than 3 ft tall,,,,,
-telephone,bedroom,on the dresser,less than 3 ft tall,,,,,waist level
-plant,bedroom,by the window,less than 3 ft tall,,,,,waist level
-curtain,bedroom,by the window,more than 3 ft tall,,,,,
-mirror,bedroom,on the dresser,less than 3 ft tall,,,,,eye level
-desk,bedroom,by the window,less than 3 ft tall,more than 3 ft across,surface,,,waist level
-nightstand,bedroom,next to the bed,less than 3 ft tall,more than 3 ft across,surface,,,waist level
-desk chair,bedroom,by the desk,more than 3 ft tall,,seat,,,knee level
-picture,bedroom,on the wall,less than 3 ft tall,more than 3 ft across,rectangle,,,eye level
-dresser,bedroom,next to the bed,less than 3 ft tall,more than 3 ft across,surface,,,knee level
-bed,bedroom,against the wall,less than 3 ft tall,more than 3 ft across,rectangle,,,knee level
-towel,bathroom,against the wall,less than 3 ft tall,,rectangle,,,
-bathtub,bathroom,against the wall,less than 3 ft tall,more than 3 ft across,rectangle,,,knee level
-mirror,bathroom,by the sink,more than 3 ft tall,more than 3 ft across,,,,eye level
-toilet,bathroom,against the wall,less than 3 ft tall,,,,,knee level
-washbasin,bathroom,by the mirror,,,,sink,,waist level
-armchair,deck,,more than 3 ft tall,,seat,,,knee level
-chair,deck,,more than 3 ft tall,more than 3 ft across,seat,lounge chair,,knee level
-pillow,living room,on the couch,less than 3 ft tall,,rectangle,,,waist level
-table,living room,next to the couch,less than 3 ft tall,,surface,side table,4,waist level
-table,living room,by the the couch,less than 3 ft tall,more than 3 ft across,surface,coffee table,5,knee level
-picture,living room,on the wall,more than 3 ft tall,more than 3 ft across,rectangle,,,eye level
-sofa chair,living room,next to the coffee table,more than 3 ft tall,,seat,,,knee level
-couch,living room,next to the coffee table,more than 3 ft tall,more than 3 ft across,seat,,,knee level
-faucet,kitchen,by the sink,less than 3 ft tall,,,,,waist level
-phone,kitchen,against the wall,less than 3 ft tall,,,,,waist level
-tv,kitchen,,less than 3 ft tall,more than 3 ft across,rectangle,,,waist level
-cabinet,kitchen,by the sink,,,,,,knee level
-counter,kitchen,against the wall,,2 across,surface,,,waist level
-chair,kitchen,,more than 3 ft tall,,,seat,,knee level
-shelf,kitchen,against the wall,more than 3 ft tall,,,,,knee level
-desk,kitchen,against the wall,more than 3 ft tall,2 across,surface,counter,,waist level
-cabinets,kitchen,against the wall,more than 3 ft tall,3 across,,cabinet,,
+﻿name,room,where,dimensions,color,category,id,vertical position
+armchair,living room,by the coffee table,3 ft high,,seat,111,Waist level
+bathtub,bathroom,against the wall,"1 ft high, 5 ft long",white,white,49,knee level
+bed,bedroom,against the wall,"2 ft high, 6 ft long",,rectangular,39,knee level
+bed,bedroom,next to the bedside table,"2 ft high, 6 ft long",,rectangular,39,knee level
+bed,bedroom,next to the dresser,"2 ft high, 6 ft long",,rectangular,39,knee level
+bedside table,bedroom,next to the bed,"2 ft high, 1 ft wide",,surface,38,knee level
+bedside table,bedroom,next to the sliding door,"2 ft high, 1 ft wide",,surface,38,knee level
+cabinet,living room,against the wall,"floor to ceiling, 3 ft wide",,,122,eye level
+clothing,closet,against the wall,,,,7,eye level
+Coffee table,living room,In front of the couch,"2 ft high, 3 ft wide",,surface,109,knee level
+curtain,bedroom,by the sliding door,8 ft high,,,33,eye level
+curtain,between the bedroom and the living room,against the wall,8 ft high,,,37,eye level
+curtain,between the bedroom and the living room,against the wall,8 ft high,,,42,eye level
+curtain,bedroom,by the sliding door,8 ft high,,,43,eye level
+curtain,Living room,By the sliding door,8 ft high,,,100,eye level
+curtain,between the bedroom and the living room,against the wall,8 ft high,,,110,eye level
+curtain,by the sliding door,against the wall,8 ft high,,,110,eye level
+cushion,living room,on the couch,1 ft wide,,rectangular,107,knee level
+cushion,living room,on the couch,1 ft wide,,rectangular,112,knee level
+Deck chair,On the balcony,,"3 ft tall, 2 ft wide",,Seat,90,Waist level
+Deck chair,On the balcony,,"3 ft tall, 2 ft wide",,Seat,93,Waist level
+Deck chair,On the balcony,,"3 ft tall, 2 ft wide",,Seat,94,Waist level
+Deck chair,On the balcony,,"3 ft tall, 2 ft wide",,Seat,96,Waist level
+desk,living room,against the wall,"3 ft tall, 4 ft wide",,surface,119,waist level
+desk chair,in front of the desk,,"3 ft tall, 2 ft wide",,Seat,126,Waist level
+door,in the shower room,,"8 ft high, 3 ft wide",,rectangular,55,eye level
+door,between the bedroom and the shower room,,"8 ft high, 3 ft wide",,rectangular,6,eye level
+door,between the foyer and the bathroom,,"8 ft high, 3 ft wide",,rectangular,25,eye level
+door,between the water closet and the shower room,,"8 ft high, 3 ft wide",,rectangular,2,eye level
+door,between the foyer and the water closet,,"8 ft high, 3 ft wide",,rectangular,25,eye level
+door,between the bedroom and the closet,,"8 ft high, 3 ft wide",,rectangular,14,eye level
+door,foyer,,"8 ft high, 3 ft wide",,rectangular,21,eye level
+door,between the bedroom and the bathroom,,"8 ft high, 3 ft wide",,rectangular,6,eye level
+door,in the bathroom,,"8 ft high, 3 ft wide",,rectangular,55,eye level
+door,in the bathroom,,"8 ft high, 3 ft wide",,rectangular,77,eye level
+door,In the water closet,,"8 ft high, 3 ft wide",,rectangular,77,eye level
+door,in the bathroom,,"8 ft high, 3 ft wide",,rectangular,81,eye level
+door,In the water closet,,"8 ft high, 3 ft wide",,rectangular,81,eye level
+dresser,bedroom,next to the bed,"2 ft high, 3 ft wide",,surface,30,knee level
+End table,In the living room,Next to the couch,"2 ft high, 1 ft wide",,surface,108,knee level
+flowers,bedroom,on the desk,,,,27,waist level
+kitchen cabinet,kitchen,under the kitchen counter,"3 ft high, 4 ft wide",,,128,knee level
+kitchen cabinet,kitchen,under the kitchen counter,"3 ft high, 4 ft wide",,,134,knee level
+kitchen counter,kitchen,above the kitchen cabinets,"3 ft high, 4 ft wide",,,131,waist height
+kitchen counter,kitchen,against the wall,"3 ft high, 4 ft wide",,,131,waist height
+kitchen sink,kitchen,on the kitchen counter,2 ft wide,,,132,waist height
+lounge chair,balcony,,"3 ft high, 5 ft long",,Seat,87,knee level
+lounge chair,balcony,,"3 ft high, 5 ft long",,Seat,97,knee level
+mirror,bedroom,on the dresser,1 ft tall,,,45,waist level
+mirror,kitchen,over the sink,"3 ft high, 3 ft wide",,rectangular,117,eye level
+mirror,kitchen,on the wall,"3 ft high, 3 ft wide",,rectangular,117,eye level
+pedestal,foyer,under the plant,"2 ft tall, 1 ft wide",,surface,22,knee level
+picture,bedroom,on the wall,"2 ft tall, 3 ft wide",,rectangular,34,eye level
+picture,living room,on the wall,"2 ft tall, 3 ft wide",,rectangular,106,eye level
+picture,living room,Over the couch,"2 ft tall, 3 ft wide",,rectangular,106,eye level
+plant,foyer,on the pedestal,1 ft tall,,green,23,waist level
+shower,bathroom,against the wall,"8 ft high, 4 ft wide",,,54,eye level
+Sliding door,Between the bedroom and the balcony,,"8 ft high, 6 ft wide",,,88,eye level
+Sliding door,Between the bedroom and the balcony,,"8 ft high, 6 ft wide",,,95,eye level
+Sliding door,Between the living room and the balcony,,"8 ft high, 6 ft wide",,,95,eye level
+Sliding door,Between the living room and the balcony,,"8 ft high, 6 ft wide",,,103,eye level
+Sliding door,Between the living room and the balcony,,"8 ft high, 6 ft wide",,,99,eye level
+sofa,living room,next to the coffee table,"3 ft high, 5 ft wide",,seat,104,knee level
+sofa,living room,Against the wall,"3 ft high, 5 ft wide",,seat,104,knee level
+sofa,living room,Under the picture,"3 ft high, 5 ft wide",,seat,104,knee level
+sofa,living room,Under the picture,3 ft high,,seat,127,knee level
+toilet,bathroom,against the wall,1 ft wide,white,seat,79,knee level
+towel,bathroom,over the bathtub,1 ft wide,white,rectangular,60,eye level
+towel,shower room,over the bathtub,1 ft wide,white,rectangular,60,eye level
+towel,bathroom,over the bathtub,1 ft wide,white,rectangular,61,eye level
+towel,shower room,over the bathtub,1 ft wide,white,rectangular,61,eye level
+towel,shower room,over the bathtub,1 ft wide,white,rectangular,67,eye level
+towel,bathroom,over the bathtub,1 ft wide,white,rectangular,67,eye level
+towel,bathroom,on the wall,1 ft wide,white,rectangular,71,eye level
+towel,bathroom,by the door,1 ft wide,white,rectangular,71,eye level
+towel,water closet,on the wall,1 ft wide,white,rectangular,71,eye level
+towel,water closet,by the door,1 ft wide,white,rectangular,71,eye level
+towel,bathroom,on the wall,1 ft wide,white,rectangular,80,eye level
+towel,bathroom,by the door,1 ft wide,white,rectangular,80,eye level
+towel,water closet,on the wall,1 ft wide,white,rectangular,80,eye level
+towel,water closet,by the door,1 ft wide,white,rectangular,80,eye level
+tv,living room,in the cabinet,"2 ft high, 3 ft wide",,rectangular,124,waist level
+vanity chair,bedroom,by the vanity,"3 ft high, 2 ft wide",,seat,41,knee level
+vanity chair,bedroom,by the flowers,"3 ft high, 2 ft wide",,seat,41,knee level
+vanity chair,bedroom,by the vanity table,"3 ft high, 2 ft wide",,seat,41,knee level
+vanity mirror,bedroom,over the desk,"5 ft high, 4 ft wide",,,35,eye level
+vanity table,bedroom,by the vanity,"3 ft high, 2 ft wide",,surface,46,waist level
+vanity table,bedroom,by the vanity chair,"3 ft high, 2 ft wide",,surface,46,waist level

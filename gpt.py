@@ -1,59 +1,48 @@
-import re
+import random
 
 import openai
 import pandas as pd
+from tqdm import tqdm
 
 
-def get_properties(df: pd.DataFrame):
-    for i, row in df.iterrows():
-        obj, *properties = tuple(row)
+def get_completions():
+    features = pd.read_csv("habitat.csv").groupby("id")
 
-        def callback1(pat):
-            return pat.group(1).lower()
+    def get_prompts():
+        for _, group in features:
+            for _, row in group.iterrows():
+                prompt = (
+                    f"The {row['name']} is{'' if row['room'].startswith('between') else ' in the'} "
+                    f"{row['room']}{'' if pd.isna(row['where']) else ', ' + row['where']}. ".lower().capitalize()
+                    + f"It is {'' if pd.isna(row['dimensions']) else row['dimensions'] + ', '}at "
+                    f"{row['vertical position']}.".lower().capitalize()
+                )
+                yield row["name"], prompt
 
-        def callback2(pat):
-            return " " + callback1(pat)
+    prompts = list(get_prompts())
+    for name, ground_truth in tqdm(prompts):
+        prompt = [v for k, v in prompts if k != name]
+        random.shuffle(prompt)
+        prompt = prompt[:70]
 
-        name = re.sub("^([A-Z])", callback1, obj)
-        name = re.sub("([A-Z])", callback2, name)
-        name = name.replace("*", "")
-
-        properties = [p for p in properties if isinstance(p, str)]
-        yield name, properties
-
-
-def path_name(name: str):
-    return f"{name.replace(' ', '-')}.pkl"
-
-
-def main():
-    features = """\
-doll: on the bed, 1 foot tall.
-pitcher: on the dresser, round, 1 foot tall.
-lamp: on the dresser, 2-3 feet tall.
-picture frame: rectangular, on the wall, 2-3 feet tall, 2-3 feet across.
-bowl: on the dresser, round, less than 1 foot tall.
-bench: on the floor, rectangular, 5 feet long, 1 foot tall, flat surface.
-pillow: on the bed, 2-3 feet across.
-chair: on the floor, 4 feet tall.
-nightstand: next to the bed, 2-3 feet tall, flat surface.
-door: 6 feet tall, rectangular.
-curtain: 6 feet tall, rectangular, on the wall.
-dresser: on the floor, against the wall, 4 feet tall, flat surface.
-bed: against the wall, on the floor, 5 feet across, 6 feet long.\
-"""
-    features = features.split("\n")
-    features = dict([f.split(": ") for f in features])
-    for name, _ in features.items():
-        prompt = "\n".join(f"{k}: {v}" for k, v in features.items() if k != name)
-        prompt = f"{prompt}\n{name}:"
-        breakpoint()
-
+        prompt = "\n".join(prompt) + f"\nThe {name} is"
         response = openai.Completion.create(
             engine="text-davinci-001", prompt=prompt, max_tokens=50
         )
-        for choice in response.choices:
-            print(f"{name}:", choice.text)
+        choice, *_ = response.choices
+
+        prefix = f"The {name.lower()} is"
+        if not ground_truth.startswith(prefix):
+            breakpoint()
+        ground_truth = ground_truth[len(prefix) :]
+
+        yield dict(
+            name=name, prompt=prompt, completion=choice.text, ground_truth=ground_truth
+        )
+
+
+def main():
+    pd.DataFrame.from_records(get_completions()).to_csv("gpt.csv", index=False)
 
 
 if __name__ == "__main__":

@@ -81,15 +81,23 @@ class Env(habitat.Env, gym.Env):
         config: Config,
         dataset: Optional[Dataset] = None,
         scene: Optional[str] = None,
+        size: Optional[int] = None,
     ):
         config.defrost()
-        data_path = Path(config.DATASET.DATA_PATH).expanduser()
         scenes_dir = Path(config.DATASET.SCENES_DIR).expanduser()
+        config.DATASET.SCENES_DIR = str(scenes_dir)
+        data_path = Path(config.DATASET.DATA_PATH).expanduser()
         if scene is not None:
             assert scene.endswith(".json.gz"), scene
             data_path = data_path.with_name(scene)
         config.DATASET.DATA_PATH = str(data_path)
-        config.DATASET.SCENES_DIR = str(scenes_dir)
+        if size:
+            config.SIMULATOR.RGB_SENSOR.WIDTH = size
+            config.SIMULATOR.RGB_SENSOR.HEIGHT = size
+            config.SIMULATOR.DEPTH_SENSOR.WIDTH = size
+            config.SIMULATOR.DEPTH_SENSOR.HEIGHT = size
+            config.SIMULATOR.SEMANTIC_SENSOR.WIDTH = size
+            config.SIMULATOR.SEMANTIC_SENSOR.HEIGHT = size
         config.freeze()
         self._slack_reward = 0
         self._max_reward = 1
@@ -103,7 +111,12 @@ class Env(habitat.Env, gym.Env):
             "floor",
             "ceiling",
             "wall",
-            "stool",  # TODO
+            4,  # door
+            63,  # towel
+            76,  # sink
+            83,  # mirror
+            89,  # picture
+            98,  # door
         ]
         self.np_random, seed = seeding.np_random(0)
         super().__init__(config, dataset)
@@ -114,10 +127,13 @@ class Env(habitat.Env, gym.Env):
                     for obj in region.objects:
                         if obj.category.name() not in excluded:
                             _, _, obj_id = obj.id.split("_")
-                            yield int(obj_id), obj.category.name()
+                            obj_id = int(obj_id)
+                            if obj_id not in excluded:
+                                yield obj_id, obj.category.name()
 
         self.ids_to_object = dict(get_object_ids())
         self.object_to_ids = defaultdict(list)
+
         for k, v in self.ids_to_object.items():
             self.object_to_ids[v].append(k)
         self.objects = sorted(self.object_to_ids.keys())
@@ -208,13 +224,13 @@ class Env(habitat.Env, gym.Env):
             return super().render(mode=mode)
 
     def reset(self) -> dict:
-        idx = self.np_random.choice(len(self.objects))
-        self.objective = self.objects[idx]
+        idx = self.np_random.choice(len(self.ids_to_object))
+        self.obj_id, self.objective = list(self.ids_to_object.items())[idx]
         self.observations = super().reset()
         return self.observations
 
     def seed(self, seed: int) -> None:
-        self.np_random, seed = seeding.np_random(seed)
+        self.np_random, self._seed = seeding.np_random(seed)
 
     def step(self, action, *args, **kwargs) -> typing.Tuple[dict, float, bool, dict]:
         r"""Perform an action in the environment.

@@ -3,21 +3,23 @@
 import habitat
 import my.env
 import numpy as np
-
 from my.env import Env
 
 
 class Args(my.env.Args):
     use_pygame: bool = False
+    size: int = 215
+    seed: int = 0
 
 
-def main(*args, use_pygame: bool, **kwargs):
+def main(*args, seed: int, use_pygame: bool, **kwargs):
     kwargs.update(config=habitat.get_config("objectnav_mp3d.yaml"))
     env = Env(*args, **kwargs)
-    env.seed(0)
+    env.seed(seed)
     s = env.reset()
-    env.render(mode="ascii", pause=False)
-    print(env.objective)
+    if not use_pygame:
+        env.render(mode="ascii", pause=False)
+    print(env.obj_id, env.objective)
 
     def get_image(s):
         rgb = s["rgb"].copy()
@@ -81,11 +83,12 @@ def main(*args, use_pygame: bool, **kwargs):
 
         if action is not None:
             s, r, t, i = env.step(action)
-            env.render(mode="ascii", pause=False)
-            print(i)
+            if not use_pygame:
+                env.render(mode="ascii", pause=False)
             if env.get_done(s):
                 print("Episode finished")
                 s = env.reset()
+                print(env.obj_id, env.objective)
 
 
 if __name__ == "__main__":
