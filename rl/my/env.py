@@ -78,8 +78,10 @@ class StringTuple(gym.Space):
 class Env(habitat.Env, gym.Env):
     def __init__(
         self,
+        attributes: typing.Optional[typing.Dict[str, typing.Tuple[str, ...]]],
         config: Config,
         dataset: Optional[Dataset] = None,
+        ids_to_objects: Optional[dict] = None,
         scene: Optional[str] = None,
         size: Optional[int] = None,
     ):
@@ -131,13 +133,17 @@ class Env(habitat.Env, gym.Env):
                             if obj_id not in excluded:
                                 yield obj_id, obj.category.name()
 
-        self.ids_to_object = dict(get_object_ids())
+        self.ids_to_object = (
+            dict(get_object_ids()) if ids_to_objects is None else ids_to_objects
+        )
         self.object_to_ids = defaultdict(list)
 
         for k, v in self.ids_to_object.items():
             self.object_to_ids[v].append(k)
         self.objects = sorted(self.object_to_ids.keys())
-        self.features = {o: [o] for o in self.objects}
+        self.features = (
+            {o: [o] for o in self.objects} if attributes is None else attributes
+        )
         self.action = None
         self.observations = None
 

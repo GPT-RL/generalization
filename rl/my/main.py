@@ -221,9 +221,10 @@ class Trainer(base_main.Trainer):
 
         clip_processor = cls.clip_processor() if clip else None
         return super().make_vec_envs(
-            all_missions=[],  # all_missions,
+            all_missions=[],
+            attributes=None,
             clip_processor=clip_processor,
-            features={},  # features,
+            ids_to_objects=None,
             num_processes=num_processes,
             render=render,
             seed=seed,
