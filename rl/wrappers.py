@@ -1,16 +1,15 @@
 from __future__ import annotations
 
-import abc
 import sys
 import typing
 from dataclasses import astuple, dataclass, replace
-from typing import Dict, Generic, List, TypeVar
+from typing import Generic, List, TypeVar
 
 import gym
 import numpy as np
 import torch
 from gym.spaces import Box, Discrete, MultiDiscrete
-from my.env import EPISODE_SUCCESS, Obs, String, StringTuple
+from my.env import EPISODE_SUCCESS, Obs, String
 from torch import Tensor
 from torch.nn.utils.rnn import pad_sequence
 from transformers import CLIPProcessor, GPT2Tokenizer
@@ -26,17 +25,6 @@ NUM_FAIL_SEEDS = "number of fail seeds"
 class TrainTest(Generic[T]):
     train: T
     test: T
-
-
-class DirectionWrapper(gym.Wrapper):
-    def __init__(self, env):
-        super().__init__(env)
-        self.observation_space = gym.spaces.Dict(
-            spaces=dict(
-                **self.observation_space.spaces,
-                direction=Discrete(4),
-            )
-        )
 
 
 class ImageNormalizerWrapper(gym.ObservationWrapper):
@@ -59,45 +47,6 @@ class CLIPProcessorWrapper(gym.ObservationWrapper):
         obs = Obs(**observation)
         image = self.processor(images=obs.image, return_tensors="np", padding=True)
         return replace(obs, image=image["pixel_values"]).to_obs(self.observation_space)
-
-
-class MissionWrapper(gym.Wrapper, abc.ABC):
-    def __init__(self, env):
-        self._mission = None
-        super().__init__(env)
-
-    def reset(self, **kwargs):
-        observation = Obs(**self.env.reset(**kwargs))
-        self._mission = self.change_mission(observation.mission)
-        return replace(observation, mission=self._mission).to_obs(
-            self.observation_space
-        )
-
-    def step(self, action):
-        observation, reward, done, info = self.env.step(action)
-        observation = replace(Obs(**observation), mission=self._mission)
-        return observation.to_obs(self.observation_space), reward, done, info
-
-    def render(self, mode="human", pause=True, **kwargs):
-        self.env.render(pause=pause)
-        print(self._mission)
-        self.env.pause(pause)
-
-    def change_mission(self, mission: str) -> str:
-        raise NotImplementedError
-
-
-class FeatureWrapper(MissionWrapper):
-    def __init__(self, env: gym.Env, features: Dict[str, List[str]]):
-        super().__init__(env)
-        self.features = features
-        observation_space = Obs(**self.observation_space.spaces)
-        self.observation_space = replace(
-            observation_space, mission=StringTuple()
-        ).to_space()
-
-    def change_mission(self, mission: str) -> List[str]:
-        return self.features[mission]
 
 
 class ActionWrapper(gym.ActionWrapper):

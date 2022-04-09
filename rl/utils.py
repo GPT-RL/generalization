@@ -1,6 +1,8 @@
 import glob
 import os
+import re
 from functools import lru_cache
+from typing import Iterable, Optional, Set, Tuple
 
 import numpy as np
 import torch.nn as nn
@@ -131,3 +133,23 @@ def logsumexp(a, axis=None, b=None, keepdims=False, return_sign=False):
 def softmax(x: ArrayLike, axis: int = None) -> np.ndarray:
     """https://github.com/scipy/scipy/blob/v1.8.0/scipy/special/_logsumexp.py#L130-L214"""
     return np.exp(x - logsumexp(x, axis=axis, keepdims=True))
+
+
+def preformat_attributes(
+    string_attributes: Iterable[Tuple[str, str]],
+    keep: Optional[Set[str]] = None,
+):
+    def get_attributes():
+        for name, string in string_attributes:
+            if keep is None or name in keep:
+
+                def _get_attributes():
+                    drop = "It is "
+                    for a in re.split(r"[,.] ", string):
+                        if a.startswith(drop):
+                            a = a[len(drop) :]
+                        yield a.lstrip()
+
+                yield name, list(_get_attributes())
+
+    return dict(get_attributes())
