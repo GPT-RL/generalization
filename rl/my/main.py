@@ -23,6 +23,7 @@ from wrappers import (
     ActionWrapper,
     CLIPProcessorWrapper,
     GPT3Wrapper,
+    ImageNormalizerWrapper,
     MissionPreprocessor,
     ObsWrapper,
     RenderWrapper,
@@ -176,6 +177,7 @@ class Trainer(base_main.Trainer):
                 _env = RenderWrapper(_env, mode="ascii")
 
             _env = ObsWrapper(_env)
+            _env = ImageNormalizerWrapper(_env)
             _env = TransposeObsWrapper(_env)
             _env = ActionWrapper(_env)
             _env = ActionSpaceWrapper(_env)
