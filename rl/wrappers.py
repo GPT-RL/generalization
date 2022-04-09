@@ -197,9 +197,11 @@ class GPT3Wrapper(MissionPreprocessor):
         def embedding_for_mission(mission: tuple):
             return torch.stack(list(embeddings_for_mission(mission)))
 
-        encodings = [embedding_for_mission(m) for m in all_missions]
-        tensor = torch.stack(encodings)
-        array = tensor.numpy()
+        encodings = [
+            embedding_for_mission(m).numpy().mean(0, keepdims=True)
+            for m in all_missions
+        ]
+        array = np.stack(encodings)
         super().__init__(env, all_missions, array)
 
 
