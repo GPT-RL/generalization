@@ -11,6 +11,7 @@ import gym
 import habitat
 import line_chart
 import numpy as np
+import pandas as pd
 from envs import VecPyTorch
 from my import env
 from my.agent import Agent
@@ -18,6 +19,7 @@ from my.env import EPISODE_SUCCESS, OBJECT, Env
 from run_logger import HasuraLogger
 from stable_baselines3.common.monitor import Monitor
 from transformers import CLIPProcessor, GPT2Tokenizer
+from utils import preformat_attributes
 from wrappers import (
     ActionSpaceWrapper,
     ActionWrapper,
@@ -39,7 +41,6 @@ TEST_EPISODE_SUCCESS = "test episode success"
 
 
 class Args(base_main.Args, env.Args):
-    attributes: str = "name"
     clip: bool = False
     image_size: int = 128
     gpt_completions: bool = False
@@ -51,6 +52,7 @@ class Args(base_main.Args, env.Args):
     obj_log_interval_coef: float = 0.01
     train_ln: bool = False
     train_wpe: bool = False
+    use_attributes: bool = False
 
     def configure(self) -> None:
         self.add_subparsers(dest="logger_args")
@@ -195,7 +197,6 @@ class Trainer(base_main.Trainer):
     @classmethod
     def make_vec_envs(
         cls,
-        attributes: str,
         clip: bool,
         gpt_completions: bool,
         gpt_embeddings: bool,
@@ -207,12 +208,33 @@ class Trainer(base_main.Trainer):
         seed: int,
         sync_envs: bool,
         test: bool,
+        use_attributes: bool,
         **kwargs,
     ):
         if test:
             num_processes = cls._num_eval_processes(num_processes, num_test_envs)
 
-        # df = pd.read_csv("habitat.csv")
+        df = pd.read_csv("habitat.csv")
+        ids_to_objects = dict(zip(df["id"], df["name"].str.lower()))
+
+        df = pd.read_csv("gpt.csv")
+        names = names.split(",") if names else tuple(df["name"].str.lower())
+        rng = np.random.default_rng(seed)
+
+        train_test = cls.train_test_split(names, num_test_names, rng)
+        keep = train_test.test if test else train_test.train
+
+        ids_to_objects = {k: v for k, v in ids_to_objects.items() if v in keep}
+
+        if use_attributes:
+            attribute_strs = (
+                df["completion"] if test and gpt_completions else df["ground_truth"]
+            )
+
+            attributes = preformat_attributes(zip(names, attribute_strs), keep)
+        else:
+            attributes = None
+
         kwargs.update(config=habitat.get_config("objectnav_mp3d.yaml"))
         tokenizer = cls.tokenizer()
 
@@ -226,7 +248,7 @@ class Trainer(base_main.Trainer):
         clip_processor = cls.clip_processor() if clip else None
         return super().make_vec_envs(
             all_missions=[],
-            attributes=None,
+            attributes=attributes,
             clip_processor=clip_processor,
             ids_to_objects=None,
             num_processes=num_processes,

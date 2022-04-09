@@ -144,6 +144,7 @@ class Env(habitat.Env, gym.Env):
         self.features = (
             {o: [o] for o in self.objects} if attributes is None else attributes
         )
+
         self.action = None
         self.observations = None
 
