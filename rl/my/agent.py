@@ -150,7 +150,7 @@ class Base(NNBase):
         return self._image_net(image)
 
     def build_embeddings(self):
-        num_embeddings = self.observation_spaces.mission.nvec.max()
+        num_embeddings = self.observation_spaces.mission.high.max()
         return nn.EmbeddingBag(int(num_embeddings) + 1, self.mission_size)
 
     def embed(self, inputs):

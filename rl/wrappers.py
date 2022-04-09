@@ -172,7 +172,7 @@ class MissionPreprocessor(gym.ObservationWrapper):
         spaces = Obs(**self.observation_space.spaces)
         _, n, d = encodings.shape
         self.obs_spaces = replace(
-            spaces, mission=MultiDiscrete(encodings.max(initial=0) * np.ones((n, d)))
+            spaces, mission=Box(low=encodings.min(), high=encodings.max(), shape=(n, d))
         )
         self.observation_space = self.obs_spaces.to_space()
 
