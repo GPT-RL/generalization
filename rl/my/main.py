@@ -3,7 +3,7 @@ from collections import defaultdict
 from copy import deepcopy
 from dataclasses import dataclass, field
 from inspect import signature
-from typing import Callable, DefaultDict, List, Set, Tuple, cast
+from typing import Callable, DefaultDict, List, Optional, Set, Tuple, cast
 
 import bar_chart
 import base_main
@@ -45,6 +45,7 @@ class Args(base_main.Args, env.Args):
     gpt_completions: bool = False
     gpt_embeddings: bool = False
     large_architecture: bool = False
+    names: str = None
     num_test_envs: int = 8
     num_test_names: int = 2
     obj_log_interval_coef: float = 0.01
@@ -198,6 +199,7 @@ class Trainer(base_main.Trainer):
         clip: bool,
         gpt_completions: bool,
         gpt_embeddings: bool,
+        names: Optional[str],
         num_processes: int,
         num_test_envs: int,
         num_test_names: int,
