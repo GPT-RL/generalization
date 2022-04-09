@@ -218,7 +218,8 @@ class Trainer(base_main.Trainer):
         ids_to_objects = dict(zip(df["id"], df["name"].str.lower()))
 
         df = pd.read_csv("gpt.csv")
-        names = names.split(",") if names else tuple(df["name"].str.lower())
+        names = names.split(",") if names else df["name"].str.lower()
+        names = tuple(names)
         rng = np.random.default_rng(seed)
 
         train_test = cls.train_test_split(names, num_test_names, rng)
@@ -233,24 +234,26 @@ class Trainer(base_main.Trainer):
 
             attributes = preformat_attributes(zip(names, attribute_strs), keep)
         else:
-            attributes = None
+            attributes = {name: (name,) for name in keep}
 
         kwargs.update(config=habitat.get_config("objectnav_mp3d.yaml"))
         tokenizer = cls.tokenizer()
+        all_missions = [tuple(v) for v in attributes.values()]
 
         def wrap_mission_preprocessor(env: Env):
-            objects = [(o,) for o in env.objects]
             if gpt_embeddings:
-                return GPT3Wrapper(env, all_missions=objects)
+                return GPT3Wrapper(env, all_missions=all_missions)
             else:
-                return TokenizerWrapper(env, all_missions=objects, tokenizer=tokenizer)
+                return TokenizerWrapper(
+                    env, all_missions=all_missions, tokenizer=tokenizer
+                )
 
         clip_processor = cls.clip_processor() if clip else None
         return super().make_vec_envs(
-            all_missions=[],
+            all_missions=all_missions,
             attributes=attributes,
             clip_processor=clip_processor,
-            ids_to_objects=None,
+            ids_to_objects=ids_to_objects,
             num_processes=num_processes,
             render=render,
             seed=seed,
