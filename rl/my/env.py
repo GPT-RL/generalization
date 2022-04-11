@@ -3,17 +3,24 @@ import typing
 from collections import defaultdict
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Optional, TypeVar, Union
+from typing import Optional, TypeVar
 
+import attr
 import gym
 import habitat
+import habitat_sim
 import numpy as np
 from art import text2art
 from colors import color
 from gym import Space
 from gym.utils import seeding
 from habitat import Config, Dataset
+from habitat.core.embodied_task import SimulatorTaskAction
 from habitat.core.simulator import Observations
+from habitat.sims.habitat_simulator.actions import (
+    HabitatSimActions,
+    HabitatSimV1ActionSpaceConfiguration,
+)
 from tap import Tap
 
 EPISODE_SUCCESS = "episode success"
@@ -28,13 +35,21 @@ class Args(Tap):
     scene: Optional[str] = None
 
 
-@dataclass
-class Mesh:
-    obj: Union[Path, str]
-    png: Optional[Path]
-    name: str
-    height: float = 1
-    features: str = None
+@attr.s(auto_attribs=True, slots=True)
+class MoveBackwardSpec:
+    backward_amount: float
+
+
+@habitat_sim.registry.register_move_fn(body_action=True)
+class MoveBackward(habitat_sim.SceneNodeControl):
+    def __call__(
+        self, scene_node: habitat_sim.SceneNode, actuation_spec: MoveBackwardSpec
+    ):
+        backward_ax = (
+            np.array(scene_node.absolute_transformation().rotation_scaling())
+            @ habitat_sim.geo.BACK
+        )
+        scene_node.translate_local(backward_ax * actuation_spec.backward_amount)
 
 
 T = TypeVar("T")  # Declare type variable
@@ -75,6 +90,123 @@ class StringTuple(gym.Space):
         return isinstance(x, tuple) and all([isinstance(y, str) for y in x])
 
 
+# https://github.com/facebookresearch/habitat-lab/blob/main/examples/new_actions.py#L154
+
+
+@attr.s(auto_attribs=True, slots=True)
+class NoisyStrafeActuationSpec:
+    move_amount: float
+    # Classic strafing is to move perpendicular (90 deg) to the forward direction
+    strafe_angle: float = 90.0
+    noise_amount: float = 0.05
+
+
+def _strafe_impl(
+    scene_node: habitat_sim.SceneNode,
+    move_amount: float,
+    strafe_angle: float,
+    noise_amount: float,
+):
+    forward_ax = (
+        np.array(scene_node.absolute_transformation().rotation_scaling())
+        @ habitat_sim.geo.FRONT
+    )
+    strafe_angle = np.deg2rad(strafe_angle)
+    strafe_angle = np.random.uniform(
+        (1 - noise_amount) * strafe_angle, (1 + noise_amount) * strafe_angle
+    )
+
+    rotation = habitat_sim.utils.quat_from_angle_axis(strafe_angle, habitat_sim.geo.UP)
+    move_ax = habitat_sim.utils.quat_rotate_vector(rotation, forward_ax)
+
+    move_amount = np.random.uniform(
+        (1 - noise_amount) * move_amount, (1 + noise_amount) * move_amount
+    )
+    scene_node.translate_local(move_ax * move_amount)
+
+
+@habitat_sim.registry.register_move_fn(body_action=True)
+class NoisyStrafeLeft(habitat_sim.SceneNodeControl):
+    def __call__(
+        self,
+        scene_node: habitat_sim.SceneNode,
+        actuation_spec: NoisyStrafeActuationSpec,
+    ):
+        _strafe_impl(
+            scene_node,
+            actuation_spec.move_amount,
+            actuation_spec.strafe_angle,
+            actuation_spec.noise_amount,
+        )
+
+
+@habitat_sim.registry.register_move_fn(body_action=True)
+class NoisyStrafeRight(habitat_sim.SceneNodeControl):
+    def __call__(
+        self,
+        scene_node: habitat_sim.SceneNode,
+        actuation_spec: NoisyStrafeActuationSpec,
+    ):
+        _strafe_impl(
+            scene_node,
+            actuation_spec.move_amount,
+            -actuation_spec.strafe_angle,
+            actuation_spec.noise_amount,
+        )
+
+
+@habitat.registry.register_action_space_configuration
+class NoNoiseStrafe(HabitatSimV1ActionSpaceConfiguration):
+    def get(self):
+        config = super().get()
+
+        config[HabitatSimActions.STRAFE_LEFT] = habitat_sim.ActionSpec(
+            "noisy_strafe_left",
+            NoisyStrafeActuationSpec(0.25, noise_amount=0.0),
+        )
+        config[HabitatSimActions.STRAFE_RIGHT] = habitat_sim.ActionSpec(
+            "noisy_strafe_right",
+            NoisyStrafeActuationSpec(0.25, noise_amount=0.0),
+        )
+
+        return config
+
+
+@habitat.registry.register_action_space_configuration
+class NoiseStrafe(HabitatSimV1ActionSpaceConfiguration):
+    def get(self):
+        config = super().get()
+
+        config[HabitatSimActions.STRAFE_LEFT] = habitat_sim.ActionSpec(
+            "noisy_strafe_left",
+            NoisyStrafeActuationSpec(0.25, noise_amount=0.05),
+        )
+        config[HabitatSimActions.STRAFE_RIGHT] = habitat_sim.ActionSpec(
+            "noisy_strafe_right",
+            NoisyStrafeActuationSpec(0.25, noise_amount=0.05),
+        )
+
+        return config
+
+
+@habitat.registry.register_task_action
+class StrafeLeft(SimulatorTaskAction):
+    def _get_uuid(self, *args, **kwargs) -> str:
+        return "strafe_left"
+
+    def step(self, *args, **kwargs):
+        return self._sim.step(HabitatSimActions.STRAFE_LEFT)
+
+
+@habitat.registry.register_task_action
+class StrafeRight(SimulatorTaskAction):
+    def _get_uuid(self, *args, **kwargs) -> str:
+        return "strafe_right"
+
+    def step(self, *args, **kwargs):
+        return self._sim.step(HabitatSimActions.STRAFE_RIGHT)
+
+
 class Env(habitat.Env, gym.Env):
     def __init__(
         self,
@@ -85,7 +217,21 @@ class Env(habitat.Env, gym.Env):
         scene: Optional[str] = None,
         size: Optional[int] = None,
     ):
+        HabitatSimActions.extend_action_space("STRAFE_LEFT")
+        HabitatSimActions.extend_action_space("STRAFE_RIGHT")
+
         config.defrost()
+
+        config.TASK.POSSIBLE_ACTIONS = config.TASK.POSSIBLE_ACTIONS + [
+            "STRAFE_LEFT",
+            "STRAFE_RIGHT",
+        ]
+        config.TASK.ACTIONS.STRAFE_LEFT = habitat.config.Config()
+        config.TASK.ACTIONS.STRAFE_LEFT.TYPE = "StrafeLeft"
+        config.TASK.ACTIONS.STRAFE_RIGHT = habitat.config.Config()
+        config.TASK.ACTIONS.STRAFE_RIGHT.TYPE = "StrafeRight"
+        config.SIMULATOR.ACTION_SPACE_CONFIG = "NoNoiseStrafe"
+
         scenes_dir = Path(config.DATASET.SCENES_DIR).expanduser()
         config.DATASET.SCENES_DIR = str(scenes_dir)
         data_path = Path(config.DATASET.DATA_PATH).expanduser()

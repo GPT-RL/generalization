@@ -7,14 +7,15 @@ from my.env import Env
 
 
 class Args(my.env.Args):
-    use_pygame: bool = False
     size: int = 215
     seed: int = 0
+    use_attributes: bool = False
+    use_pygame: bool = False
 
 
-def main(*args, seed: int, use_pygame: bool, **kwargs):
+def main(*args, seed: int, use_attributes: bool, use_pygame: bool, **kwargs):
     kwargs.update(config=habitat.get_config("objectnav_mp3d.yaml"))
-    env = Env(*args, **kwargs)
+    env = Env(*args, attributes=None, **kwargs)
     env.seed(seed)
     s = env.reset()
     if not use_pygame:
@@ -48,6 +49,10 @@ def main(*args, seed: int, use_pygame: bool, **kwargs):
                         action = "STOP"
                     if event.key == pygame.K_UP:
                         action = "MOVE_FORWARD"
+                    if event.key == pygame.K_RCTRL:
+                        action = "STRAFE_LEFT"
+                    if event.key == pygame.K_KP0:
+                        action = "STRAFE_RIGHT"
                     if event.key == pygame.K_LEFT:
                         action = "TURN_LEFT"
                     if event.key == pygame.K_RIGHT:
@@ -74,9 +79,13 @@ def main(*args, seed: int, use_pygame: bool, **kwargs):
                 action = "TURN_LEFT"
             elif action == "d":
                 action = "TURN_RIGHT"
+            elif action == "q":
+                action = "STRAFE_LEFT"
+            elif action == "e":
+                action = "STRAFE_RIGHT"
             elif action == "e":
                 action = "LOOK_UP"
-            elif action == "c":
+            elif action == "f":
                 action = "LOOK_DOWN"
             else:
                 action = None
