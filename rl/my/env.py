@@ -35,23 +35,6 @@ class Args(Tap):
     scene: Optional[str] = None
 
 
-@attr.s(auto_attribs=True, slots=True)
-class MoveBackwardSpec:
-    backward_amount: float
-
-
-@habitat_sim.registry.register_move_fn(body_action=True)
-class MoveBackward(habitat_sim.SceneNodeControl):
-    def __call__(
-        self, scene_node: habitat_sim.SceneNode, actuation_spec: MoveBackwardSpec
-    ):
-        backward_ax = (
-            np.array(scene_node.absolute_transformation().rotation_scaling())
-            @ habitat_sim.geo.BACK
-        )
-        scene_node.translate_local(backward_ax * actuation_spec.backward_amount)
-
-
 T = TypeVar("T")  # Declare type variable
 
 
@@ -90,38 +73,45 @@ class StringTuple(gym.Space):
         return isinstance(x, tuple) and all([isinstance(y, str) for y in x])
 
 
-# https://github.com/facebookresearch/habitat-lab/blob/main/examples/new_actions.py#L154
-
-
 @attr.s(auto_attribs=True, slots=True)
-class NoisyStrafeActuationSpec:
+class MoveBackwardSpec:
+    backward_amount: float
+
+
+@habitat_sim.registry.register_move_fn(body_action=True)
+class MoveBackward(habitat_sim.SceneNodeControl):
+    def __call__(
+        self, scene_node: habitat_sim.SceneNode, actuation_spec: MoveBackwardSpec
+    ):
+        backward_ax = (
+            np.array(scene_node.absolute_transformation().rotation_scaling())
+            @ habitat_sim.geo.BACK
+        )
+        scene_node.translate_local(backward_ax * actuation_spec.backward_amount)
+
+
+# https://github.com/facebookresearch/habitat-lab/blob/main/examples/new_actions.py#L154
+@attr.s(auto_attribs=True, slots=True)
+class StrafeActuationSpec:
     move_amount: float
     # Classic strafing is to move perpendicular (90 deg) to the forward direction
     strafe_angle: float = 90.0
-    noise_amount: float = 0.05
 
 
 def _strafe_impl(
     scene_node: habitat_sim.SceneNode,
     move_amount: float,
     strafe_angle: float,
-    noise_amount: float,
 ):
     forward_ax = (
         np.array(scene_node.absolute_transformation().rotation_scaling())
         @ habitat_sim.geo.FRONT
     )
     strafe_angle = np.deg2rad(strafe_angle)
-    strafe_angle = np.random.uniform(
-        (1 - noise_amount) * strafe_angle, (1 + noise_amount) * strafe_angle
-    )
 
     rotation = habitat_sim.utils.quat_from_angle_axis(strafe_angle, habitat_sim.geo.UP)
     move_ax = habitat_sim.utils.quat_rotate_vector(rotation, forward_ax)
 
-    move_amount = np.random.uniform(
-        (1 - noise_amount) * move_amount, (1 + noise_amount) * move_amount
-    )
     scene_node.translate_local(move_ax * move_amount)
 
 
@@ -130,13 +120,12 @@ class NoisyStrafeLeft(habitat_sim.SceneNodeControl):
     def __call__(
         self,
         scene_node: habitat_sim.SceneNode,
-        actuation_spec: NoisyStrafeActuationSpec,
+        actuation_spec: StrafeActuationSpec,
     ):
         _strafe_impl(
             scene_node,
             actuation_spec.move_amount,
             actuation_spec.strafe_angle,
-            actuation_spec.noise_amount,
         )
 
 
@@ -145,45 +134,25 @@ class NoisyStrafeRight(habitat_sim.SceneNodeControl):
     def __call__(
         self,
         scene_node: habitat_sim.SceneNode,
-        actuation_spec: NoisyStrafeActuationSpec,
+        actuation_spec: StrafeActuationSpec,
     ):
         _strafe_impl(
             scene_node,
             actuation_spec.move_amount,
             -actuation_spec.strafe_angle,
-            actuation_spec.noise_amount,
         )
 
 
 @habitat.registry.register_action_space_configuration
-class NoNoiseStrafe(HabitatSimV1ActionSpaceConfiguration):
+class Strafe(HabitatSimV1ActionSpaceConfiguration):
     def get(self):
         config = super().get()
 
         config[HabitatSimActions.STRAFE_LEFT] = habitat_sim.ActionSpec(
-            "noisy_strafe_left",
-            NoisyStrafeActuationSpec(0.25, noise_amount=0.0),
+            "noisy_strafe_left", StrafeActuationSpec(0.25)
         )
         config[HabitatSimActions.STRAFE_RIGHT] = habitat_sim.ActionSpec(
-            "noisy_strafe_right",
-            NoisyStrafeActuationSpec(0.25, noise_amount=0.0),
-        )
-
-        return config
-
-
-@habitat.registry.register_action_space_configuration
-class NoiseStrafe(HabitatSimV1ActionSpaceConfiguration):
-    def get(self):
-        config = super().get()
-
-        config[HabitatSimActions.STRAFE_LEFT] = habitat_sim.ActionSpec(
-            "noisy_strafe_left",
-            NoisyStrafeActuationSpec(0.25, noise_amount=0.05),
-        )
-        config[HabitatSimActions.STRAFE_RIGHT] = habitat_sim.ActionSpec(
-            "noisy_strafe_right",
-            NoisyStrafeActuationSpec(0.25, noise_amount=0.05),
+            "noisy_strafe_right", StrafeActuationSpec(0.25)
         )
 
         return config
@@ -230,7 +199,7 @@ class Env(habitat.Env, gym.Env):
         config.TASK.ACTIONS.STRAFE_LEFT.TYPE = "StrafeLeft"
         config.TASK.ACTIONS.STRAFE_RIGHT = habitat.config.Config()
         config.TASK.ACTIONS.STRAFE_RIGHT.TYPE = "StrafeRight"
-        config.SIMULATOR.ACTION_SPACE_CONFIG = "NoNoiseStrafe"
+        config.SIMULATOR.ACTION_SPACE_CONFIG = "Strafe"
 
         scenes_dir = Path(config.DATASET.SCENES_DIR).expanduser()
         config.DATASET.SCENES_DIR = str(scenes_dir)
