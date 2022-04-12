@@ -73,23 +73,6 @@ class StringTuple(gym.Space):
         return isinstance(x, tuple) and all([isinstance(y, str) for y in x])
 
 
-@attr.s(auto_attribs=True, slots=True)
-class MoveBackwardSpec:
-    backward_amount: float
-
-
-@habitat_sim.registry.register_move_fn(body_action=True)
-class MoveBackward(habitat_sim.SceneNodeControl):
-    def __call__(
-        self, scene_node: habitat_sim.SceneNode, actuation_spec: MoveBackwardSpec
-    ):
-        backward_ax = (
-            np.array(scene_node.absolute_transformation().rotation_scaling())
-            @ habitat_sim.geo.BACK
-        )
-        scene_node.translate_local(backward_ax * actuation_spec.backward_amount)
-
-
 # https://github.com/facebookresearch/habitat-lab/blob/main/examples/new_actions.py#L154
 @attr.s(auto_attribs=True, slots=True)
 class StrafeActuationSpec:
@@ -116,7 +99,7 @@ def _strafe_impl(
 
 
 @habitat_sim.registry.register_move_fn(body_action=True)
-class NoisyStrafeLeft(habitat_sim.SceneNodeControl):
+class StrafeLeftNodeControl(habitat_sim.SceneNodeControl):
     def __call__(
         self,
         scene_node: habitat_sim.SceneNode,
@@ -130,7 +113,7 @@ class NoisyStrafeLeft(habitat_sim.SceneNodeControl):
 
 
 @habitat_sim.registry.register_move_fn(body_action=True)
-class NoisyStrafeRight(habitat_sim.SceneNodeControl):
+class StrafeRightNodeControl(habitat_sim.SceneNodeControl):
     def __call__(
         self,
         scene_node: habitat_sim.SceneNode,
@@ -143,23 +126,42 @@ class NoisyStrafeRight(habitat_sim.SceneNodeControl):
         )
 
 
+@attr.s(auto_attribs=True, slots=True)
+class MoveBackwardSpec:
+    move_amount: float
+
+
+@habitat_sim.registry.register_move_fn(body_action=True)
+class MoveBackwardNodeControl(habitat_sim.SceneNodeControl):
+    def __call__(
+        self, scene_node: habitat_sim.SceneNode, actuation_spec: MoveBackwardSpec
+    ):
+        backward_ax = (
+            np.array(scene_node.absolute_transformation().rotation_scaling())
+            @ habitat_sim.geo.BACK
+        )
+        scene_node.translate_local(backward_ax * actuation_spec.move_amount)
+
+
 @habitat.registry.register_action_space_configuration
 class Strafe(HabitatSimV1ActionSpaceConfiguration):
     def get(self):
         config = super().get()
 
         config[HabitatSimActions.STRAFE_LEFT] = habitat_sim.ActionSpec(
-            "noisy_strafe_left", StrafeActuationSpec(0.25)
+            "strafe_left_node_control", StrafeActuationSpec(0.25)
         )
         config[HabitatSimActions.STRAFE_RIGHT] = habitat_sim.ActionSpec(
-            "noisy_strafe_right", StrafeActuationSpec(0.25)
+            "strafe_right_node_control", StrafeActuationSpec(0.25)
         )
-
+        config[HabitatSimActions.MOVE_BACKWARD] = habitat_sim.ActionSpec(
+            "move_backward_node_control", MoveBackwardSpec(0.25)
+        )
         return config
 
 
 @habitat.registry.register_task_action
-class StrafeLeft(SimulatorTaskAction):
+class StrafeLeftTaskAction(SimulatorTaskAction):
     def _get_uuid(self, *args, **kwargs) -> str:
         return "strafe_left"
 
@@ -168,12 +170,21 @@ class StrafeLeft(SimulatorTaskAction):
 
 
 @habitat.registry.register_task_action
-class StrafeRight(SimulatorTaskAction):
+class StrafeRightTaskAction(SimulatorTaskAction):
     def _get_uuid(self, *args, **kwargs) -> str:
         return "strafe_right"
 
     def step(self, *args, **kwargs):
         return self._sim.step(HabitatSimActions.STRAFE_RIGHT)
+
+
+@habitat.registry.register_task_action
+class MoveBackwardTaskAction(SimulatorTaskAction):
+    def _get_uuid(self, *args, **kwargs) -> str:
+        return "move_backward"
+
+    def step(self, *args, **kwargs):
+        return self._sim.step(HabitatSimActions.MOVE_BACKWARD)
 
 
 class Env(habitat.Env, gym.Env):
@@ -188,17 +199,16 @@ class Env(habitat.Env, gym.Env):
     ):
         HabitatSimActions.extend_action_space("STRAFE_LEFT")
         HabitatSimActions.extend_action_space("STRAFE_RIGHT")
+        HabitatSimActions.extend_action_space("MOVE_BACKWARD")
 
         config.defrost()
 
-        config.TASK.POSSIBLE_ACTIONS = config.TASK.POSSIBLE_ACTIONS + [
-            "STRAFE_LEFT",
-            "STRAFE_RIGHT",
-        ]
         config.TASK.ACTIONS.STRAFE_LEFT = habitat.config.Config()
-        config.TASK.ACTIONS.STRAFE_LEFT.TYPE = "StrafeLeft"
+        config.TASK.ACTIONS.STRAFE_LEFT.TYPE = "StrafeLeftTaskAction"
         config.TASK.ACTIONS.STRAFE_RIGHT = habitat.config.Config()
-        config.TASK.ACTIONS.STRAFE_RIGHT.TYPE = "StrafeRight"
+        config.TASK.ACTIONS.STRAFE_RIGHT.TYPE = "StrafeRightTaskAction"
+        config.TASK.ACTIONS.MOVE_BACKWARD = habitat.config.Config()
+        config.TASK.ACTIONS.MOVE_BACKWARD.TYPE = "MoveBackwardTaskAction"
         config.SIMULATOR.ACTION_SPACE_CONFIG = "Strafe"
 
         scenes_dir = Path(config.DATASET.SCENES_DIR).expanduser()

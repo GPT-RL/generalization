@@ -30,7 +30,18 @@ SIMULATOR:
     #ORIENTATION: [-.4, 0, 0]
 TASK:
   TYPE: ObjectNav-v1
-  POSSIBLE_ACTIONS: ["STOP", "MOVE_FORWARD", "STRAFE_LEFT", "TURN_LEFT", "TURN_RIGHT", "LOOK_DOWN", "LOOK_UP"]
+  POSSIBLE_ACTIONS:
+    [
+      "STOP",
+      "MOVE_FORWARD",
+      "MOVE_BACKWARD",
+      "STRAFE_LEFT",
+      "STRAFE_RIGHT",
+      "TURN_LEFT",
+      "TURN_RIGHT",
+      "LOOK_DOWN",
+      "LOOK_UP",
+    ]
 
   SENSORS: []
   MEASUREMENTS: []

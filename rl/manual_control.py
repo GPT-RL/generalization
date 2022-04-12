@@ -53,6 +53,8 @@ def main(*args, seed: int, use_attributes: bool, use_pygame: bool, **kwargs):
                         action = "STRAFE_LEFT"
                     if event.key == pygame.K_KP0:
                         action = "STRAFE_RIGHT"
+                    if event.key == pygame.K_DOWN:
+                        action = "MOVE_BACKWARD"
                     if event.key == pygame.K_LEFT:
                         action = "TURN_LEFT"
                     if event.key == pygame.K_RIGHT:
