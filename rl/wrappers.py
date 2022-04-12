@@ -222,14 +222,23 @@ class TokenizerWrapper(MissionPreprocessor):
                     yield encoded.T
 
             tokens = list(get_tokens())
-            return pad_sequence(tokens, padding_value=tokenizer.eos_token_id).squeeze(
-                -1
+            return (
+                pad_sequence(tokens, padding_value=tokenizer.eos_token_id).squeeze(-1).T
             )
 
         encodings = [encode(m) for m in all_missions]
-        padded = pad_sequence(encodings, padding_value=tokenizer.eos_token_id)
-        permuted = padded.permute(1, 2, 0)
-        array = permuted.numpy()
+        ns, ds = zip(*[e.shape for e in encodings])
+        n, d = max(ns), max(ds)
+        padded = [
+            np.pad(
+                e,
+                ((0, n - e.shape[0]), (0, d - e.shape[1])),
+                mode="constant",
+                constant_values=self.tokenizer.eos_token_id,
+            )
+            for e in encodings
+        ]
+        array = np.stack(padded)
         _, array_inverse = np.unique(array, return_inverse=True)
         array = array_inverse.reshape(array.shape)
         super().__init__(env, all_missions, array)
