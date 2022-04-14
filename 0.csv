@@ -1,0 +1,211 @@
+name,prompt,completion,ground_truth
+mirror,"The towel is in the bathroom, on the wall. It is 1 ft wide, at eye level.
+The bed is in the bedroom, next to the bedside table. It is 2 ft high, 6 ft long, at knee level.
+The kitchen counter is in the kitchen, against the wall. It is 3 ft high, 4 ft wide, at waist height.
+The coffee table is in the living room, in front of the couch. It is 2 ft high, 3 ft wide, at knee level.
+The vanity table is in the bedroom, by the vanity. It is 3 ft high, 2 ft wide, at waist level.
+The vanity mirror is in the bedroom, over the vanity table. It is 5 ft high, 4 ft wide, at eye level.
+The sofa is in the living room, under the picture. It is 3 ft high, at knee level.
+The cabinet is in the living room, against the wall. It is floor to ceiling, 3 ft wide, at eye level.
+The sofa is in the living room, next to the coffee table. It is 3 ft high, 5 ft wide, at knee level.
+The curtain is in the bedroom, by the sliding door. It is 8 ft high, at eye level.
+The kitchen sink is in the kitchen, on the kitchen counter. It is 2 ft wide, at waist height.
+The sofa is in the living room, against the wall. It is 3 ft high, 5 ft wide, at knee level.
+The picture is in the bedroom, on the wall. It is 2 ft tall, 3 ft wide, at eye level.
+The cushion is in the living room, on the couch. It is 1 ft wide, at knee level.
+The curtain is in the living room, by the sliding door. It is 8 ft high, at eye level.
+The bed is in the bedroom, next to the dresser. It is 2 ft high, 6 ft long, at knee level.
+The door is in the foyer. It is 8 ft high, 3 ft wide, at eye level.
+The towel is in the bathroom, on the wall. It is 1 ft wide, at eye level.
+The vanity chair is in the bedroom, by the vanity. It is 3 ft high, 2 ft wide, at knee level.
+The end table is in the living room, next to the couch. It is 2 ft high, 1 ft wide, at knee level.
+The cushion is in the living room, on the couch. It is 1 ft wide, at knee level.
+The picture is in the living room, over the couch. It is 2 ft tall, 3 ft wide, at eye level.
+The curtain is in the bedroom, by the sliding door. It is 8 ft high, at eye level.
+The toilet is in the bathroom, against the wall. It is 1 ft wide, at knee level.
+The kitchen counter is in the kitchen, above the kitchen cabinets. It is 3 ft high, 4 ft wide, at waist height.
+The dresser is in the bedroom, next to the bed. It is 2 ft high, 3 ft wide, at knee level.
+The towel is in the bathroom, by the door. It is 1 ft wide, at eye level.
+The bed is in the bedroom, against the wall. It is 2 ft high, 6 ft long, at knee level.
+The tv is in the living room, in the cabinet. It is 2 ft high, 3 ft wide, at waist level.
+The towel is in the bathroom, over the bathtub. It is 1 ft wide, at eye level.
+The vanity chair is in the bedroom, by the flowers. It is 3 ft high, 2 ft wide, at knee level.
+The towel is in the bathroom, over the bathtub. It is 1 ft wide, at eye level.
+The picture is in the living room, on the wall. It is 2 ft tall, 3 ft wide, at eye level.
+The door is in the bathroom. It is 8 ft high, 3 ft wide, at eye level.
+The towel is in the bathroom, over the bathtub. It is 1 ft wide, at eye level.
+The shower is in the bathroom, against the wall. It is 8 ft high, 4 ft wide, at eye level.
+The sofa is in the living room, under the picture. It is 3 ft high, 5 ft wide, at knee level.
+The armchair is in the living room, by the coffee table. It is 3 ft high, at waist level.
+The vanity chair is in the bedroom, by the vanity table. It is 3 ft high, 2 ft wide, at knee level.
+The vanity table is in the bedroom, by the vanity chair. It is 3 ft high, 2 ft wide, at waist level.
+The towel is in the bathroom, by the door. It is 1 ft wide, at eye level.
+The mirror is","in the bathroom, over the sink. It is 3 ft high, 2 ft wide, at eye level.","in the kitchen, on the wall. It is 3 ft high, 3 ft wide, at eye level."
+kitchen cabinet,"The dresser is in the bedroom, next to the bed. It is 2 ft high, 3 ft wide, at knee level.
+The vanity mirror is in the bedroom, over the vanity table. It is 5 ft high, 4 ft wide, at eye level.
+The door is in the foyer. It is 8 ft high, 3 ft wide, at eye level.
+The toilet is in the bathroom, against the wall. It is 1 ft wide, at knee level.
+The door is in the bathroom. It is 8 ft high, 3 ft wide, at eye level.
+The picture is in the bedroom, on the wall. It is 2 ft tall, 3 ft wide, at eye level.
+The towel is in the bathroom, on the wall. It is 1 ft wide, at eye level.
+The bed is in the bedroom, against the wall. It is 2 ft high, 6 ft long, at knee level.
+The sofa is in the living room, under the picture. It is 3 ft high, at knee level.
+The cabinet is in the living room, against the wall. It is floor to ceiling, 3 ft wide, at eye level.
+The picture is in the living room, on the wall. It is 2 ft tall, 3 ft wide, at eye level.
+The vanity chair is in the bedroom, by the vanity table. It is 3 ft high, 2 ft wide, at knee level.
+The towel is in the bathroom, on the wall. It is 1 ft wide, at eye level.
+The sofa is in the living room, next to the coffee table. It is 3 ft high, 5 ft wide, at knee level.
+The end table is in the living room, next to the couch. It is 2 ft high, 1 ft wide, at knee level.
+The vanity chair is in the bedroom, by the flowers. It is 3 ft high, 2 ft wide, at knee level.
+The sofa is in the living room, against the wall. It is 3 ft high, 5 ft wide, at knee level.
+The picture is in the living room, over the couch. It is 2 ft tall, 3 ft wide, at eye level.
+The sofa is in the living room, under the picture. It is 3 ft high, 5 ft wide, at knee level.
+The towel is in the bathroom, over the bathtub. It is 1 ft wide, at eye level.
+The bed is in the bedroom, next to the dresser. It is 2 ft high, 6 ft long, at knee level.
+The curtain is in the bedroom, by the sliding door. It is 8 ft high, at eye level.
+The coffee table is in the living room, in front of the couch. It is 2 ft high, 3 ft wide, at knee level.
+The bed is in the bedroom, next to the bedside table. It is 2 ft high, 6 ft long, at knee level.
+The towel is in the bathroom, over the bathtub. It is 1 ft wide, at eye level.
+The curtain is in the bedroom, by the sliding door. It is 8 ft high, at eye level.
+The kitchen sink is in the kitchen, on the kitchen counter. It is 2 ft wide, at waist height.
+The tv is in the living room, in the cabinet. It is 2 ft high, 3 ft wide, at waist level.
+The towel is in the bathroom, by the door. It is 1 ft wide, at eye level.
+The kitchen counter is in the kitchen, above the kitchen cabinets. It is 3 ft high, 4 ft wide, at waist height.
+The vanity table is in the bedroom, by the vanity. It is 3 ft high, 2 ft wide, at waist level.
+The curtain is in the living room, by the sliding door. It is 8 ft high, at eye level.
+The towel is in the bathroom, by the door. It is 1 ft wide, at eye level.
+The shower is in the bathroom, against the wall. It is 8 ft high, 4 ft wide, at eye level.
+The vanity chair is in the bedroom, by the vanity. It is 3 ft high, 2 ft wide, at knee level.
+The vanity table is in the bedroom, by the vanity chair. It is 3 ft high, 2 ft wide, at waist level.
+The armchair is in the living room, by the coffee table. It is 3 ft high, at waist level.
+The cushion is in the living room, on the couch. It is 1 ft wide, at knee level.
+The towel is in the bathroom, over the bathtub. It is 1 ft wide, at eye level.
+The kitchen counter is in the kitchen, against the wall. It is 3 ft high, 4 ft wide, at waist height.
+The cushion is in the living room, on the couch. It is 1 ft wide, at knee level.
+The kitchen cabinet is","in the kitchen, next to the sink. It is 2 ft high, 3 ft wide, at waist height.","in the kitchen, under the kitchen counter. It is 3 ft high, 4 ft wide, at knee level."
+desk,"The towel is in the bathroom, by the door. It is 1 ft wide, at eye level.
+The vanity table is in the bedroom, by the vanity chair. It is 3 ft high, 2 ft wide, at waist level.
+The armchair is in the living room, by the coffee table. It is 3 ft high, at waist level.
+The vanity chair is in the bedroom, by the flowers. It is 3 ft high, 2 ft wide, at knee level.
+The end table is in the living room, next to the couch. It is 2 ft high, 1 ft wide, at knee level.
+The towel is in the bathroom, over the bathtub. It is 1 ft wide, at eye level.
+The curtain is in the bedroom, by the sliding door. It is 8 ft high, at eye level.
+The sofa is in the living room, next to the coffee table. It is 3 ft high, 5 ft wide, at knee level.
+The sofa is in the living room, under the picture. It is 3 ft high, at knee level.
+The picture is in the living room, over the couch. It is 2 ft tall, 3 ft wide, at eye level.
+The towel is in the bathroom, on the wall. It is 1 ft wide, at eye level.
+The cabinet is in the living room, against the wall. It is floor to ceiling, 3 ft wide, at eye level.
+The cushion is in the living room, on the couch. It is 1 ft wide, at knee level.
+The kitchen sink is in the kitchen, on the kitchen counter. It is 2 ft wide, at waist height.
+The coffee table is in the living room, in front of the couch. It is 2 ft high, 3 ft wide, at knee level.
+The toilet is in the bathroom, against the wall. It is 1 ft wide, at knee level.
+The dresser is in the bedroom, next to the bed. It is 2 ft high, 3 ft wide, at knee level.
+The tv is in the living room, in the cabinet. It is 2 ft high, 3 ft wide, at waist level.
+The cushion is in the living room, on the couch. It is 1 ft wide, at knee level.
+The vanity chair is in the bedroom, by the vanity table. It is 3 ft high, 2 ft wide, at knee level.
+The curtain is in the living room, by the sliding door. It is 8 ft high, at eye level.
+The vanity table is in the bedroom, by the vanity. It is 3 ft high, 2 ft wide, at waist level.
+The door is in the bathroom. It is 8 ft high, 3 ft wide, at eye level.
+The kitchen counter is in the kitchen, against the wall. It is 3 ft high, 4 ft wide, at waist height.
+The vanity chair is in the bedroom, by the vanity. It is 3 ft high, 2 ft wide, at knee level.
+The towel is in the bathroom, by the door. It is 1 ft wide, at eye level.
+The sofa is in the living room, under the picture. It is 3 ft high, 5 ft wide, at knee level.
+The towel is in the bathroom, over the bathtub. It is 1 ft wide, at eye level.
+The bed is in the bedroom, next to the dresser. It is 2 ft high, 6 ft long, at knee level.
+The kitchen counter is in the kitchen, above the kitchen cabinets. It is 3 ft high, 4 ft wide, at waist height.
+The door is in the foyer. It is 8 ft high, 3 ft wide, at eye level.
+The picture is in the living room, on the wall. It is 2 ft tall, 3 ft wide, at eye level.
+The bed is in the bedroom, against the wall. It is 2 ft high, 6 ft long, at knee level.
+The curtain is in the bedroom, by the sliding door. It is 8 ft high, at eye level.
+The vanity mirror is in the bedroom, over the vanity table. It is 5 ft high, 4 ft wide, at eye level.
+The towel is in the bathroom, on the wall. It is 1 ft wide, at eye level.
+The towel is in the bathroom, over the bathtub. It is 1 ft wide, at eye level.
+The sofa is in the living room, against the wall. It is 3 ft high, 5 ft wide, at knee level.
+The shower is in the bathroom, against the wall. It is 8 ft high, 4 ft wide, at eye level.
+The bed is in the bedroom, next to the bedside table. It is 2 ft high, 6 ft long, at knee level.
+The picture is in the bedroom, on the wall. It is 2 ft tall, 3 ft wide, at eye level.
+The desk is","in the bedroom, by the bed. It is 3 ft high, 2 ft wide, at waist level.","in the living room, against the wall. It is 3 ft tall, 4 ft wide, at waist level."
+desk chair,"The picture is in the living room, on the wall. It is 2 ft tall, 3 ft wide, at eye level.
+The curtain is in the bedroom, by the sliding door. It is 8 ft high, at eye level.
+The bed is in the bedroom, next to the bedside table. It is 2 ft high, 6 ft long, at knee level.
+The towel is in the bathroom, by the door. It is 1 ft wide, at eye level.
+The towel is in the bathroom, on the wall. It is 1 ft wide, at eye level.
+The curtain is in the living room, by the sliding door. It is 8 ft high, at eye level.
+The kitchen counter is in the kitchen, against the wall. It is 3 ft high, 4 ft wide, at waist height.
+The bed is in the bedroom, against the wall. It is 2 ft high, 6 ft long, at knee level.
+The cushion is in the living room, on the couch. It is 1 ft wide, at knee level.
+The towel is in the bathroom, over the bathtub. It is 1 ft wide, at eye level.
+The armchair is in the living room, by the coffee table. It is 3 ft high, at waist level.
+The vanity table is in the bedroom, by the vanity. It is 3 ft high, 2 ft wide, at waist level.
+The picture is in the living room, over the couch. It is 2 ft tall, 3 ft wide, at eye level.
+The dresser is in the bedroom, next to the bed. It is 2 ft high, 3 ft wide, at knee level.
+The sofa is in the living room, under the picture. It is 3 ft high, 5 ft wide, at knee level.
+The cushion is in the living room, on the couch. It is 1 ft wide, at knee level.
+The sofa is in the living room, under the picture. It is 3 ft high, at knee level.
+The bed is in the bedroom, next to the dresser. It is 2 ft high, 6 ft long, at knee level.
+The curtain is in the bedroom, by the sliding door. It is 8 ft high, at eye level.
+The vanity chair is in the bedroom, by the vanity table. It is 3 ft high, 2 ft wide, at knee level.
+The end table is in the living room, next to the couch. It is 2 ft high, 1 ft wide, at knee level.
+The kitchen counter is in the kitchen, above the kitchen cabinets. It is 3 ft high, 4 ft wide, at waist height.
+The vanity chair is in the bedroom, by the flowers. It is 3 ft high, 2 ft wide, at knee level.
+The door is in the bathroom. It is 8 ft high, 3 ft wide, at eye level.
+The picture is in the bedroom, on the wall. It is 2 ft tall, 3 ft wide, at eye level.
+The kitchen sink is in the kitchen, on the kitchen counter. It is 2 ft wide, at waist height.
+The toilet is in the bathroom, against the wall. It is 1 ft wide, at knee level.
+The vanity table is in the bedroom, by the vanity chair. It is 3 ft high, 2 ft wide, at waist level.
+The door is in the foyer. It is 8 ft high, 3 ft wide, at eye level.
+The towel is in the bathroom, over the bathtub. It is 1 ft wide, at eye level.
+The towel is in the bathroom, by the door. It is 1 ft wide, at eye level.
+The tv is in the living room, in the cabinet. It is 2 ft high, 3 ft wide, at waist level.
+The cabinet is in the living room, against the wall. It is floor to ceiling, 3 ft wide, at eye level.
+The shower is in the bathroom, against the wall. It is 8 ft high, 4 ft wide, at eye level.
+The vanity chair is in the bedroom, by the vanity. It is 3 ft high, 2 ft wide, at knee level.
+The towel is in the bathroom, over the bathtub. It is 1 ft wide, at eye level.
+The vanity mirror is in the bedroom, over the vanity table. It is 5 ft high, 4 ft wide, at eye level.
+The sofa is in the living room, next to the coffee table. It is 3 ft high, 5 ft wide, at knee level.
+The sofa is in the living room, against the wall. It is 3 ft high, 5 ft wide, at knee level.
+The coffee table is in the living room, in front of the couch. It is 2 ft high, 3 ft wide, at knee level.
+The towel is in the bathroom, on the wall. It is 1 ft wide, at eye level.
+The desk chair is","in the bedroom, by the desk. It is 3 ft high, at waist level.","in the living room, in front of the desk. It is 3 ft tall, 2 ft wide, at waist level."
+Sliding door,"The shower is in the bathroom, against the wall. It is 8 ft high, 4 ft wide, at eye level.
+The towel is in the bathroom, on the wall. It is 1 ft wide, at eye level.
+The cushion is in the living room, on the couch. It is 1 ft wide, at knee level.
+The cabinet is in the living room, against the wall. It is floor to ceiling, 3 ft wide, at eye level.
+The vanity chair is in the bedroom, by the vanity. It is 3 ft high, 2 ft wide, at knee level.
+The kitchen counter is in the kitchen, against the wall. It is 3 ft high, 4 ft wide, at waist height.
+The tv is in the living room, in the cabinet. It is 2 ft high, 3 ft wide, at waist level.
+The vanity chair is in the bedroom, by the flowers. It is 3 ft high, 2 ft wide, at knee level.
+The picture is in the living room, over the couch. It is 2 ft tall, 3 ft wide, at eye level.
+The curtain is in the bedroom, by the sliding door. It is 8 ft high, at eye level.
+The door is in the bathroom. It is 8 ft high, 3 ft wide, at eye level.
+The picture is in the living room, on the wall. It is 2 ft tall, 3 ft wide, at eye level.
+The door is in the foyer. It is 8 ft high, 3 ft wide, at eye level.
+The kitchen sink is in the kitchen, on the kitchen counter. It is 2 ft wide, at waist height.
+The towel is in the bathroom, over the bathtub. It is 1 ft wide, at eye level.
+The sofa is in the living room, next to the coffee table. It is 3 ft high, 5 ft wide, at knee level.
+The armchair is in the living room, by the coffee table. It is 3 ft high, at waist level.
+The curtain is in the bedroom, by the sliding door. It is 8 ft high, at eye level.
+The curtain is in the living room, by the sliding door. It is 8 ft high, at eye level.
+The sofa is in the living room, under the picture. It is 3 ft high, 5 ft wide, at knee level.
+The toilet is in the bathroom, against the wall. It is 1 ft wide, at knee level.
+The cushion is in the living room, on the couch. It is 1 ft wide, at knee level.
+The coffee table is in the living room, in front of the couch. It is 2 ft high, 3 ft wide, at knee level.
+The picture is in the bedroom, on the wall. It is 2 ft tall, 3 ft wide, at eye level.
+The bed is in the bedroom, against the wall. It is 2 ft high, 6 ft long, at knee level.
+The sofa is in the living room, under the picture. It is 3 ft high, at knee level.
+The towel is in the bathroom, by the door. It is 1 ft wide, at eye level.
+The towel is in the bathroom, by the door. It is 1 ft wide, at eye level.
+The towel is in the bathroom, on the wall. It is 1 ft wide, at eye level.
+The vanity table is in the bedroom, by the vanity chair. It is 3 ft high, 2 ft wide, at waist level.
+The towel is in the bathroom, over the bathtub. It is 1 ft wide, at eye level.
+The towel is in the bathroom, over the bathtub. It is 1 ft wide, at eye level.
+The end table is in the living room, next to the couch. It is 2 ft high, 1 ft wide, at knee level.
+The vanity chair is in the bedroom, by the vanity table. It is 3 ft high, 2 ft wide, at knee level.
+The vanity table is in the bedroom, by the vanity. It is 3 ft high, 2 ft wide, at waist level.
+The bed is in the bedroom, next to the dresser. It is 2 ft high, 6 ft long, at knee level.
+The kitchen counter is in the kitchen, above the kitchen cabinets. It is 3 ft high, 4 ft wide, at waist height.
+The sofa is in the living room, against the wall. It is 3 ft high, 5 ft wide, at knee level.
+The vanity mirror is in the bedroom, over the vanity table. It is 5 ft high, 4 ft wide, at eye level.
+The dresser is in the bedroom, next to the bed. It is 2 ft high, 3 ft wide, at knee level.
+The bed is in the bedroom, next to the bedside table. It is 2 ft high, 6 ft long, at knee level.
+The sliding door is","in the bedroom, by the bed. It is 8 ft high, at eye level.","in the living room. It is 8 ft high, 6 ft wide, at eye level."

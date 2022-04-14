@@ -144,10 +144,13 @@ def preformat_attributes(
             if keep is None or name in keep:
 
                 def _get_attributes():
-                    drop = "It is "
+                    drop = "it is "
                     for a in re.split(r"[,.] ", string):
+                        a = a.lower()
                         if a.startswith(drop):
                             a = a[len(drop) :]
+                        if a.endswith("."):
+                            a = a[:-1]
                         yield a.lstrip()
 
                 yield name, list(_get_attributes())

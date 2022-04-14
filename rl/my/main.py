@@ -216,26 +216,22 @@ class Trainer(base_main.Trainer):
             num_processes = cls._num_eval_processes(num_processes, num_test_envs)
 
         df = pd.read_csv("habitat.csv")
+        df = df[df["enabled"]]
+        test_df = pd.read_csv(f"{seed}.csv")
         ids_to_objects = dict(zip(df["id"], df["name"].str.lower()))
-
-        df = pd.read_csv("gpt.csv")
         names = names.split(",") if names else df["name"].str.lower()
-        names = tuple(names)
-        rng = np.random.default_rng(seed)
-
-        train_test = cls.train_test_split(names, num_test_names, rng)
-        keep = train_test.test if test else train_test.train
-
-        ids_to_objects = {k: v for k, v in ids_to_objects.items() if v in keep}
-
         if use_attributes:
-            attribute_strs = (
-                df["completion"] if test and gpt_completions else df["ground_truth"]
-            )
+            if test and gpt_completions:
+                descriptions_df = test_df
+                descriptions = descriptions_df["completion"].str.lower()
+            else:
+                descriptions_df = pd.read_csv("descriptions.csv")
+                descriptions = descriptions_df["description"].str.lower()
+            names = descriptions_df["name"].str.lower()
 
-            attributes = preformat_attributes(zip(names, attribute_strs), keep)
+            attributes = preformat_attributes(zip(names, descriptions), set(names))
         else:
-            attributes = {name: (name,) for name in keep}
+            attributes = {name: (name,) for name in names}
 
         kwargs.update(config=habitat.get_config("objectnav_mp3d.yaml"))
         tokenizer = cls.tokenizer()
@@ -250,6 +246,13 @@ class Trainer(base_main.Trainer):
                 )
 
         clip_processor = cls.clip_processor() if clip else None
+        test_names = set(test_df["name"].str.lower())
+        ids_to_objects = {
+            k: v
+            for k, v in ids_to_objects.items()
+            if (test and v in test_names) or (not test and v not in test_names)
+        }
+
         return super().make_vec_envs(
             all_missions=all_missions,
             attributes=attributes,
