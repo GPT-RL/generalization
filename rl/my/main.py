@@ -180,11 +180,12 @@ class Trainer(base_main.Trainer):
                 _env = RenderWrapper(_env, mode="ascii")
 
             _env = ObsWrapper(_env)
-            _env = ImageNormalizerWrapper(_env)
             _env = TransposeObsWrapper(_env)
             _env = ActionWrapper(_env)
             _env = ActionSpaceWrapper(_env)
-            if clip_processor is not None:
+            if clip_processor is None:
+                _env = ImageNormalizerWrapper(_env)
+            else:
                 _env = CLIPProcessorWrapper(_env, clip_processor)
             _env = wrap_mission_preprocessor(_env)
             _env = RolloutsWrapper(_env)
