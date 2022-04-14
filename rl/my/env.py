@@ -228,6 +228,8 @@ class Env(habitat.Env, gym.Env):
             "floor",
             "ceiling",
             "wall",
+            "deck chair",
+            "bedside table",
             4,  # door
             63,  # towel
             76,  # sink
